@@ -5,7 +5,7 @@ import org.robovm.apple.uikit.UIApplication;
 
 import com.badlogic.gdx.backends.iosrobovm.IOSApplication;
 import com.badlogic.gdx.backends.iosrobovm.IOSApplicationConfiguration;
-import com.mygdx.game.MyGdxGame;
+import com.gdx.game.MyGdxGame;
 
 public class IOSLauncher extends IOSApplication.Delegate {
     @Override
