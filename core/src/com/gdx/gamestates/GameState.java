@@ -8,6 +8,7 @@ public abstract class GameState {
 
     protected GameState(GameStateManager gameStateManager){
         this.gameStateManager = gameStateManager;
+        init();
     }
 
     /**
