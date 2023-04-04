@@ -4,7 +4,15 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.game.MyGdxGame;
 
+import java.util.ArrayList;
+
 public class Player extends SpaceObject{
+
+    private final int MAX_BULLETS = 4;
+    private ArrayList<Bullet> bullets;
+
+    private final float[] flameX;
+    private final float[] flameY;
 
     protected boolean left;
     protected boolean right;
@@ -14,7 +22,12 @@ public class Player extends SpaceObject{
     private final float acceleration; //скорость разгона игрока
     private final float deceleration; //скорость замедления игрока
 
-    public Player(){
+    private float acceleratingTimer;
+
+    public Player(ArrayList<Bullet> bullets){
+
+        this.bullets = bullets;
+
         x = MyGdxGame.WIDTH / 2;
         y = MyGdxGame.WIDTH / 2;
 
@@ -24,6 +37,8 @@ public class Player extends SpaceObject{
 
         shapeX = new float[4];
         shapeY = new float[4];
+        flameX = new float[3];
+        flameY = new float[3];
 
         radians = MathUtils.HALF_PI;
         rotationSpeed = 3;
@@ -43,6 +58,17 @@ public class Player extends SpaceObject{
         shapeY[3] = y + MathUtils.sin(radians + 4 * MathUtils.PI / 5) * 8;
     }
 
+    private void setFlame(){
+        flameX[0] = x + MathUtils.cos(radians - 5 * MathUtils.PI / 6) * 5;
+        flameY[0] = y + MathUtils.sin(radians - 5 * MathUtils.PI / 6) * 5;
+
+        flameX[1] = x + MathUtils.cos(radians - MathUtils.PI) * (6 + acceleratingTimer * 50);
+        flameY[1] = y + MathUtils.sin(radians - MathUtils.PI) * (6 + acceleratingTimer * 50);
+
+        flameX[2] = x + MathUtils.cos(radians + 5 * MathUtils.PI / 6) * 5;
+        flameY[2] = y + MathUtils.sin(radians + 5 * MathUtils.PI / 6) * 5;
+    }
+
     public void setLeft(boolean b){
         left = b;
     }
@@ -53,6 +79,11 @@ public class Player extends SpaceObject{
 
     public void setUp(boolean b){
         up = b;
+    }
+
+    public void shoot(){
+        if(bullets.size() == MAX_BULLETS) return;
+        bullets.add(new Bullet(x, y, radians));
     }
 
     public void update(float dt){
@@ -68,6 +99,12 @@ public class Player extends SpaceObject{
         if(up){
             dx += MathUtils.cos(radians) * acceleration * dt;
             dy += MathUtils.sin(radians) * acceleration * dt;
+            acceleratingTimer += dt;
+            if(acceleratingTimer > 0.1f){
+                acceleratingTimer = 0;
+            }
+        } else {
+            acceleratingTimer = 0;
         }
 
         //deaceleration
@@ -88,6 +125,11 @@ public class Player extends SpaceObject{
         //set shape
         setShape();
 
+        //set flame
+        if(up){
+            setFlame();
+        }
+
         //screen warp
         wrap();
     }
@@ -98,8 +140,16 @@ public class Player extends SpaceObject{
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
 
+        //draw ship
         for(int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++){
             shapeRenderer.line(shapeX[i], shapeY[i], shapeX[j], shapeY[j]);
+        }
+
+        //draw flames
+        if(up){
+            for(int i = 0, j = flameX.length - 1; i < flameX.length; j = i++){
+                shapeRenderer.line(flameX[i], flameY[i], flameX[j], flameY[j]);
+            }
         }
 
         shapeRenderer.end();

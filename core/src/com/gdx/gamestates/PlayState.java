@@ -1,15 +1,19 @@
 package com.gdx.gamestates;
 
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.gdx.entities.Bullet;
 import com.gdx.entities.Player;
 import com.gdx.managers.GameKeys;
 import com.gdx.managers.GameStateManager;
+
+import java.util.ArrayList;
 
 public class PlayState extends GameState {
 
     private ShapeRenderer shapeRenderer;
 
     private Player player;
+    private ArrayList<Bullet> bullets;
 
     public PlayState(GameStateManager gameStateManager){
         super(gameStateManager);
@@ -18,7 +22,8 @@ public class PlayState extends GameState {
     @Override
     public void init() {
         shapeRenderer = new ShapeRenderer();
-        player = new Player();
+        bullets = new ArrayList<Bullet>();
+        player = new Player(bullets);
     }
 
     @Override
