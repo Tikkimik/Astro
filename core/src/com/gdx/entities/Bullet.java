@@ -22,7 +22,7 @@ public class Bullet extends SpaceObject{
         height = 2;
 
         lifeTimer = 0;
-        lifeTimer = 1;
+        lifeTime = 1;
     }
 
     public boolean shouldRemove(){
@@ -42,6 +42,9 @@ public class Bullet extends SpaceObject{
     }
 
     public void draw(ShapeRenderer shapeRenderer){
-
+        shapeRenderer.setColor(1,1,1,1);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.circle(x- width / 2, y - height /2, width/2);
+        shapeRenderer.end();
     }
 }

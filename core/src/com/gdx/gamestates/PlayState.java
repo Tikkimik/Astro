@@ -29,14 +29,34 @@ public class PlayState extends GameState {
     @Override
     public void update(float dt) {
 //        System.out.println("PLAY STATE UPDATING");
+
+        //get user input
         handleInput();
+
+        //update player
         player.update(dt);
+
+        //update player bullets
+        for (int i = 0; i < bullets.size(); i++){
+            bullets.get(i).update(dt);
+            if(bullets.get(i).shouldRemove()){
+                bullets.remove(i);
+                i--;
+            }
+        }
     }
 
     @Override
     public void draw() {
 //        System.out.println("PLAY STATE DRAWING");
+
+        //draw player
         player.draw(shapeRenderer);
+
+        //draw bullets
+        for (Bullet bullet : bullets) {
+            bullet.draw(shapeRenderer);
+        }
     }
 
     @Override
@@ -44,6 +64,9 @@ public class PlayState extends GameState {
         player.setLeft(GameKeys.isDown(GameKeys.LEFT));
         player.setRight(GameKeys.isDown(GameKeys.RIGHT));
         player.setUp(GameKeys.isDown(GameKeys.UP));
+        if(GameKeys.isPressed(GameKeys.SPACE)){
+            player.shoot();
+        }
     }
 
     @Override
