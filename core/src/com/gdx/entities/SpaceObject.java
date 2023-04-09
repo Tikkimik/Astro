@@ -40,6 +40,50 @@ public class SpaceObject {
     protected float[] shapeX;
     protected float[] shapeY;
 
+    public float getX() {
+        return x;
+    }
+
+    public float getY() {
+        return y;
+    }
+
+    public float getDx() {
+        return dx;
+    }
+
+    public float getDy() {
+        return dy;
+    }
+
+    public float getRadians() {
+        return radians;
+    }
+
+    public float getSpeed() {
+        return speed;
+    }
+
+    public float getRotationSpeed() {
+        return rotationSpeed;
+    }
+
+    public int getWidth() {
+        return width;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public float[] getShapeX() {
+        return shapeX;
+    }
+
+    public float[] getShapeY() {
+        return shapeY;
+    }
+
     protected void wrap() {
         if(x < 0){
             x = MyGdxGame.WIDTH;
