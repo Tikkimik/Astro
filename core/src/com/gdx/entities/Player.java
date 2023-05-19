@@ -86,7 +86,11 @@ public class Player extends SpaceObject{
         bullets.add(new Bullet(x, y, radians));
     }
 
-    public void update(float dt){
+    public void hit() {
+
+    }
+
+    public void update(float dt) {
 
         //turning
         if(left){

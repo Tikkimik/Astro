@@ -68,6 +68,19 @@ public class PlayState extends GameState {
             asteroids.add(new Asteroid(x, y, Asteroid.LARGE));
         }
     }
+
+    private void splitAsteroids(Asteroid asteroid) {
+        numAsteroidsLeft--;
+        if(asteroid.getType() == Asteroid.LARGE) {
+            asteroids.add(new Asteroid(asteroid.getX(), asteroid.getY(), Asteroid.MEDIUM));
+            asteroids.add(new Asteroid(asteroid.getX(), asteroid.getY(), Asteroid.MEDIUM));
+        }
+        if(asteroid.getType() == Asteroid.MEDIUM) {
+            asteroids.add(new Asteroid(asteroid.getX(), asteroid.getY(), Asteroid.SMALL));
+            asteroids.add(new Asteroid(asteroid.getX(), asteroid.getY(), Asteroid.SMALL));
+        }
+    }
+
     @Override
     public void update(float dt) {
 //        System.out.println("PLAY STATE UPDATING");
@@ -93,6 +106,41 @@ public class PlayState extends GameState {
             if(asteroids.get(i).shouldRemove()){
                 asteroids.remove(i);
                 i--;
+            }
+        }
+
+        //check collisions
+        checkCollisions();
+    }
+
+    private void checkCollisions() {
+
+        //player-asteroids
+        for(int i = 0; i < asteroids.size(); i++) {
+            Asteroid asteroid = asteroids.get(i);
+
+            if(asteroid.intersects(player)) {
+                player.hit();
+                asteroids.remove(i);
+                i--;
+                splitAsteroids(asteroid);
+                break;
+            }
+        }
+
+        //bullet-asteroid collision
+        for(int i = 0; i < bullets.size(); i++) {
+            Bullet b = bullets.get(i);
+            for(int j = 0; j < asteroids.size(); j++) {
+                Asteroid a = asteroids.get(j);
+                if(a.contains(b.getX(), b.getY())) {
+                    bullets.remove(i);
+                    i--;
+                    asteroids.remove(j);
+                    j--;
+                    splitAsteroids(a);
+                    break;
+                }
             }
         }
     }
