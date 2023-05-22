@@ -84,6 +84,30 @@ public class SpaceObject {
         return shapeY;
     }
 
+    public boolean intersects(SpaceObject other) {
+        float[] sx = other.getShapeX();
+        float[] sy = other.getShapeY();
+
+        for(int i = 0; i < sx.length; i++) {
+            if(contains(sx[i], sy[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean contains(float x, float y) { //математика для коллизий
+        boolean b = false;
+
+        for(int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++) {
+            if((shapeY[i] > y) != (shapeY[j] > y) &&
+                    (x < (shapeX[j] - shapeX[i]) * (y - shapeY[i]) / (shapeY[j]) + shapeX[i])) {
+                b = !b;
+            }
+        }
+        return b;
+    }
+
     protected void wrap() {
         if(x < 0){
             x = MyGdxGame.WIDTH;
