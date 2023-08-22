@@ -12,7 +12,6 @@ import com.gdx.managers.GameStateManager;
 
 public class MyGdxGame extends ApplicationAdapter {
 	SpriteBatch batch;
-	Texture img;
 
 	public static int WIDTH ;
 	public static int HEIGHT;
@@ -30,7 +29,7 @@ public class MyGdxGame extends ApplicationAdapter {
 		HEIGHT = Gdx.graphics.getHeight();
 
 		camera = new OrthographicCamera(WIDTH, HEIGHT);
-		camera.translate(WIDTH / 2, HEIGHT / 2);
+		camera.translate(WIDTH, HEIGHT);
 		camera.update();
 
 		Gdx.input.setInputProcessor(new GameInputProcessor());
@@ -38,7 +37,6 @@ public class MyGdxGame extends ApplicationAdapter {
 		gameStateManager = new GameStateManager();
 
 		batch = new SpriteBatch();
-		img = new Texture("badlogic.jpg");
 	}
 
 	/**
@@ -55,7 +53,6 @@ public class MyGdxGame extends ApplicationAdapter {
 		GameKeys.update();
 
 		batch.begin();
-		batch.draw(img, 0, 0);
 		batch.end();
 	}
 
@@ -80,6 +77,5 @@ public class MyGdxGame extends ApplicationAdapter {
 	@Override
 	public void dispose () {
 		batch.dispose();
-		img.dispose();
 	}
 }

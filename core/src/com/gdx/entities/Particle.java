@@ -6,21 +6,21 @@ import com.badlogic.gdx.math.MathUtils;
 public class Particle extends SpaceObject {
 
     private float timer;
-    private float time;
+    private final float time;
     private boolean remove;
 
-    public  Particle(float x, float y) {
+    public Particle(float x, float y, int time) {
         this.x = x;
         this.y = y;
         width = height = 2;
 
-        speed = 50;
+        speed = MathUtils.random(25, 60);
         radians = MathUtils.random(2 * MathUtils.PI);
         dx = MathUtils.cos(radians) * speed;
         dy = MathUtils.sin(radians) * speed;
 
         timer = 0;
-        time = 1;
+        this.time = time;
     }
 
     public boolean shouldRemove() {
