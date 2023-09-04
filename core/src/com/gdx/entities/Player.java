@@ -1,5 +1,10 @@
 package com.gdx.entities;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
@@ -36,6 +41,9 @@ public class Player extends SpaceObject {
     private Line2D.Float[] hitLines;
     private Point2D.Float[] hitLinesVector;
 
+    private final Sprite playerSprite;
+    private final SpriteBatch batch;
+
     public Player(ArrayList<Bullet> bullets) {
 
         this.bullets = bullets;
@@ -58,9 +66,17 @@ public class Player extends SpaceObject {
         hit = false;
         hitTimer = 0;
         hitTime = 2;
+
+
+        Texture playerTexture = new Texture(Gdx.files.internal("C:\\Users\\Rita\\IdeaProjects\\Astro\\assets\\Sheep\\DD01.png"));
+        playerSprite = new Sprite(playerTexture);
+        batch = new SpriteBatch();
     }
 
     private void setShape() {
+        playerSprite.setRotation((float) Math.toDegrees(radians) -90);
+        playerSprite.setPosition(x - 30, y - 30);
+
         shapeX[0] = x + MathUtils.cos(radians) * 8;
         shapeY[0] = y + MathUtils.sin(radians) * 8;
 
@@ -215,6 +231,8 @@ public class Player extends SpaceObject {
         x += dx * dt;
         y += dy * dt;
 
+        playerSprite.setPosition(x, y);
+
         //set shape
         setShape();
 
@@ -228,6 +246,10 @@ public class Player extends SpaceObject {
     }
 
     public void draw(ShapeRenderer shapeRenderer) {
+
+        batch.begin();
+        playerSprite.draw(batch);
+        batch.end();
 
         shapeRenderer.setColor(1, 1, 1, 1);
 
@@ -248,9 +270,9 @@ public class Player extends SpaceObject {
         }
 
         //draw ship
-        for (int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++) {
-            shapeRenderer.line(shapeX[i], shapeY[i], shapeX[j], shapeY[j]);
-        }
+//        for (int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++) {
+//            shapeRenderer.line(shapeX[i], shapeY[i], shapeX[j], shapeY[j]);
+//        }
 
         //draw flames
         if (up) {

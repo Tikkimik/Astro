@@ -2,7 +2,6 @@ package com.gdx.gamestates;
 
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.math.Vector2;
 import com.gdx.entities.*;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.GameKeys;
@@ -13,14 +12,11 @@ import java.util.ArrayList;
 public class PlayState extends GameState {
 
     private ShapeRenderer shapeRenderer;
-
     private Player player;
     private ArrayList<Bullet> bullets;
     private ArrayList<Asteroid> asteroids;
-
     private ArrayList<Particle> particles;
     private ArrayList<Target> targets;
-
     private int level;
     private int totalAsteroids;
     private int numAsteroidsLeft;
@@ -164,22 +160,15 @@ public class PlayState extends GameState {
             Asteroid a = asteroids.get(0);
             double minimalDistancePlayerTarget = Math.sqrt(Math.pow((player.getX() - a.getX()), 2) + Math.pow((player.getY() - a.getY()), 2));
 
-            System.out.println("minimalDistancePlayerTarget A =" + minimalDistancePlayerTarget);
-
             for (Asteroid b : asteroids) {
                 double distancePlayerAndTarget = Math.sqrt(Math.pow((player.getX() - b.getX()), 2) + Math.pow((player.getY() - b.getY()), 2));
                 if (minimalDistancePlayerTarget > distancePlayerAndTarget) {
                     minimalDistancePlayerTarget = distancePlayerAndTarget;
                     a = b;
-                    System.out.println("minimalDistancePlayerTarget A =" + minimalDistancePlayerTarget);
                 }
             }
 
-//        float angle = (MathUtils.atan2(player.getY(), player.getX()) - MathUtils.atan2(a.getY(), a.getX()));
-            float angle = MathUtils.atan2(a.getY() - player.getY(), a.getX() - player.getX());
-
-            player.shoot(angle);
-
+            player.shoot(MathUtils.atan2(a.getY() - player.getY(), a.getX() - player.getX()));
             targets.add(new Target(a));
         }
     }
@@ -231,16 +220,7 @@ public class PlayState extends GameState {
             }
         }
 
-        //update targets
-//        targets.clear();
 
-//        for (int i = 0; i < targets.size(); i++) {
-//            targets.get(i).update(dt);
-//            if (targets.get(i).shouldRemove()) {
-//                targets.remove(i);
-//                i--;
-//            }
-//        }
 
         //check collisions
         checkCollisions();
@@ -250,7 +230,6 @@ public class PlayState extends GameState {
 
     @Override
     public void draw() {
-//        System.out.println("PLAY STATE DRAWING");
 
         //draw player
         player.draw(shapeRenderer);

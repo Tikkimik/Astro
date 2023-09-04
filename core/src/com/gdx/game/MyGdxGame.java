@@ -3,7 +3,6 @@ package com.gdx.game;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.gdx.managers.GameInputProcessor;
@@ -11,14 +10,11 @@ import com.gdx.managers.GameKeys;
 import com.gdx.managers.GameStateManager;
 
 public class MyGdxGame extends ApplicationAdapter {
-	SpriteBatch batch;
-
+	public SpriteBatch batch;
+	public GameStateManager gameStateManager;
 	public static int WIDTH ;
 	public static int HEIGHT;
-
 	public static OrthographicCamera camera;
-
-	public GameStateManager gameStateManager;
 
 	/**
 	 * метод инициализации
@@ -29,8 +25,9 @@ public class MyGdxGame extends ApplicationAdapter {
 		HEIGHT = Gdx.graphics.getHeight();
 
 		camera = new OrthographicCamera(WIDTH, HEIGHT);
-		camera.translate(WIDTH, HEIGHT);
-		camera.update();
+		camera.setToOrtho(true);
+//		camera.translate(WIDTH, HEIGHT);
+//		camera.update();
 
 		Gdx.input.setInputProcessor(new GameInputProcessor());
 

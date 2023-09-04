@@ -3,7 +3,7 @@ package com.gdx.entities;
 import com.badlogic.gdx.math.Vector2;
 import com.gdx.game.MyGdxGame;
 
-public class SpaceObject extends Vector2 {
+public class SpaceObject {
 
     protected float x;
     protected float y;

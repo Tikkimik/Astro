@@ -5,8 +5,7 @@ import com.badlogic.gdx.math.MathUtils;
 
 public class Target extends SpaceObject {
     private int numPoints;
-    private float[] dists; //растояние от центра до грани астероида
-
+//    private float[] dists; //растояние от центра до грани
 
     private boolean remove;
 
@@ -18,7 +17,7 @@ public class Target extends SpaceObject {
 
         shapeX = new float[numPoints];
         shapeY = new float[numPoints];
-        dists = new float[numPoints];
+//        dists = new float[numPoints];
 
 //        int radius = width / 2;
 //        for(int i = 0; i < numPoints; i++){
