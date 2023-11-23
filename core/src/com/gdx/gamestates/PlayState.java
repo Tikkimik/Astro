@@ -152,7 +152,7 @@ public class PlayState extends GameState {
 //            }
 //        }
     }
-
+    /*
     public void autoaim() {
         targets.clear();
 
@@ -171,6 +171,62 @@ public class PlayState extends GameState {
             player.shoot(MathUtils.atan2(a.getY() - player.getY(), a.getX() - player.getX()));
             targets.add(new Target(a));
         }
+    }
+
+     */
+    public void autoaim() {
+        targets.clear();
+
+        if (asteroids.size() > 0) {
+            Asteroid closestAsteroid = findClosestAsteroid();
+
+            if (closestAsteroid != null) {
+                float angleToAsteroid = calculateAngleToAsteroid(closestAsteroid);
+
+                player.shoot(angleToAsteroid);
+                targets.add(new Target(closestAsteroid));
+            }
+        }
+    }
+
+    private Asteroid findClosestAsteroid() {
+        Asteroid closestAsteroid = null;
+        double minimalDistancePlayerTarget = Double.MAX_VALUE;
+
+        for (Asteroid asteroid : asteroids) {
+            double distancePlayerAndTarget = Math.sqrt(Math.pow((player.getX() - asteroid.getX()), 2) + Math.pow((player.getY() - asteroid.getY()), 2));
+
+            if (minimalDistancePlayerTarget > distancePlayerAndTarget) {
+                minimalDistancePlayerTarget = distancePlayerAndTarget;
+                closestAsteroid = asteroid;
+            }
+        }
+
+        return closestAsteroid;
+    }
+
+//    private float calculateAngleToAsteroid(Asteroid asteroid) {
+//        // Учет скорости и движения астероида для предсказания будущего положения
+//        // Здесь предполагается, что asteroid.getSpeedX() и asteroid.getSpeedY() возвращают скорость астероида по осям X и Y соответственно
+//        // И player.getProjectileSpeed() возвращает скорость снаряда игрока
+//
+//        double minimalDistancePlayerTarget = Math.sqrt(Math.pow((player.getX() - asteroid.getX()), 2) + Math.pow((player.getY() - asteroid.getY()), 2));
+//
+//        double timeToImpact = minimalDistancePlayerTarget / 1000;
+//        float futureX = (float)(asteroid.getX() + asteroid.getSpeed() * timeToImpact);
+//        float futureY = (float)(asteroid.getY() + asteroid.getSpeed() * timeToImpact);
+//
+//        return MathUtils.atan2(futureY - player.getY(), futureX - player.getX());
+//    }
+
+    private float calculateAngleToAsteroid(Asteroid asteroid) {
+        // Рассчитываем будущее положение мишени с использованием текущих координат, направления движения и скорости
+        double minimalDistancePlayerTarget = Math.sqrt(Math.pow((player.getX() - asteroid.getX()), 2) + Math.pow((player.getY() - asteroid.getY()), 2));
+        double timeToImpact = minimalDistancePlayerTarget / 350;
+        float futureX = (float)(asteroid.getX() + asteroid.getDx() * timeToImpact);
+        float futureY = (float)(asteroid.getY() + asteroid.getDy() * timeToImpact);
+
+        return MathUtils.atan2(futureY - player.getY(), futureX - player.getX());
     }
 
 
@@ -219,8 +275,6 @@ public class PlayState extends GameState {
                 i--;
             }
         }
-
-
 
         //check collisions
         checkCollisions();

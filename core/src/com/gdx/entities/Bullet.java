@@ -14,15 +14,15 @@ public class Bullet extends SpaceObject {
         this.y = y;
         this.radians = radians;
 
-        float speed = 1000;
+        float speed = 350;
         dx = MathUtils.cos(radians) * speed;
         dy = MathUtils.sin(radians) * speed;
 
-        width = 2;
-        height = 2;
+        width = 5;
+        height = 5;
 
         lifeTimer = 0;
-        lifeTime = 1;
+        lifeTime = 3;
     }
 
     public boolean shouldRemove() {
