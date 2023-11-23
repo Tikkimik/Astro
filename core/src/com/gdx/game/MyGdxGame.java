@@ -3,7 +3,7 @@ package com.gdx.game;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.gdx.managers.GameInputProcessor;
@@ -11,15 +11,11 @@ import com.gdx.managers.GameKeys;
 import com.gdx.managers.GameStateManager;
 
 public class MyGdxGame extends ApplicationAdapter {
-	SpriteBatch batch;
-	Texture img;
-
+	public SpriteBatch batch;
+	public GameStateManager gameStateManager;
+	public static OrthographicCamera camera;
 	public static int WIDTH ;
 	public static int HEIGHT;
-
-	public static OrthographicCamera camera;
-
-	public GameStateManager gameStateManager;
 
 	/**
 	 * метод инициализации
@@ -30,15 +26,16 @@ public class MyGdxGame extends ApplicationAdapter {
 		HEIGHT = Gdx.graphics.getHeight();
 
 		camera = new OrthographicCamera(WIDTH, HEIGHT);
-		camera.translate(WIDTH / 2, HEIGHT / 2);
 		camera.update();
+//		camera.setToOrtho(true);
+//		camera.translate(WIDTH, HEIGHT);
+//		camera.update();
 
 		Gdx.input.setInputProcessor(new GameInputProcessor());
 
 		gameStateManager = new GameStateManager();
 
 		batch = new SpriteBatch();
-		img = new Texture("badlogic.jpg");
 	}
 
 	/**
@@ -52,10 +49,12 @@ public class MyGdxGame extends ApplicationAdapter {
 		gameStateManager.update(Gdx.graphics.getDeltaTime());
 		gameStateManager.draw();
 
+		camera.lookAt(12, 12, 12);
+		camera.update();
+
 		GameKeys.update();
 
 		batch.begin();
-		batch.draw(img, 0, 0);
 		batch.end();
 	}
 
@@ -80,6 +79,5 @@ public class MyGdxGame extends ApplicationAdapter {
 	@Override
 	public void dispose () {
 		batch.dispose();
-		img.dispose();
 	}
 }

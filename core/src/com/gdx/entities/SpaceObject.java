@@ -1,5 +1,6 @@
 package com.gdx.entities;
 
+import com.badlogic.gdx.math.Vector2;
 import com.gdx.game.MyGdxGame;
 
 public class SpaceObject {
@@ -88,8 +89,8 @@ public class SpaceObject {
         float[] sx = other.getShapeX();
         float[] sy = other.getShapeY();
 
-        for(int i = 0; i < sx.length; i++) {
-            if(contains(sx[i], sy[i])) {
+        for (int i = 0; i < sx.length; i++) {
+            if (contains(sx[i], sy[i])) {
                 return true;
             }
         }
@@ -99,26 +100,30 @@ public class SpaceObject {
     public boolean contains(float x, float y) { //математика для коллизий
         boolean b = false;
 
-        for(int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++) {
-            if((shapeY[i] > y) != (shapeY[j] > y) &&
+        for (int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++) {
+            if ((shapeY[i] > y) != (shapeY[j] > y) &&
                     (x < (shapeX[j] - shapeX[i]) * (y - shapeY[i]) / (shapeY[j]) + shapeX[i])) {
                 b = !b;
             }
         }
+
         return b;
     }
 
     protected void wrap() {
-        if(x < 0){
+        if (x < 0) {
             x = MyGdxGame.WIDTH;
         }
-        if(x > MyGdxGame.WIDTH){
+
+        if (x > MyGdxGame.WIDTH) {
             x = 0;
         }
-        if(y < 0){
+
+        if (y < 0) {
             y = MyGdxGame.HEIGHT;
         }
-        if(y > MyGdxGame.HEIGHT){
+
+        if (y > MyGdxGame.HEIGHT) {
             y = 0;
         }
     }

@@ -2,10 +2,7 @@ package com.gdx.gamestates;
 
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
-import com.gdx.entities.Asteroid;
-import com.gdx.entities.Bullet;
-import com.gdx.entities.Particle;
-import com.gdx.entities.Player;
+import com.gdx.entities.*;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.GameKeys;
 import com.gdx.managers.GameStateManager;
@@ -15,13 +12,11 @@ import java.util.ArrayList;
 public class PlayState extends GameState {
 
     private ShapeRenderer shapeRenderer;
-
     private Player player;
     private ArrayList<Bullet> bullets;
     private ArrayList<Asteroid> asteroids;
-
     private ArrayList<Particle> particles;
-
+    private ArrayList<Target> targets;
     private int level;
     private int totalAsteroids;
     private int numAsteroidsLeft;
@@ -33,10 +28,11 @@ public class PlayState extends GameState {
     @Override
     public void init() {
         shapeRenderer = new ShapeRenderer();
-        bullets = new ArrayList<Bullet>();
+        bullets = new ArrayList<>();
         player = new Player(bullets);
         asteroids = new ArrayList<>();
-        particles = new ArrayList<Particle>();
+        particles = new ArrayList<>();
+        targets = new ArrayList<>();
 
         level = 1;
 
@@ -44,15 +40,17 @@ public class PlayState extends GameState {
     }
 
     private void createParticles(float x, float y) {
-        for(int i = 0; i < 6; i++) {
-            particles.add(new Particle(x, y));
+        int particlesCount = MathUtils.random(5, 10);
+
+        for (int i = 0; i < particlesCount; i++) {
+            particles.add(new Particle(x, y, MathUtils.random(1, 10)));
         }
     }
 
     private void spawnAsteroids() {
         asteroids.clear();
 
-        int numToSpawn = 4 + level - 1;
+        int numToSpawn = 10 + level - 1;
 
         totalAsteroids = numToSpawn * 7;
         numAsteroidsLeft = totalAsteroids;
@@ -76,6 +74,11 @@ public class PlayState extends GameState {
         }
     }
 
+    /**
+     * Раскалывание астероидов
+     *
+     * @param asteroid
+     */
     private void splitAsteroids(Asteroid asteroid) {
         createParticles(asteroid.getX(), asteroid.getY());
 
@@ -92,10 +95,13 @@ public class PlayState extends GameState {
         }
     }
 
+    /**
+     * Коллизии
+     */
     private void checkCollisions() {
 
         //player-asteroids
-        if(!player.isHit()) {
+        if (!player.isHit()) {
             for (int i = 0; i < asteroids.size(); i++) {
                 Asteroid asteroid = asteroids.get(i);
 
@@ -124,17 +130,114 @@ public class PlayState extends GameState {
                 }
             }
         }
+
+//        //asteroids collisions
+//        for (int i = 0; i < asteroids.size(); i++) {
+//            Asteroid b = asteroids.get(i);
+//
+//            for (int j = 0; j < asteroids.size(); j++) {
+//                Asteroid a = asteroids.get(j);
+//
+//                if (a != b) {
+//                    if (a.contains(b.getX(), b.getY())) {
+//                        i--;
+//                        asteroids.remove(j);
+////                        asteroids.remove(i);
+////                        j--;
+//                        splitAsteroids(a);
+////                        splitAsteroids(b);
+//                        break;
+//                    }
+//                }
+//            }
+//        }
     }
+    /*
+    public void autoaim() {
+        targets.clear();
+
+        if (asteroids.size() > 0) {
+            Asteroid a = asteroids.get(0);
+            double minimalDistancePlayerTarget = Math.sqrt(Math.pow((player.getX() - a.getX()), 2) + Math.pow((player.getY() - a.getY()), 2));
+
+            for (Asteroid b : asteroids) {
+                double distancePlayerAndTarget = Math.sqrt(Math.pow((player.getX() - b.getX()), 2) + Math.pow((player.getY() - b.getY()), 2));
+                if (minimalDistancePlayerTarget > distancePlayerAndTarget) {
+                    minimalDistancePlayerTarget = distancePlayerAndTarget;
+                    a = b;
+                }
+            }
+
+            player.shoot(MathUtils.atan2(a.getY() - player.getY(), a.getX() - player.getX()));
+            targets.add(new Target(a));
+        }
+    }
+
+     */
+    public void autoaim() {
+        targets.clear();
+
+        if (asteroids.size() > 0) {
+            Asteroid closestAsteroid = findClosestAsteroid();
+
+            if (closestAsteroid != null) {
+                float angleToAsteroid = calculateAngleToAsteroid(closestAsteroid);
+
+                player.shoot(angleToAsteroid);
+                targets.add(new Target(closestAsteroid));
+            }
+        }
+    }
+
+    private Asteroid findClosestAsteroid() {
+        Asteroid closestAsteroid = null;
+        double minimalDistancePlayerTarget = Double.MAX_VALUE;
+
+        for (Asteroid asteroid : asteroids) {
+            double distancePlayerAndTarget = Math.sqrt(Math.pow((player.getX() - asteroid.getX()), 2) + Math.pow((player.getY() - asteroid.getY()), 2));
+
+            if (minimalDistancePlayerTarget > distancePlayerAndTarget) {
+                minimalDistancePlayerTarget = distancePlayerAndTarget;
+                closestAsteroid = asteroid;
+            }
+        }
+
+        return closestAsteroid;
+    }
+
+//    private float calculateAngleToAsteroid(Asteroid asteroid) {
+//        // Учет скорости и движения астероида для предсказания будущего положения
+//        // Здесь предполагается, что asteroid.getSpeedX() и asteroid.getSpeedY() возвращают скорость астероида по осям X и Y соответственно
+//        // И player.getProjectileSpeed() возвращает скорость снаряда игрока
+//
+//        double minimalDistancePlayerTarget = Math.sqrt(Math.pow((player.getX() - asteroid.getX()), 2) + Math.pow((player.getY() - asteroid.getY()), 2));
+//
+//        double timeToImpact = minimalDistancePlayerTarget / 1000;
+//        float futureX = (float)(asteroid.getX() + asteroid.getSpeed() * timeToImpact);
+//        float futureY = (float)(asteroid.getY() + asteroid.getSpeed() * timeToImpact);
+//
+//        return MathUtils.atan2(futureY - player.getY(), futureX - player.getX());
+//    }
+
+    private float calculateAngleToAsteroid(Asteroid asteroid) {
+        // Рассчитываем будущее положение мишени с использованием текущих координат, направления движения и скорости
+        double minimalDistancePlayerTarget = Math.sqrt(Math.pow((player.getX() - asteroid.getX()), 2) + Math.pow((player.getY() - asteroid.getY()), 2));
+        double timeToImpact = minimalDistancePlayerTarget / 350;
+        float futureX = (float)(asteroid.getX() + asteroid.getDx() * timeToImpact);
+        float futureY = (float)(asteroid.getY() + asteroid.getDy() * timeToImpact);
+
+        return MathUtils.atan2(futureY - player.getY(), futureX - player.getX());
+    }
+
 
     @Override
     public void update(float dt) {
-//        System.out.println("PLAY STATE UPDATING");
 
         //get user input
         handleInput();
 
         //next level
-        if(asteroids.size() == 0) {
+        if (asteroids.size() == 0) {
             level++;
             spawnAsteroids();
         }
@@ -165,9 +268,9 @@ public class PlayState extends GameState {
         }
 
         //update particles
-        for(int i = 0; i < particles.size(); i++) {
+        for (int i = 0; i < particles.size(); i++) {
             particles.get(i).update(dt);
-            if(particles.get(i).shouldRemove()) {
+            if (particles.get(i).shouldRemove()) {
                 particles.remove(i);
                 i--;
             }
@@ -175,11 +278,12 @@ public class PlayState extends GameState {
 
         //check collisions
         checkCollisions();
+
+        autoaim();
     }
 
     @Override
     public void draw() {
-//        System.out.println("PLAY STATE DRAWING");
 
         //draw player
         player.draw(shapeRenderer);
@@ -190,13 +294,18 @@ public class PlayState extends GameState {
         }
 
         //draw asteroids
-        for (int i = 0; i < asteroids.size(); i++) {
-            asteroids.get(i).draw(shapeRenderer);
+        for (Asteroid asteroid : asteroids) {
+            asteroid.draw(shapeRenderer);
         }
 
         //draw particles
-        for(int i = 0; i < particles.size(); i++) {
-            particles.get(i).draw(shapeRenderer);
+        for (Particle particle : particles) {
+            particle.draw(shapeRenderer);
+        }
+
+        //draw target
+        for (Target target : targets) {
+            target.draw(shapeRenderer);
         }
     }
 

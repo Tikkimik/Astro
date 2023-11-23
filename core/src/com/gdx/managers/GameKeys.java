@@ -2,8 +2,8 @@ package com.gdx.managers;
 
 public class GameKeys {
 
-    private static boolean[] keys;
-    private static boolean[] pkeys;
+    private static final boolean[] keys;
+    private static final boolean[] pkeys;
 
     private static final int NUM_KEYS = 8;
 
@@ -24,9 +24,7 @@ public class GameKeys {
     }
 
     public static void update() {
-        for(int i = 0; i < NUM_KEYS; i++) {
-            pkeys[i] = keys[i];
-        }
+        System.arraycopy(keys, 0, pkeys, 0, NUM_KEYS);
     }
 
     public static void setKey(int k, boolean b) {

@@ -1,16 +1,22 @@
 package com.gdx.entities;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Vector2;
 import com.gdx.game.MyGdxGame;
 
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 
-public class Player extends SpaceObject{
+public class Player extends SpaceObject {
 
-    private final int MAX_BULLETS = 4;
+    private final int MAX_BULLETS = 1;
     private ArrayList<Bullet> bullets;
 
     private final float[] flameX;
@@ -35,7 +41,10 @@ public class Player extends SpaceObject{
     private Line2D.Float[] hitLines;
     private Point2D.Float[] hitLinesVector;
 
-    public Player(ArrayList<Bullet> bullets){
+    private final Sprite playerSprite;
+    private final SpriteBatch batch;
+
+    public Player(ArrayList<Bullet> bullets) {
 
         this.bullets = bullets;
 
@@ -57,9 +66,17 @@ public class Player extends SpaceObject{
         hit = false;
         hitTimer = 0;
         hitTime = 2;
+
+
+        Texture playerTexture = new Texture(Gdx.files.internal("C:\\Users\\Rita\\IdeaProjects\\Astro\\assets\\Sheep\\DD01.png"));
+        playerSprite = new Sprite(playerTexture);
+        batch = new SpriteBatch();
     }
 
-    private void setShape(){
+    private void setShape() {
+        playerSprite.setRotation((float) Math.toDegrees(radians) -90);
+        playerSprite.setPosition(x - 30, y - 30);
+
         shapeX[0] = x + MathUtils.cos(radians) * 8;
         shapeY[0] = y + MathUtils.sin(radians) * 8;
 
@@ -73,7 +90,7 @@ public class Player extends SpaceObject{
         shapeY[3] = y + MathUtils.sin(radians + 4 * MathUtils.PI / 5) * 8;
     }
 
-    private void setFlame(){
+    private void setFlame() {
         flameX[0] = x + MathUtils.cos(radians - 5 * MathUtils.PI / 6) * 5;
         flameY[0] = y + MathUtils.sin(radians - 5 * MathUtils.PI / 6) * 5;
 
@@ -84,21 +101,26 @@ public class Player extends SpaceObject{
         flameY[2] = y + MathUtils.sin(radians + 5 * MathUtils.PI / 6) * 5;
     }
 
-    public void setLeft(boolean b){
+    public void setLeft(boolean b) {
         left = b;
     }
 
-    public void setRight(boolean b){
+    public void setRight(boolean b) {
         right = b;
     }
 
-    public void setUp(boolean b){
+    public void setUp(boolean b) {
         up = b;
     }
 
-    public void shoot(){
-        if(bullets.size() == MAX_BULLETS) return;
+    public void shoot() {
+        if (bullets.size() == MAX_BULLETS) return;
         bullets.add(new Bullet(x, y, radians));
+    }
+
+    public void shoot(float rad) {
+        if (bullets.size() == MAX_BULLETS) return;
+        bullets.add(new Bullet(x, y, rad));
     }
 
     public boolean isHit() {
@@ -117,7 +139,7 @@ public class Player extends SpaceObject{
     }
 
     public void hit() {
-        if(hit){
+        if (hit) {
             return;
         }
 
@@ -127,7 +149,7 @@ public class Player extends SpaceObject{
 
         hitLines = new Line2D.Float[4];
 
-        for(int i = 0, j = hitLines.length - 1; i < hitLines.length; j = i++) {
+        for (int i = 0, j = hitLines.length - 1; i < hitLines.length; j = i++) {
             hitLines[i] = new Line2D.Float(
                     shapeX[i], shapeY[i], shapeX[j], shapeY[j]
             );
@@ -158,13 +180,13 @@ public class Player extends SpaceObject{
     public void update(float dt) {
 
         //hit check
-        if(hit) {
+        if (hit) {
             hitTimer += dt;
-            if(hitTimer > hitTime) {
+            if (hitTimer > hitTime) {
                 dead = true;
                 hitTimer = 0;
             }
-            for(int i = 0; i < hitLines.length; i++) {
+            for (int i = 0; i < hitLines.length; i++) {
                 hitLines[i].setLine(
                         hitLines[i].x1 + hitLinesVector[i].x * 10 * dt,
                         hitLines[i].y1 + hitLinesVector[i].y * 10 * dt,
@@ -176,18 +198,18 @@ public class Player extends SpaceObject{
         }
 
         //turning
-        if(left){
+        if (left) {
             radians += rotationSpeed * dt;
-        } else if(right){
+        } else if (right) {
             radians -= rotationSpeed * dt;
         }
 
         //accelerating
-        if(up){
+        if (up) {
             dx += MathUtils.cos(radians) * acceleration * dt;
             dy += MathUtils.sin(radians) * acceleration * dt;
             acceleratingTimer += dt;
-            if(acceleratingTimer > 0.1f){
+            if (acceleratingTimer > 0.1f) {
                 acceleratingTimer = 0;
             }
         } else {
@@ -196,11 +218,11 @@ public class Player extends SpaceObject{
 
         //deaceleration
         float vector = (float) Math.sqrt(dx * dx + dy * dy);
-        if(vector > 0){
+        if (vector > 0) {
             dx -= (dx / vector) * deceleration * dt;
             dy -= (dy / vector) * deceleration * dt;
         }
-        if(vector > maxSpeed){
+        if (vector > maxSpeed) {
             dx = (dx / vector) * maxSpeed;
             dy = (dy / vector) * maxSpeed;
         }
@@ -209,11 +231,13 @@ public class Player extends SpaceObject{
         x += dx * dt;
         y += dy * dt;
 
+        playerSprite.setPosition(x, y);
+
         //set shape
         setShape();
 
         //set flame
-        if(up){
+        if (up) {
             setFlame();
         }
 
@@ -221,15 +245,19 @@ public class Player extends SpaceObject{
         wrap();
     }
 
-    public void draw(ShapeRenderer shapeRenderer){
+    public void draw(ShapeRenderer shapeRenderer) {
 
-        shapeRenderer.setColor(1,1,1,1);
+        batch.begin();
+        playerSprite.draw(batch);
+        batch.end();
+
+        shapeRenderer.setColor(1, 1, 1, 1);
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
 
         //hit check
-        if(hit) {
-            for(int i = 0; i < hitLines.length; i++) {
+        if (hit) {
+            for (int i = 0; i < hitLines.length; i++) {
                 shapeRenderer.line(
                         hitLines[i].x1,
                         hitLines[i].y1,
@@ -242,13 +270,13 @@ public class Player extends SpaceObject{
         }
 
         //draw ship
-        for(int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++){
-            shapeRenderer.line(shapeX[i], shapeY[i], shapeX[j], shapeY[j]);
-        }
+//        for (int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++) {
+//            shapeRenderer.line(shapeX[i], shapeY[i], shapeX[j], shapeY[j]);
+//        }
 
         //draw flames
-        if(up){
-            for(int i = 0, j = flameX.length - 1; i < flameX.length; j = i++){
+        if (up) {
+            for (int i = 0, j = flameX.length - 1; i < flameX.length; j = i++) {
                 shapeRenderer.line(flameX[i], flameY[i], flameX[j], flameY[j]);
             }
         }
