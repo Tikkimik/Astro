@@ -2,6 +2,7 @@ package com.gdx.entities;
 
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
+import com.gdx.managers.Camera;
 
 public class Asteroid extends SpaceObject {
     private int type;
@@ -78,12 +79,16 @@ public class Asteroid extends SpaceObject {
         wrap();
     }
 
-    public void draw(ShapeRenderer shapeRenderer){
+    public void draw(ShapeRenderer shapeRenderer, Camera camera){
         shapeRenderer.setColor(1,1,1,1);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
 
         for(int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++){
-            shapeRenderer.line(shapeX[i], shapeY[i], shapeX[j], shapeY[j]);
+            float screenX1 = camera.worldToScreenX(shapeX[i]);
+            float screenY1 = camera.worldToScreenY(shapeY[i]);
+            float screenX2 = camera.worldToScreenX(shapeX[j]);
+            float screenY2 = camera.worldToScreenY(shapeY[j]);
+            shapeRenderer.line(screenX1, screenY1, screenX2, screenY2);
         }
 
         shapeRenderer.end();

@@ -38,7 +38,7 @@ public class MyGdxGame extends ApplicationAdapter {
 		gameStateManager = new GameStateManager();
 
 		batch = new SpriteBatch();
-		img = new Texture("badlogic.jpg");
+		// img = new Texture("badlogic.jpg"); // Убираем логотип
 	}
 
 	/**
@@ -54,14 +54,22 @@ public class MyGdxGame extends ApplicationAdapter {
 
 		GameKeys.update();
 
-		batch.begin();
-		batch.draw(img, 0, 0);
-		batch.end();
+		// batch.begin();
+		// batch.draw(img, 0, 0); // Убираем отрисовку логотипа
+		// batch.end();
 	}
 
 	@Override
 	public void resize (int width, int height) {
-
+		WIDTH = width;
+		HEIGHT = height;
+		
+		// Обновляем камеру при изменении размера окна
+		if (camera != null) {
+			camera.viewportWidth = width;
+			camera.viewportHeight = height;
+			camera.update();
+		}
 	}
 
 	@Override
@@ -80,6 +88,6 @@ public class MyGdxGame extends ApplicationAdapter {
 	@Override
 	public void dispose () {
 		batch.dispose();
-		img.dispose();
+		// img.dispose(); // Убираем освобождение ресурсов логотипа
 	}
 }

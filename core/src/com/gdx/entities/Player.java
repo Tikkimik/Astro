@@ -3,6 +3,7 @@ package com.gdx.entities;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.game.MyGdxGame;
+import com.gdx.managers.Camera;
 
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
@@ -221,7 +222,7 @@ public class Player extends SpaceObject{
         wrap();
     }
 
-    public void draw(ShapeRenderer shapeRenderer){
+    public void draw(ShapeRenderer shapeRenderer, Camera camera){
 
         shapeRenderer.setColor(1,1,1,1);
 
@@ -243,16 +244,28 @@ public class Player extends SpaceObject{
 
         //draw ship
         for(int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++){
-            shapeRenderer.line(shapeX[i], shapeY[i], shapeX[j], shapeY[j]);
+            float screenX1 = camera.worldToScreenX(shapeX[i]);
+            float screenY1 = camera.worldToScreenY(shapeY[i]);
+            float screenX2 = camera.worldToScreenX(shapeX[j]);
+            float screenY2 = camera.worldToScreenY(shapeY[j]);
+            shapeRenderer.line(screenX1, screenY1, screenX2, screenY2);
         }
 
         //draw flames
         if(up){
             for(int i = 0, j = flameX.length - 1; i < flameX.length; j = i++){
-                shapeRenderer.line(flameX[i], flameY[i], flameX[j], flameY[j]);
+                float screenX1 = camera.worldToScreenX(flameX[i]);
+                float screenY1 = camera.worldToScreenY(flameY[i]);
+                float screenX2 = camera.worldToScreenX(flameX[j]);
+                float screenY2 = camera.worldToScreenY(flameY[j]);
+                shapeRenderer.line(screenX1, screenY1, screenX2, screenY2);
             }
         }
 
         shapeRenderer.end();
+    }
+    
+    public int getWidth() {
+        return 16; // Примерный размер корабля
     }
 }

@@ -8,11 +8,11 @@ import com.gdx.game.MyGdxGame;
 public class DesktopLauncher {
 	public static void main (String[] arg) {
 		Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
-		config.setForegroundFPS(250);
+		config.setForegroundFPS(60);
 		config.setTitle("Astro");
-		config.setWindowedMode(1920, 1080);
-//		config.width = 1920;
-//		config.height = 1345;
+		config.setWindowedMode(1280, 720); // Фиксированный размер окна
+		// config.setFullscreenMode(Lwjgl3ApplicationConfiguration.getDisplayMode());
+		config.setResizable(true);
 		new Lwjgl3Application(new MyGdxGame(), config);
 	}
 }

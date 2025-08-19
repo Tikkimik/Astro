@@ -2,6 +2,7 @@ package com.gdx.entities;
 
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
+import com.gdx.managers.Camera;
 
 public class Bullet extends SpaceObject{
 
@@ -41,10 +42,13 @@ public class Bullet extends SpaceObject{
         }
     }
 
-    public void draw(ShapeRenderer shapeRenderer){
+    public void draw(ShapeRenderer shapeRenderer, Camera camera){
         shapeRenderer.setColor(1,1,1,1);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.circle(x- width / 2, y - height /2, width/2);
+        
+        float screenX = camera.worldToScreenX(x - width / 2);
+        float screenY = camera.worldToScreenY(y - height / 2);
+        shapeRenderer.circle(screenX, screenY, width/2);
         shapeRenderer.end();
     }
 }
