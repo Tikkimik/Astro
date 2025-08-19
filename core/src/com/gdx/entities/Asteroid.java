@@ -4,7 +4,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
 
-public class Asteroid extends SpaceObject {
+public class Asteroid extends Enemy {
     private int type;
     public static final int SMALL = 0;
     public static final int MEDIUM = 1;
@@ -16,8 +16,7 @@ public class Asteroid extends SpaceObject {
     private boolean remove;
 
     public Asteroid(float x, float y, int type){
-        this.x = x;
-        this.y = y;
+        super(x, y, 1); // Здоровье = 1 для астероидов
         this.type = type;
 
         if(type == SMALL){
@@ -65,6 +64,21 @@ public class Asteroid extends SpaceObject {
         return type;
     }
 
+    @Override
+    public int getWidth() {
+        return width;
+    }
+    
+    @Override
+    public int getHeight() {
+        return height;
+    }
+    
+    @Override
+    public String getEnemyType() {
+        return "Asteroid";
+    }
+    
     public boolean shouldRemove() {
         return remove;
     }
@@ -81,7 +95,6 @@ public class Asteroid extends SpaceObject {
 
     public void draw(ShapeRenderer shapeRenderer, Camera camera){
         shapeRenderer.setColor(1,1,1,1);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
 
         for(int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++){
             float screenX1 = camera.worldToScreenX(shapeX[i]);
@@ -90,7 +103,5 @@ public class Asteroid extends SpaceObject {
             float screenY2 = camera.worldToScreenY(shapeY[j]);
             shapeRenderer.line(screenX1, screenY1, screenX2, screenY2);
         }
-
-        shapeRenderer.end();
     }
 }

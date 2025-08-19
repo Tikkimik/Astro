@@ -46,17 +46,13 @@ public class OrkBullet extends SpaceObject {
         float screenX = camera.worldToScreenX(x);
         float screenY = camera.worldToScreenY(y);
         
+        // Масштабируем размеры с зумом
+        float scaledWidth = width * camera.getCurrentZoom();
+        float scaledHeight = height * camera.getCurrentZoom();
+        
         // Рисуем пулю орка как красный квадрат
         shapeRenderer.setColor(0.8f, 0.2f, 0.2f, 1); // Красный цвет
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.rect(screenX - width/2, screenY - height/2, width, height);
-        shapeRenderer.end();
-        
-        // Рисуем контур
-        shapeRenderer.setColor(1, 0.5f, 0.5f, 1); // Светло-красный контур
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        shapeRenderer.rect(screenX - width/2, screenY - height/2, width, height);
-        shapeRenderer.end();
+        shapeRenderer.rect(screenX - scaledWidth/2, screenY - scaledHeight/2, scaledWidth, scaledHeight);
     }
     
     // Проверяем столкновение с игроком

@@ -41,11 +41,9 @@ public class Particle extends SpaceObject {
 
     public void draw(ShapeRenderer shapeRenderer, Camera camera) {
         shapeRenderer.setColor(1,1,1,1);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         
         float screenX = camera.worldToScreenX(x - width / 2);
         float screenY = camera.worldToScreenY(y - width / 2);
         shapeRenderer.circle(screenX, screenY, width / 2);
-        shapeRenderer.end();
     }
 }

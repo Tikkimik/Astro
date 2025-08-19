@@ -5,7 +5,7 @@ public class GameKeys {
     private static boolean[] keys;
     private static boolean[] pkeys;
 
-    private static final int NUM_KEYS = 10;
+    private static final int NUM_KEYS = 13;
 
     public static final int UP = 0;
     public static final int LEFT = 1;
@@ -19,6 +19,9 @@ public class GameKeys {
     
     public static final int ZOOM_IN = 8;
     public static final int ZOOM_OUT = 9;
+    public static final int TOGGLE_FPS = 10;
+    public static final int FPS_UP = 11;    // Увеличить лимит FPS (клавиша `)
+    public static final int FPS_DOWN = 12;  // Уменьшить лимит FPS (клавиша 1)
 
     static {
         keys = new boolean[NUM_KEYS];

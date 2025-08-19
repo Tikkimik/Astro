@@ -4,7 +4,6 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
 
-import java.util.ArrayList;
 
 public class AutoRocket extends SpaceObject {
     
@@ -21,10 +20,10 @@ public class AutoRocket extends SpaceObject {
     private float launchTimer = 0f;
     private boolean isLaunched = false;
     
-    // Цель ракеты
-    private Asteroid target;
+    // Цель ракеты (теперь любой враг)
+    private Enemy target;
     
-    public AutoRocket(float x, float y, float shipDirection, Asteroid target) {
+    public AutoRocket(float x, float y, float shipDirection, Enemy target) {
         this.x = x;
         this.y = y;
         this.target = target;
@@ -128,8 +127,9 @@ public class AutoRocket extends SpaceObject {
         // Вычисляем направление движения
         float direction = (float) Math.atan2(dy, dx);
         
-        // Размер ракеты зависит от фазы полета
-        float rocketSize = isLaunched ? 6 : 4; // Больше в фазе самонаведения
+        // Размер ракеты зависит от фазы полета и масштабируется с зумом
+        float baseRocketSize = isLaunched ? 6 : 4; // Больше в фазе самонаведения
+        float rocketSize = baseRocketSize * camera.getCurrentZoom(); // Масштабируем с зумом
         
         // Создаем треугольник ракеты
         float[] rocketX = new float[3];
@@ -155,15 +155,11 @@ public class AutoRocket extends SpaceObject {
             shapeRenderer.setColor(1, 1, 0, 1);
         }
         
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         shapeRenderer.triangle(rocketX[0], rocketY[0], rocketX[1], rocketY[1], rocketX[2], rocketY[2]);
-        shapeRenderer.end();
         
         // Рисуем контур
         shapeRenderer.setColor(1, 1, 1, 1);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         shapeRenderer.triangle(rocketX[0], rocketY[0], rocketX[1], rocketY[1], rocketX[2], rocketY[2]);
-        shapeRenderer.end();
         
         // В фазе самонаведения добавляем след
         if (isLaunched) {
@@ -176,30 +172,22 @@ public class AutoRocket extends SpaceObject {
         float screenX = camera.worldToScreenX(x);
         float screenY = camera.worldToScreenY(y);
         
-        // След за ракетой
-        float trailLength = 12;
+        // След за ракетой (масштабируется с зумом)
+        float baseTrailLength = 12;
+        float trailLength = baseTrailLength * camera.getCurrentZoom();
         float trailX = screenX - MathUtils.cos(direction) * trailLength;
         float trailY = screenY - MathUtils.sin(direction) * trailLength;
         
         shapeRenderer.setColor(1, 0.5f, 0, 0.5f); // Полупрозрачный оранжевый
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         shapeRenderer.line(screenX, screenY, trailX, trailY);
-        shapeRenderer.end();
     }
     
-    // Проверяем столкновение с астероидом
-    public boolean intersects(Asteroid asteroid) {
-        float dx = x - asteroid.getX();
-        float dy = y - asteroid.getY();
-        float distance = (float) Math.sqrt(dx * dx + dy * dy);
-        return distance < asteroid.getWidth() / 2 + width / 2;
-    }
-    
-    // Проверяем столкновение с орк-астероидом
-    public boolean intersects(OrkAsteroid orkAsteroid) {
-        float dx = x - orkAsteroid.getX();
-        float dy = y - orkAsteroid.getY();
-        float distance = (float) Math.sqrt(dx * dx + dy * dy);
-        return distance < orkAsteroid.getWidth() / 2 + width / 2;
+        // Проверяем столкновение с любым врагом (оптимизированная)
+    public boolean intersects(Enemy enemy) {
+        float dx = x - enemy.getX();
+        float dy = y - enemy.getY();
+        float distanceSquared = dx * dx + dy * dy;
+        float radiusSum = enemy.getWidth() / 2 + width / 2;
+        return distanceSquared < radiusSum * radiusSum;
     }
 }

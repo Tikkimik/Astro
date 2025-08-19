@@ -226,8 +226,6 @@ public class Player extends SpaceObject{
 
         shapeRenderer.setColor(1,1,1,1);
 
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-
         //hit check
         if(hit) {
             for(int i = 0; i < hitLines.length; i++) {
@@ -238,7 +236,6 @@ public class Player extends SpaceObject{
                         hitLines[i].y2
                 );
             }
-            shapeRenderer.end();
             return;
         }
 
@@ -261,8 +258,6 @@ public class Player extends SpaceObject{
                 shapeRenderer.line(screenX1, screenY1, screenX2, screenY2);
             }
         }
-
-        shapeRenderer.end();
     }
     
     public int getWidth() {

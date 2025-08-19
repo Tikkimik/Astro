@@ -6,7 +6,7 @@ import com.gdx.managers.Camera;
 
 import java.util.ArrayList;
 
-public class OrkAsteroid extends SpaceObject {
+public class OrkAsteroid extends Enemy {
     
     private int type;
     public static final int SMALL = 0;
@@ -32,8 +32,7 @@ public class OrkAsteroid extends SpaceObject {
     private ArrayList<OrkBullet> orkBullets;
     
     public OrkAsteroid(float x, float y, int type, Player target, ArrayList<OrkBullet> orkBullets) {
-        this.x = x;
-        this.y = y;
+        super(x, y, 2); // Здоровье = 2 для орк-астероидов
         this.type = type;
         this.target = target;
         this.orkBullets = orkBullets;
@@ -140,20 +139,8 @@ public class OrkAsteroid extends SpaceObject {
     }
     
     public void draw(ShapeRenderer shapeRenderer, Camera camera) {
-        // Рисуем астероид
-        shapeRenderer.setColor(0.3f, 0.2f, 0.1f, 1); // Темно-коричневый цвет
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        
-        for(int i = 0; i < shapeX.length; i++) {
-            float screenX = camera.worldToScreenX(shapeX[i]);
-            float screenY = camera.worldToScreenY(shapeY[i]);
-            shapeRenderer.circle(screenX, screenY, 2);
-        }
-        shapeRenderer.end();
-        
         // Рисуем контур астероида
         shapeRenderer.setColor(0.6f, 0.4f, 0.2f, 1); // Светло-коричневый контур
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         
         for(int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++){
             float screenX1 = camera.worldToScreenX(shapeX[i]);
@@ -162,11 +149,20 @@ public class OrkAsteroid extends SpaceObject {
             float screenY2 = camera.worldToScreenY(shapeY[j]);
             shapeRenderer.line(screenX1, screenY1, screenX2, screenY2);
         }
-        shapeRenderer.end();
+    }
+    
+    public void drawFilled(ShapeRenderer shapeRenderer, Camera camera) {
+        // Рисуем астероид
+        shapeRenderer.setColor(0.3f, 0.2f, 0.1f, 1); // Темно-коричневый цвет
+        
+        for(int i = 0; i < shapeX.length; i++) {
+            float screenX = camera.worldToScreenX(shapeX[i]);
+            float screenY = camera.worldToScreenY(shapeY[i]);
+            shapeRenderer.circle(screenX, screenY, 2);
+        }
         
         // Рисуем "орков" на астероиде (маленькие зеленые точки)
         shapeRenderer.setColor(0.2f, 0.8f, 0.2f, 1); // Зеленый цвет орков
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
         for(int i = 0; i < 3; i++) {
             float orkX = x + MathUtils.cos(radians + i * MathUtils.PI2 / 3) * (width / 3);
@@ -175,7 +171,6 @@ public class OrkAsteroid extends SpaceObject {
             float screenOrkY = camera.worldToScreenY(orkY);
             shapeRenderer.circle(screenOrkX, screenOrkY, 1.5f);
         }
-        shapeRenderer.end();
     }
     
     // Проверяем столкновение с другим объектом
@@ -186,7 +181,18 @@ public class OrkAsteroid extends SpaceObject {
         return distance < width / 2 + other.getWidth() / 2;
     }
     
+    @Override
     public int getWidth() {
         return width;
+    }
+    
+    @Override
+    public int getHeight() {
+        return height;
+    }
+    
+    @Override
+    public String getEnemyType() {
+        return "OrkAsteroid";
     }
 }

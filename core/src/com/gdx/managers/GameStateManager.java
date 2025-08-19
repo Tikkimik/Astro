@@ -39,4 +39,11 @@ public class GameStateManager {
     public void draw(){
         gameState.draw();
     }
+    
+    public void push(GameState state) {
+        if(gameState != null){
+            gameState.dispose();
+        }
+        gameState = state;
+    }
 }

@@ -37,6 +37,15 @@ public class GameInputProcessor extends InputAdapter {
         if(k == Input.Keys.MINUS) {
             GameKeys.setKey(GameKeys.ZOOM_OUT, true);
         }
+        if(k == Input.Keys.F) {
+            GameKeys.setKey(GameKeys.TOGGLE_FPS, true);
+        }
+        if(k == Input.Keys.GRAVE) { // Клавиша ` (тильда)
+            GameKeys.setKey(GameKeys.FPS_UP, true);
+        }
+        if(k == Input.Keys.NUM_1) { // Клавиша 1
+            GameKeys.setKey(GameKeys.FPS_DOWN, true);
+        }
 
         return true;
     }
@@ -71,6 +80,15 @@ public class GameInputProcessor extends InputAdapter {
         }
         if(k == Input.Keys.MINUS) {
             GameKeys.setKey(GameKeys.ZOOM_OUT, false);
+        }
+        if(k == Input.Keys.F) {
+            GameKeys.setKey(GameKeys.TOGGLE_FPS, false);
+        }
+        if(k == Input.Keys.GRAVE) { // Клавиша ` (тильда)
+            GameKeys.setKey(GameKeys.FPS_UP, false);
+        }
+        if(k == Input.Keys.NUM_1) { // Клавиша 1
+            GameKeys.setKey(GameKeys.FPS_DOWN, false);
         }
         return true;
     }

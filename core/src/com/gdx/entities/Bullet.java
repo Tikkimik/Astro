@@ -44,11 +44,10 @@ public class Bullet extends SpaceObject{
 
     public void draw(ShapeRenderer shapeRenderer, Camera camera){
         shapeRenderer.setColor(1,1,1,1);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
-        float screenX = camera.worldToScreenX(x - width / 2);
-        float screenY = camera.worldToScreenY(y - height / 2);
-        shapeRenderer.circle(screenX, screenY, width/2);
-        shapeRenderer.end();
+        float screenX = camera.worldToScreenX(x);
+        float screenY = camera.worldToScreenY(y);
+        float scaledRadius = (width / 2) * camera.getCurrentZoom();
+        shapeRenderer.circle(screenX, screenY, scaledRadius);
     }
 }
