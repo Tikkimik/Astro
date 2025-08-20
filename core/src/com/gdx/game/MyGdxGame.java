@@ -9,6 +9,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.gdx.managers.GameInputProcessor;
 import com.gdx.managers.GameKeys;
 import com.gdx.managers.GameStateManager;
+import com.gdx.managers.AndroidInputManager;
 
 public class MyGdxGame extends ApplicationAdapter {
 	SpriteBatch batch;
@@ -20,6 +21,7 @@ public class MyGdxGame extends ApplicationAdapter {
 	public static OrthographicCamera camera;
 
 	public GameStateManager gameStateManager;
+	public AndroidInputManager androidInputManager;
 	
 	// Настройки FPS
 	public static int targetFPS = 60;  // Целевой FPS
@@ -47,7 +49,15 @@ public class MyGdxGame extends ApplicationAdapter {
 		camera.translate(WIDTH / 2, HEIGHT / 2);
 		camera.update();
 
-		Gdx.input.setInputProcessor(new GameInputProcessor());
+		// Инициализируем Android управление
+		androidInputManager = new AndroidInputManager();
+		
+		// Устанавливаем обработчик ввода (Android или Desktop)
+		if (androidInputManager.isAndroid()) {
+			Gdx.input.setInputProcessor(androidInputManager);
+		} else {
+			Gdx.input.setInputProcessor(new GameInputProcessor());
+		}
 
 		gameStateManager = new GameStateManager();
 		
@@ -83,6 +93,11 @@ public class MyGdxGame extends ApplicationAdapter {
 		gameStateManager.update(deltaTime);
 		gameStateManager.draw();
 
+		// Обновляем Android управление
+		if (androidInputManager != null) {
+			androidInputManager.update();
+		}
+		
 		GameKeys.update();
 		
 		// Мониторинг FPS каждые 60 кадров
@@ -112,6 +127,11 @@ public class MyGdxGame extends ApplicationAdapter {
 			camera.viewportWidth = width;
 			camera.viewportHeight = height;
 			camera.update();
+		}
+		
+		// Обновляем Android управление при изменении размера экрана
+		if (androidInputManager != null) {
+			androidInputManager.resize(width, height);
 		}
 	}
 

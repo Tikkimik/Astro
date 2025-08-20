@@ -5,8 +5,8 @@ import com.badlogic.gdx.math.MathUtils;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 
-import java.awt.geom.Line2D;
-import java.awt.geom.Point2D;
+import com.gdx.utils.Line2D;
+import com.gdx.utils.Point2D;
 import java.util.ArrayList;
 
 public class Player extends SpaceObject{

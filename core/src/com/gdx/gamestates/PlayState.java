@@ -15,6 +15,7 @@ import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 import com.gdx.managers.GameKeys;
 import com.gdx.managers.GameStateManager;
+import com.gdx.managers.AndroidInputManager;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.FPSLogger;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -67,6 +68,9 @@ public class PlayState extends GameState {
     
     // Счетчик кадров для FPS
     private int frameCount = 0;
+    
+    // Android управление
+    private AndroidInputManager androidInputManager;
 
     public PlayState(GameStateManager gameStateManager) {
         super(gameStateManager);
@@ -94,6 +98,9 @@ public class PlayState extends GameState {
         fpsLogger = new FPSLogger();
         font = new BitmapFont();
         spriteBatch = new SpriteBatch();
+        
+        // Инициализируем Android управление
+        androidInputManager = new AndroidInputManager();
     }
 
     private void createParticles(float x, float y) {
@@ -532,6 +539,11 @@ public class PlayState extends GameState {
             spriteBatch.end();
         }
         
+        // Рендерим Android элементы управления поверх всего
+        if (androidInputManager != null && androidInputManager.isAndroid()) {
+            androidInputManager.render(shapeRenderer);
+        }
+        
         // Записываем время отрисовки
         drawTime = System.nanoTime() - drawStart;
     }
@@ -541,15 +553,15 @@ public class PlayState extends GameState {
         player.setLeft(GameKeys.isDown(GameKeys.LEFT));
         player.setRight(GameKeys.isDown(GameKeys.RIGHT));
         player.setUp(GameKeys.isDown(GameKeys.UP));
-        if (GameKeys.isPressed(GameKeys.SPACE)) {
+        if (GameKeys.isDown(GameKeys.SPACE)) {
             player.shoot();
         }
         
-        // Управление зумом
-        if (GameKeys.isPressed(GameKeys.ZOOM_IN)) {
+        // Управление зумом - используем isDown для непрерывного действия
+        if (GameKeys.isDown(GameKeys.ZOOM_IN)) {
             camera.zoomIn();
         }
-        if (GameKeys.isPressed(GameKeys.ZOOM_OUT)) {
+        if (GameKeys.isDown(GameKeys.ZOOM_OUT)) {
             camera.zoomOut();
         }
         if (GameKeys.isPressed(GameKeys.ENTER)) {

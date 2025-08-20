@@ -12,6 +12,10 @@ public class AndroidLauncher extends AndroidApplication {
 		super.onCreate(savedInstanceState);
 		AndroidApplicationConfiguration config = new AndroidApplicationConfiguration();
 		config.numSamples = 2; // 2x MSAA для Android
+		config.useAccelerometer = false; // Отключаем акселерометр для экономии батареи
+		config.useCompass = false; // Отключаем компас
+		config.useWakelock = true; // Предотвращаем засыпание экрана
+		config.useImmersiveMode = true; // Полноэкранный режим
 		initialize(new MyGdxGame(), config);
 	}
 }
