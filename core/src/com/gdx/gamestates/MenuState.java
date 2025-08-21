@@ -23,7 +23,7 @@ public class MenuState extends GameState {
     
     private ArrayList<Particle> particles;
     
-    private String[] menuItems = {"PLAY", "SETTINGS", "EXIT"};
+    private String[] menuItems = new String[3];
     private int lastHighScore = 0;
     private int selectedItem = 0;
     
@@ -73,6 +73,9 @@ public class MenuState extends GameState {
         
         // Создаем частицы для фона
         createBackgroundParticles();
+        
+        // Обновляем тексты
+        updateTexts();
     }
 
     @Override
@@ -107,6 +110,9 @@ public class MenuState extends GameState {
         drawParticles();
         
         spriteBatch.begin();
+        
+        // Обновляем тексты
+        updateTexts();
         
         // Рисуем заголовок
         String title = "ASTRO";
@@ -218,6 +224,18 @@ public class MenuState extends GameState {
         for (Particle particle : particles) {
             particle.update(dt);
         }
+    }
+    
+    private void updateTexts() {
+        // Инициализируем массив, если он еще не создан
+        if (menuItems == null) {
+            menuItems = new String[3];
+        }
+        
+        // Пока используем только английский, чтобы не было квадратов
+        menuItems[0] = "PLAY";
+        menuItems[1] = "SETTINGS";
+        menuItems[2] = "EXIT";
     }
 
     private void drawParticles() {

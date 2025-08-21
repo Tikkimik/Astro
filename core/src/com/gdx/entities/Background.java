@@ -38,9 +38,7 @@ public class Background {
     
     public void draw(ShapeRenderer shapeRenderer) {
         shapeRenderer.setColor(0, 0, 0, 1); // Черный фон
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         shapeRenderer.rect(0, 0, MyGdxGame.WIDTH, MyGdxGame.HEIGHT);
-        shapeRenderer.end();
         
         // Рисуем только видимые звезды
         for (Star star : stars) {
@@ -82,9 +80,7 @@ public class Background {
             float screenY = camera.worldToScreenY(y);
             
             shapeRenderer.setColor(currentBrightness, currentBrightness, currentBrightness, 1);
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
             shapeRenderer.circle(screenX, screenY, size);
-            shapeRenderer.end();
         }
     }
 }

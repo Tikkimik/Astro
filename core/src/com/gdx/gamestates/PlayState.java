@@ -11,6 +11,7 @@ import com.gdx.entities.OrkAsteroid;
 import com.gdx.entities.OrkBullet;
 import com.gdx.entities.Particle;
 import com.gdx.entities.Player;
+import com.gdx.entities.ExplosionParticle;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 import com.gdx.managers.GameKeys;
@@ -109,6 +110,23 @@ public class PlayState extends GameState {
 
     private void createParticles(float x, float y) {
         for(int i = 0; i < 6; i++) {
+            particles.add(new Particle(x, y));
+        }
+    }
+    
+    private void createExplosion(float x, float y, int particleCount) {
+        for(int i = 0; i < particleCount; i++) {
+            particles.add(new ExplosionParticle(x, y));
+        }
+    }
+    
+    private void createShipExplosion(float x, float y) {
+        // Создаем много частиц для эффектного взрыва корабля
+        for(int i = 0; i < 15; i++) {
+            particles.add(new ExplosionParticle(x, y));
+        }
+        // Добавляем несколько обычных частиц
+        for(int i = 0; i < 8; i++) {
             particles.add(new Particle(x, y));
         }
     }
@@ -237,6 +255,7 @@ public class PlayState extends GameState {
 
                 if (asteroid.intersects(player)) {
                     player.hit();
+                    createShipExplosion(player.getX(), player.getY());
                     asteroids.remove(i);
                     i--;
                     splitAsteroids(asteroid);
@@ -256,6 +275,7 @@ public class PlayState extends GameState {
                     asteroids.remove(j);
                     j--;
                     addScore(10); // 10 очков за обычный астероид
+                    createExplosion(a.getX(), a.getY(), 8);
                     splitAsteroids(a);
                     break;
                 }
@@ -275,6 +295,7 @@ public class PlayState extends GameState {
                     asteroids.remove(j);
                     j--;
                     addScore(10); // 10 очков за обычный астероид
+                    createExplosion(a.getX(), a.getY(), 6);
                     splitAsteroids(a);
                     break;
                 }
@@ -289,7 +310,7 @@ public class PlayState extends GameState {
                     orkAsteroids.remove(j);
                     j--;
                     addScore(25); // 25 очков за орк-астероид
-                    createParticles(oa.getX(), oa.getY());
+                    createExplosion(oa.getX(), oa.getY(), 12);
                     break;
                 }
             }
@@ -306,7 +327,7 @@ public class PlayState extends GameState {
                     orkAsteroids.remove(j);
                     j--;
                     addScore(25); // 25 очков за орк-астероид
-                    createParticles(oa.getX(), oa.getY());
+                    createExplosion(oa.getX(), oa.getY(), 12);
                     break;
                 }
             }
@@ -484,42 +505,17 @@ public class PlayState extends GameState {
             System.out.println("===========================");
         }
     }
-
+    
     @Override
     public void draw() {
 //        System.out.println("PLAY STATE DRAWING");
         long drawStart = System.nanoTime();
 
+        // Отрисовка заполненных объектов (фон, пули, ракеты)
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        
         //draw background first
         background.draw(shapeRenderer);
-
-        // Оптимизированная отрисовка - разделяем Line и Filled
-        
-        // Отрисовка линий (корабль, астероиды, частицы)
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        
-        //draw player
-        player.draw(shapeRenderer, camera);
-
-        //draw asteroids
-        for (int i = 0; i < asteroids.size(); i++) {
-            asteroids.get(i).draw(shapeRenderer, camera);
-        }
-
-        //draw particles
-        for(int i = 0; i < particles.size(); i++) {
-            particles.get(i).draw(shapeRenderer, camera);
-        }
-        
-        //draw ork asteroids (контуры)
-        for(int i = 0; i < orkAsteroids.size(); i++) {
-            orkAsteroids.get(i).draw(shapeRenderer, camera);
-        }
-        
-        shapeRenderer.end();
-        
-        // Отрисовка заполненных объектов (пули, ракеты)
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
         //draw bullets
         for (Bullet bullet : bullets) {
@@ -539,6 +535,39 @@ public class PlayState extends GameState {
         //draw ork asteroids (заполненные части)
         for(int i = 0; i < orkAsteroids.size(); i++) {
             orkAsteroids.get(i).drawFilled(shapeRenderer, camera);
+        }
+        
+        shapeRenderer.end();
+        
+        // Отрисовка линий (корабль, астероиды, частицы)
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        
+        //draw player
+        player.draw(shapeRenderer, camera, spriteBatch);
+
+        //draw asteroids
+        for (int i = 0; i < asteroids.size(); i++) {
+            asteroids.get(i).draw(shapeRenderer, camera);
+        }
+
+        shapeRenderer.end();
+        
+        // Отрисовка заполненных объектов (частицы взрывов)
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        
+        //draw particles
+        for(int i = 0; i < particles.size(); i++) {
+            particles.get(i).draw(shapeRenderer, camera);
+        }
+        
+        shapeRenderer.end();
+        
+        // Отрисовка линий (обычные частицы)
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        
+        //draw ork asteroids (контуры)
+        for(int i = 0; i < orkAsteroids.size(); i++) {
+            orkAsteroids.get(i).draw(shapeRenderer, camera);
         }
         
         shapeRenderer.end();
@@ -619,6 +648,9 @@ public class PlayState extends GameState {
         }
         if (spriteBatch != null) {
             spriteBatch.dispose();
+        }
+        if (player != null) {
+            player.dispose();
         }
     }
 }
