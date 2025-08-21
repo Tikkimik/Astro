@@ -2,6 +2,8 @@ package com.gdx.managers;
 
 import com.gdx.gamestates.GameState;
 import com.gdx.gamestates.PlayState;
+import com.gdx.gamestates.MenuState;
+import com.gdx.gamestates.SettingsState;
 
 public class GameStateManager {
 
@@ -12,9 +14,10 @@ public class GameStateManager {
 
     public static final int MENU = 0;
     public static final int PLAY = 1;
+    public static final int SETTINGS = 2;
 
     public  GameStateManager(){
-        setState(PLAY);
+        setState(MENU);
     }
 
     public void setState(int state){
@@ -24,11 +27,17 @@ public class GameStateManager {
 
         if(state == MENU){
             //switch to menu state
+            gameState = new MenuState(this);
         }
 
         if(state == PLAY){
             //switch to play state
             gameState = new PlayState(this);
+        }
+        
+        if(state == SETTINGS){
+            //switch to settings state
+            gameState = new SettingsState(this);
         }
     }
 

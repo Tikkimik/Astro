@@ -27,6 +27,9 @@ public class MyGdxGame extends ApplicationAdapter {
 	public static int targetFPS = 60;  // Целевой FPS
 	public static final int[] FPS_PRESETS = {30, 60, 120, 240, 0}; // 0 = без ограничений
 	public static int currentFPSIndex = 1; // Начинаем с 60 FPS
+	
+	// Рекорд
+	public static int highScore = 0;
 
 	/**
 	 * метод инициализации

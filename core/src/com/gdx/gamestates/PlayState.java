@@ -41,6 +41,8 @@ public class PlayState extends GameState {
     private int level;
     private int totalAsteroids;
     private int numAsteroidsLeft;
+    private int score;
+    private int highScore;
     
     // Таймер для автоматических ракет
     private float autoRocketTimer = 0f;
@@ -90,6 +92,8 @@ public class PlayState extends GameState {
         particles = new ArrayList<Particle>();
 
         level = 1;
+        score = 0;
+        highScore = MyGdxGame.highScore; // Загружаем глобальный рекорд
 
         spawnAsteroids();
         spawnOrkAsteroids();
@@ -106,6 +110,14 @@ public class PlayState extends GameState {
     private void createParticles(float x, float y) {
         for(int i = 0; i < 6; i++) {
             particles.add(new Particle(x, y));
+        }
+    }
+    
+    private void addScore(int points) {
+        score += points;
+        if (score > highScore) {
+            highScore = score;
+            MyGdxGame.highScore = highScore; // Обновляем глобальный рекорд
         }
     }
     
@@ -243,6 +255,7 @@ public class PlayState extends GameState {
                     i--;
                     asteroids.remove(j);
                     j--;
+                    addScore(10); // 10 очков за обычный астероид
                     splitAsteroids(a);
                     break;
                 }
@@ -261,6 +274,7 @@ public class PlayState extends GameState {
                     i--;
                     asteroids.remove(j);
                     j--;
+                    addScore(10); // 10 очков за обычный астероид
                     splitAsteroids(a);
                     break;
                 }
@@ -274,6 +288,7 @@ public class PlayState extends GameState {
                     i--;
                     orkAsteroids.remove(j);
                     j--;
+                    addScore(25); // 25 очков за орк-астероид
                     createParticles(oa.getX(), oa.getY());
                     break;
                 }
@@ -290,6 +305,7 @@ public class PlayState extends GameState {
                     i--;
                     orkAsteroids.remove(j);
                     j--;
+                    addScore(25); // 25 очков за орк-астероид
                     createParticles(oa.getX(), oa.getY());
                     break;
                 }
@@ -527,17 +543,26 @@ public class PlayState extends GameState {
         
         shapeRenderer.end();
         
-        // Отображаем FPS счетчик если включен
+        // Отображаем игровую информацию
+        spriteBatch.begin();
+        
+        // Очки и уровень
+        font.setColor(1, 1, 1, 1); // Белый цвет
+        font.draw(spriteBatch, "Score: " + score, 10, MyGdxGame.HEIGHT - 10);
+        font.draw(spriteBatch, "High: " + highScore, 10, MyGdxGame.HEIGHT - 35);
+        font.draw(spriteBatch, "Level: " + level, 10, MyGdxGame.HEIGHT - 60);
+        
+        // FPS счетчик если включен
         if (showFPS) {
-            spriteBatch.begin();
             font.setColor(1, 1, 0, 1); // Желтый цвет
-            font.draw(spriteBatch, "FPS: " + currentFPS, 10, MyGdxGame.HEIGHT - 10);
+            font.draw(spriteBatch, "FPS: " + currentFPS, 10, MyGdxGame.HEIGHT - 85);
             
             // Показываем текущий лимит FPS
             String fpsLimit = MyGdxGame.targetFPS == 0 ? "UNLIMITED" : String.valueOf(MyGdxGame.targetFPS);
-            font.draw(spriteBatch, "Limit: " + fpsLimit + " (` ↑ 1 ↓)", 10, MyGdxGame.HEIGHT - 35);
-            spriteBatch.end();
+            font.draw(spriteBatch, "Limit: " + fpsLimit + " (` ↑ 1 ↓)", 10, MyGdxGame.HEIGHT - 110);
         }
+        
+        spriteBatch.end();
         
         // Рендерим Android элементы управления поверх всего
         if (androidInputManager != null && androidInputManager.isAndroid()) {
@@ -579,6 +604,11 @@ public class PlayState extends GameState {
         }
         if (GameKeys.isPressed(GameKeys.FPS_DOWN)) {
             MyGdxGame.decreaseFPS();
+        }
+        
+        // Возврат в меню
+        if (GameKeys.isPressed(GameKeys.ESCAPE)) {
+            gameStateManager.setState(GameStateManager.MENU);
         }
     }
 
