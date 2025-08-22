@@ -17,6 +17,7 @@ import com.gdx.managers.Camera;
 import com.gdx.managers.GameKeys;
 import com.gdx.managers.GameStateManager;
 import com.gdx.managers.AndroidInputManager;
+import com.gdx.managers.WorldManager;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.FPSLogger;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -74,6 +75,9 @@ public class PlayState extends GameState {
     
     // Android управление
     private AndroidInputManager androidInputManager;
+    
+    // Управление бесконечным миром
+    private WorldManager worldManager;
 
     public PlayState(GameStateManager gameStateManager) {
         super(gameStateManager);
@@ -96,8 +100,8 @@ public class PlayState extends GameState {
         score = 0;
         highScore = MyGdxGame.highScore; // Загружаем глобальный рекорд
 
-        spawnAsteroids();
-        spawnOrkAsteroids();
+        // Инициализируем WorldManager для бесконечного мира
+        worldManager = new WorldManager(asteroids, orkAsteroids, orkBullets, player);
         
         // Инициализируем FPS счетчик
         fpsLogger = new FPSLogger();
@@ -388,12 +392,15 @@ public class PlayState extends GameState {
         //get user input
         handleInput();
 
-        //next level
-        if(asteroids.size() == 0 && orkAsteroids.size() == 0) {
-            level++;
-            spawnAsteroids();
-            spawnOrkAsteroids();
-        }
+        // Обновляем бесконечный мир
+        worldManager.update(dt);
+
+        //next level (теперь не нужен, так как мир бесконечный)
+        // if(asteroids.size() == 0 && orkAsteroids.size() == 0) {
+        //     level++;
+        //     spawnAsteroids();
+        //     spawnOrkAsteroids();
+        // }
 
         //update player
         long playerStart = System.nanoTime();
@@ -506,6 +513,7 @@ public class PlayState extends GameState {
             System.out.println("FPS: " + currentFPS + " | Objects: A=" + asteroids.size() + 
                              " OA=" + orkAsteroids.size() + " B=" + bullets.size() + 
                              " AR=" + autoRockets.size() + " P=" + particles.size());
+            System.out.println("World: " + worldManager.getWorldInfo());
             System.out.println("Times (μs): Camera=" + (cameraTime/1000) + 
                              " Background=" + (backgroundTime/1000) + 
                              " Player=" + (playerTime/1000) + 

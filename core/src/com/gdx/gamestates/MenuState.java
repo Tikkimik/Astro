@@ -82,10 +82,10 @@ public class MenuState extends GameState {
     public void update(float dt) {
         handleInput();
         
-        // Анимация заголовка
+        // Анимация заголовка (независимо от FPS)
         titleY += (titleTargetY - titleY) * titleAnimationSpeed;
         
-        // Анимация меню
+        // Анимация меню (независимо от FPS)
         menuAnimationTimer += dt * menuAnimationSpeed;
         
         // Обновляем частицы
@@ -94,8 +94,8 @@ public class MenuState extends GameState {
         // Удаляем мертвые частицы
         particles.removeIf(particle -> particle.shouldRemove());
         
-        // Добавляем новые частицы
-        if (MathUtils.random() < 0.1f) {
+        // Добавляем новые частицы (независимо от FPS)
+        if (MathUtils.random() < 0.1f * dt * 60f) { // Нормализуем к 60 FPS
             createRandomParticle();
         }
     }

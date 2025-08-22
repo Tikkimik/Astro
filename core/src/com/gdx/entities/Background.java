@@ -20,9 +20,13 @@ public class Background {
     }
     
     private void generateStars() {
+        // Генерируем звезды в большом радиусе вокруг центра для бесконечного мира
+        float starRadius = 10000; // Очень большой радиус для звезд
         for (int i = 0; i < NUM_STARS; i++) {
-            float x = MathUtils.random(camera.getWorldWidth());
-            float y = MathUtils.random(camera.getWorldHeight());
+            float angle = MathUtils.random(0, MathUtils.PI2);
+            float distance = MathUtils.random(0, starRadius);
+            float x = MathUtils.cos(angle) * distance;
+            float y = MathUtils.sin(angle) * distance;
             float size = MathUtils.random(0.5f, 2.0f);
             float brightness = MathUtils.random(0.3f, 1.0f);
             stars.add(new Star(x, y, size, brightness));
@@ -33,6 +37,23 @@ public class Background {
         // Звезды могут мерцать или двигаться
         for (Star star : stars) {
             star.update(dt);
+        }
+        
+        // Динамически добавляем новые звезды по мере движения игрока
+        float playerX = camera.getCameraX();
+        float playerY = camera.getCameraY();
+        
+        // Если игрок ушел далеко от центра, добавляем новые звезды
+        float distanceFromCenter = (float) Math.sqrt(playerX * playerX + playerY * playerY);
+        if (distanceFromCenter > 5000 && stars.size() < NUM_STARS * 2) {
+            // Добавляем звезды в новом секторе
+            float angle = MathUtils.random(0, MathUtils.PI2);
+            float newDistance = distanceFromCenter + MathUtils.random(1000, 3000);
+            float x = MathUtils.cos(angle) * newDistance;
+            float y = MathUtils.sin(angle) * newDistance;
+            float size = MathUtils.random(0.5f, 2.0f);
+            float brightness = MathUtils.random(0.3f, 1.0f);
+            stars.add(new Star(x, y, size, brightness));
         }
     }
     

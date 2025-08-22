@@ -49,12 +49,8 @@ public class Camera {
         // Плавное изменение зума
         currentZoom += (targetZoom - currentZoom) * zoomSmoothness;
         
-        // Ограничиваем камеру границами мира с учетом зума
-        float halfWidth = (MyGdxGame.WIDTH / 2f) / currentZoom;
-        float halfHeight = (MyGdxGame.HEIGHT / 2f) / currentZoom;
-        
-        cameraX = MathUtils.clamp(cameraX, halfWidth, worldWidth - halfWidth);
-        cameraY = MathUtils.clamp(cameraY, halfHeight, worldHeight - halfHeight);
+        // Убираем ограничения камеры для бесконечного мира
+        // Камера может следовать за игроком в любом направлении
         
         updateCamera();
     }

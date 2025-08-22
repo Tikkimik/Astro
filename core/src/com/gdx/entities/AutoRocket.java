@@ -85,14 +85,23 @@ public class AutoRocket extends SpaceObject {
         // Проверяем границы мира
         wrap();
         
-        // Создаем серые частицы ракеты (из задней части) - больше частиц для плотного следа
-        if (MathUtils.random() < 0.9f) { // 90% шанс создания частицы каждый кадр
+        // Создаем густые серые частицы ракеты (из задней части) - независимо от FPS
+        float particleChance = 2.5f * dt * 60f; // Увеличили с 0.9f до 2.5f для более густого следа
+        if (MathUtils.random() < particleChance) {
             float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI; // Противоположное направление движения
             rocketParticles.add(new RocketParticle(x, y, trailAngle));
         }
         
-        // Иногда создаем дополнительную частицу для еще более плотного следа
-        if (MathUtils.random() < 0.3f) { // 30% шанс дополнительной частицы
+        // Создаем дополнительные частицы для еще более плотного следа
+        float extraParticleChance = 1.8f * dt * 60f; // Увеличили с 0.3f до 1.8f
+        if (MathUtils.random() < extraParticleChance) {
+            float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI;
+            rocketParticles.add(new RocketParticle(x, y, trailAngle));
+        }
+        
+        // Еще больше частиц для очень густого следа
+        float thirdParticleChance = 1.2f * dt * 60f; // Новый уровень частиц
+        if (MathUtils.random() < thirdParticleChance) {
             float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI;
             rocketParticles.add(new RocketParticle(x, y, trailAngle));
         }

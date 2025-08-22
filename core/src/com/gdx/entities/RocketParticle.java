@@ -14,7 +14,7 @@ public class RocketParticle extends Particle {
         super(x, y);
         this.maxLife = 1.2f + MathUtils.random() * 0.8f; // Время жизни 1.2-2.0 секунды (дольше)
         this.life = maxLife;
-        this.size = 1.0f + MathUtils.random() * 0.8f; // Размер 1.0-1.8 пикселя (меньше)
+        this.size = 1.5f + MathUtils.random() * 1.0f; // Размер 1.5-2.5 пикселя (увеличили для более заметного следа)
         
         // Движение в случайном направлении с небольшим разбросом
         float spreadAngle = angle + (MathUtils.random() - 0.5f) * 0.6f; // Меньший разброс угла

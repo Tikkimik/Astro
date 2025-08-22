@@ -10,6 +10,8 @@ import com.gdx.managers.GameInputProcessor;
 import com.gdx.managers.GameKeys;
 import com.gdx.managers.GameStateManager;
 import com.gdx.managers.AndroidInputManager;
+import com.gdx.utils.TimeManager;
+import com.gdx.utils.GameConfig;
 
 public class MyGdxGame extends ApplicationAdapter {
 	SpriteBatch batch;
@@ -27,6 +29,10 @@ public class MyGdxGame extends ApplicationAdapter {
 	public static int targetFPS = 60;  // Целевой FPS
 	public static final int[] FPS_PRESETS = {30, 60, 120, 240, 0}; // 0 = без ограничений
 	public static int currentFPSIndex = 1; // Начинаем с 60 FPS
+	
+	// Фиксированный временной шаг для независимости от FPS (теперь управляется TimeManager)
+	public static final float FIXED_TIMESTEP = TimeManager.FIXED_TIMESTEP;
+	public static final float MAX_ACCUMULATOR = TimeManager.MAX_ACCUMULATOR;
 	
 	// Рекорд
 	public static int highScore = 0;
@@ -75,26 +81,26 @@ public class MyGdxGame extends ApplicationAdapter {
 	 * тут происходить вся игра
 	 * нужно все делить все на разные составляющие чтобы тут небыло хаоса
 	 */
+	// Аккумулятор времени теперь управляется TimeManager
+	
 	@Override
 	public void render () {
 		ScreenUtils.clear(0, 0, 0, 1); //black
 
-		float deltaTime = Gdx.graphics.getDeltaTime();
+		// Получаем deltaTime через TimeManager
+		float deltaTime = TimeManager.getDeltaTime();
 		
-		// Защита от нулевого или отрицательного deltaTime
-		if (deltaTime <= 0) {
-			System.out.println("WARNING: Invalid deltaTime in render: " + deltaTime + ", using 0.016f");
-			deltaTime = 0.016f;
+		// Обновляем аккумулятор времени
+		TimeManager.updateAccumulator(deltaTime);
+		
+		// Обновляем игровую логику с фиксированным временным шагом
+		while (TimeManager.shouldUpdate()) {
+			gameStateManager.update(TimeManager.getFixedTimestep());
 		}
 		
-		// Ограничиваем максимальный deltaTime (защита от больших скачков)
-		if (deltaTime > 0.1f) {
-			System.out.println("WARNING: Large deltaTime: " + deltaTime + ", clamping to 0.1f");
-			deltaTime = 0.1f;
-		}
-
-		gameStateManager.update(deltaTime);
+		// Отрисовка происходит каждый кадр (не зависит от временного шага)
 		gameStateManager.draw();
+		TimeManager.incrementRenderCount();
 
 		// Обновляем Android управление
 		if (androidInputManager != null) {
@@ -103,16 +109,13 @@ public class MyGdxGame extends ApplicationAdapter {
 		
 		GameKeys.update();
 		
-		// Мониторинг FPS каждые 60 кадров
-		if (Gdx.graphics.getFrameId() % 60 == 0) {
-			if (deltaTime > 0) {
-				float fps = 1.0f / deltaTime;
-				if (fps < 100) {
-					System.out.println("Current FPS: " + fps + " | Delta: " + deltaTime + "ms");
-				}
-			} else {
-				System.out.println("WARNING: Delta time is 0 or negative! Delta: " + deltaTime);
+		// Мониторинг FPS с настраиваемым интервалом
+		if (Gdx.graphics.getFrameId() % GameConfig.STATS_INTERVAL == 0) {
+			String stats = TimeManager.getStats();
+			if (!stats.isEmpty()) {
+				System.out.println(stats);
 			}
+			TimeManager.resetStats();
 		}
 
 		// batch.begin();
