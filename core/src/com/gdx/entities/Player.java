@@ -3,6 +3,7 @@ package com.gdx.entities;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
@@ -387,16 +388,50 @@ public class Player extends SpaceObject{
             float textureSize = 32 * camera.getCurrentZoom(); // Масштабируем с зумом
             
             spriteBatch.begin();
-            spriteBatch.draw(shipTexture, 
+            
+            // Основная текстура корабля (всегда белая)
+            spriteBatch.setColor(1, 1, 1, 1);
+            spriteBatch.draw(
+                shipTexture, 
                 screenX - textureSize/2, 
                 screenY - textureSize/2, 
                 textureSize/2, textureSize/2, // Точка вращения
                 textureSize, textureSize, // Размер
                 1, 1, // Масштаб
-                radians * MathUtils.radiansToDegrees, // Угол поворота
+                (radians * MathUtils.radiansToDegrees) + 270, // Поворот + 180 градусов
                 0, 0, // Область текстуры
                 shipTexture.getWidth(), shipTexture.getHeight(), // Размер области
-                false, false); // Переворот
+                false, false
+            ); // Переворот
+            
+            // Эффект свечения поверх основной текстуры (если двигатель включен)
+            if(up) {
+                // Аддитивное смешивание для эффекта свечения
+                spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+                
+                float flameIntensity = 0.3f + MathUtils.sin(engineGlowTimer * 6f) * 0.1f; // Мерцание
+                spriteBatch.setColor(1.0f, 0.4f, 0.1f, flameIntensity); // Оранжевое свечение
+                
+                // Рисуем свечение немного больше основной текстуры
+                float glowSize = textureSize * 1.2f;
+                spriteBatch.draw(
+                    shipTexture, 
+                    screenX - glowSize/2, 
+                    screenY - glowSize/2, 
+                    glowSize/2, glowSize/2, // Точка вращения
+                    glowSize, glowSize, // Размер
+                    1, 1, // Масштаб
+                    (radians * MathUtils.radiansToDegrees) + 270, // Поворот
+                    0, 0, // Область текстуры
+                    shipTexture.getWidth(), shipTexture.getHeight(), // Размер области
+                    false, false
+                );
+                
+                // Возвращаем обычное смешивание
+                spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            }
+            
+            spriteBatch.setColor(1, 1, 1, 1);
             spriteBatch.end();
         }
 
@@ -404,7 +439,7 @@ public class Player extends SpaceObject{
         if(up){
             // Создаем частицы огня из сопла
             float nozzleX = x - MathUtils.cos(radians) * 8;
-            float nozzleY = y - MathUtils.sin(radians) * 8;
+            float nozzleY = y - MathUtils.sin(radians) * 8 - 2; // Смещаем немного ниже
             float flameAngle = radians + MathUtils.PI; // Огонь направлен назад
             
             // Создаем больше частиц для лучшего эффекта
