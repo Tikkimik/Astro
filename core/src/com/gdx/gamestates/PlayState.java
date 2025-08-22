@@ -249,7 +249,7 @@ public class PlayState extends GameState {
     private void checkCollisions() {
 
         //player-asteroids
-        if(!player.isHit()) {
+        if(!player.isHit() && !player.isInvulnerable()) {
             for (int i = 0; i < asteroids.size(); i++) {
                 Asteroid asteroid = asteroids.get(i);
 
@@ -259,6 +259,18 @@ public class PlayState extends GameState {
                     asteroids.remove(i);
                     i--;
                     splitAsteroids(asteroid);
+                    break;
+                }
+            }
+            
+            // player-ork asteroids
+            for (int i = 0; i < orkAsteroids.size(); i++) {
+                OrkAsteroid orkAsteroid = orkAsteroids.get(i);
+
+                if (orkAsteroid.intersects(player)) {
+                    player.hit();
+                    createShipExplosion(player.getX(), player.getY());
+                    // Орк-астероиды не разбиваются при столкновении с игроком
                     break;
                 }
             }
@@ -336,13 +348,15 @@ public class PlayState extends GameState {
 
         
         //ork bullet-player collision
-        for (int i = 0; i < orkBullets.size(); i++) {
-            OrkBullet ob = orkBullets.get(i);
-            if (ob.intersects(player)) {
-                orkBullets.remove(i);
-                i--;
-                player.hit();
-                break;
+        if(!player.isHit() && !player.isInvulnerable()) {
+            for (int i = 0; i < orkBullets.size(); i++) {
+                OrkBullet ob = orkBullets.get(i);
+                if (ob.intersects(player)) {
+                    orkBullets.remove(i);
+                    i--;
+                    player.hit();
+                    break;
+                }
             }
         }
     }

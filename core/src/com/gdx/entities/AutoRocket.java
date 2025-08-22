@@ -3,6 +3,7 @@ package com.gdx.entities;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
+import java.util.ArrayList;
 
 
 public class AutoRocket extends SpaceObject {
@@ -23,6 +24,9 @@ public class AutoRocket extends SpaceObject {
     // Цель ракеты (теперь любой враг)
     private Enemy target;
     
+    // Частицы ракеты
+    private ArrayList<RocketParticle> rocketParticles;
+    
     public AutoRocket(float x, float y, float shipDirection, Enemy target) {
         this.x = x;
         this.y = y;
@@ -34,6 +38,9 @@ public class AutoRocket extends SpaceObject {
         this.dy = MathUtils.sin(radians) * initialSpeed;
         
         width = height = 3;
+        
+        // Инициализируем частицы ракеты
+        rocketParticles = new ArrayList<>();
     }
     
     public void update(float dt) {
@@ -77,6 +84,28 @@ public class AutoRocket extends SpaceObject {
         
         // Проверяем границы мира
         wrap();
+        
+        // Создаем серые частицы ракеты (из задней части) - больше частиц для плотного следа
+        if (MathUtils.random() < 0.9f) { // 90% шанс создания частицы каждый кадр
+            float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI; // Противоположное направление движения
+            rocketParticles.add(new RocketParticle(x, y, trailAngle));
+        }
+        
+        // Иногда создаем дополнительную частицу для еще более плотного следа
+        if (MathUtils.random() < 0.3f) { // 30% шанс дополнительной частицы
+            float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI;
+            rocketParticles.add(new RocketParticle(x, y, trailAngle));
+        }
+        
+        // Обновляем частицы ракеты
+        for(int i = rocketParticles.size() - 1; i >= 0; i--) {
+            RocketParticle particle = rocketParticles.get(i);
+            particle.update(dt);
+            
+            if(particle.shouldRemove()) {
+                rocketParticles.remove(i);
+            }
+        }
     }
     
     // Пересчет траектории для самонаведения
@@ -165,6 +194,9 @@ public class AutoRocket extends SpaceObject {
         if (isLaunched) {
             drawTrail(shapeRenderer, camera, direction);
         }
+        
+        // Рисуем синие частицы ракеты
+        drawRocketParticles(shapeRenderer, camera);
     }
     
     // Рисуем след ракеты
@@ -189,5 +221,12 @@ public class AutoRocket extends SpaceObject {
         float distanceSquared = dx * dx + dy * dy;
         float radiusSum = enemy.getWidth() / 2 + width / 2;
         return distanceSquared < radiusSum * radiusSum;
+    }
+    
+    // Рисуем синие частицы ракеты
+    private void drawRocketParticles(ShapeRenderer shapeRenderer, Camera camera) {
+        for(RocketParticle particle : rocketParticles) {
+            particle.draw(shapeRenderer, camera);
+        }
     }
 }

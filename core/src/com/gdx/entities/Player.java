@@ -43,6 +43,12 @@ public class Player extends SpaceObject{
     private float acceleratingTimer;
     private float engineGlowTimer; // Таймер для мерцания двигателей
     private ArrayList<FlameParticle> flameParticles; // Частицы огня
+    private ArrayList<ShieldParticle> shieldParticles; // Синие частицы щита
+    
+    // Система неуязвимости (i-frames)
+    private float invulnerabilityTimer;
+    private final float invulnerabilityTime = 3.0f; // 3 секунды неуязвимости
+    private boolean isInvulnerable;
 
     private boolean hit;
     private boolean dead;
@@ -90,8 +96,12 @@ public class Player extends SpaceObject{
         hitTimer = 0;
         hitTime = 2;
         
-        // Инициализируем список частиц огня
+        // Инициализируем списки частиц
         flameParticles = new ArrayList<>();
+        shieldParticles = new ArrayList<>();
+        
+        // Активируем неуязвимость при создании корабля
+        startInvulnerability();
         
         // Создаем текстуру корабля
         createShipTexture();
@@ -242,11 +252,22 @@ public class Player extends SpaceObject{
         y = MyGdxGame.HEIGHT / 2;
         setShape();
         hit = dead = false;
+        // Активируем неуязвимость при воскрешении
+        startInvulnerability();
+    }
+    
+    private void startInvulnerability() {
+        isInvulnerable = true;
+        invulnerabilityTimer = invulnerabilityTime;
+    }
+    
+    public boolean isInvulnerable() {
+        return isInvulnerable;
     }
 
     public void hit() {
-        if(hit){
-            return;
+        if(hit || isInvulnerable){
+            return; // Не получаем урон если уже подбиты или неуязвимы
         }
 
         hit = true;
@@ -360,6 +381,31 @@ public class Player extends SpaceObject{
                 flameParticles.remove(i);
             }
         }
+        
+        // Обновляем таймер неуязвимости
+        if(isInvulnerable) {
+            invulnerabilityTimer -= dt;
+            if(invulnerabilityTimer <= 0) {
+                isInvulnerable = false;
+            }
+        }
+        
+        // Создаем синие частицы щита только во время неуязвимости
+        if (isInvulnerable && MathUtils.random() < 0.5f) { // 50% шанс создания частицы каждый кадр
+            float angle = MathUtils.random() * MathUtils.PI2;
+            float radius = 20 + MathUtils.random() * 10; // Радиус от 20 до 30
+            shieldParticles.add(new ShieldParticle(x, y, angle, radius));
+        }
+        
+        // Обновляем синие частицы
+        for(int i = shieldParticles.size() - 1; i >= 0; i--) {
+            ShieldParticle particle = shieldParticles.get(i);
+            particle.update(dt);
+            
+            if(particle.shouldRemove()) {
+                shieldParticles.remove(i);
+            }
+        }
 
         //screen warp
         wrap();
@@ -389,8 +435,14 @@ public class Player extends SpaceObject{
             
             spriteBatch.begin();
             
-            // Основная текстура корабля (всегда белая)
-            spriteBatch.setColor(1, 1, 1, 1);
+            // Основная текстура корабля
+            if(isInvulnerable) {
+                // Мерцание во время неуязвимости
+                float alpha = 0.5f + MathUtils.sin(invulnerabilityTimer * 20f) * 0.5f; // Быстрое мерцание
+                spriteBatch.setColor(1, 1, 1, alpha);
+            } else {
+                spriteBatch.setColor(1, 1, 1, 1);
+            }
             spriteBatch.draw(
                 shipTexture, 
                 screenX - textureSize/2, 
@@ -459,6 +511,12 @@ public class Player extends SpaceObject{
             particle.draw(shapeRenderer, camera);
         }
         
+        // Рисуем синие частицы щита
+        for(int i = shieldParticles.size() - 1; i >= 0; i--) {
+            ShieldParticle particle = shieldParticles.get(i);
+            particle.draw(shapeRenderer, camera);
+        }
+        
         shapeRenderer.end(); // Заканчиваем рендеринг заполненных объектов
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line); // Возвращаемся к линиям
     }
@@ -471,6 +529,11 @@ public class Player extends SpaceObject{
         // Очищаем частицы огня
         if (flameParticles != null) {
             flameParticles.clear();
+        }
+        
+        // Очищаем синие частицы щита
+        if (shieldParticles != null) {
+            shieldParticles.clear();
         }
         
         // Освобождаем текстуру
