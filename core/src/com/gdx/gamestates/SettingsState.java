@@ -139,6 +139,17 @@ public class SettingsState extends GameState {
 
     @Override
     public void draw() {
+        // Обновляем размеры экрана при изменении режима отображения
+        float newScreenWidth = Gdx.graphics.getWidth();
+        float newScreenHeight = Gdx.graphics.getHeight();
+        
+        if (newScreenWidth != screenWidth || newScreenHeight != screenHeight) {
+            screenWidth = newScreenWidth;
+            screenHeight = newScreenHeight;
+            titleTargetY = screenHeight * 0.85f;
+            GameLogger.info("Screen size updated: " + (int)screenWidth + "x" + (int)screenHeight);
+        }
+        
         // Очищаем экран
         Gdx.gl.glClearColor(0.1f, 0.1f, 0.2f, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
