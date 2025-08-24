@@ -107,6 +107,40 @@ public class GameSettings {
      */
     private static float soundVolume = 0.5f;
     
+    // === НАСТРОЙКИ ГРАФИКИ ===
+    
+    /**
+     * Режим отображения (0 = Windowed, 1 = Borderless, 2 = Fullscreen)
+     */
+    private static int displayMode = 0;
+    
+    /**
+     * Разрешение экрана (0 = HD, 1 = FHD, 2 = 2K, 3 = 4K)
+     */
+    private static int resolution = 1;
+    
+    /**
+     * Включить V-Sync
+     */
+    private static boolean enableVSync = false;
+    
+    /**
+     * Качество текстур (0 = Low, 1 = Medium, 2 = High)
+     */
+    private static int textureQuality = 1;
+    
+    // === НАСТРОЙКИ ЛОГИРОВАНИЯ ===
+    
+    /**
+     * Уровень логирования (0-4)
+     */
+    private static int logLevel = 3; // INFO по умолчанию
+    
+    /**
+     * Режим отладки
+     */
+    private static boolean debugMode = false;
+    
     // === ГЕТТЕРЫ И СЕТТЕРЫ ===
     
     // Время
@@ -197,6 +231,38 @@ public class GameSettings {
         soundVolume = Math.max(0.0f, Math.min(1.0f, volume)); 
     }
     
+    // Графика
+    public static int getDisplayMode() { return displayMode; }
+    public static void setDisplayMode(int mode) { 
+        displayMode = Math.max(0, Math.min(2, mode)); 
+    }
+    
+    public static int getResolution() { return resolution; }
+    public static void setResolution(int res) { 
+        resolution = Math.max(0, Math.min(3, res)); 
+    }
+    
+    public static boolean isVSyncEnabled() { return enableVSync; }
+    public static void setVSyncEnabled(boolean enabled) { enableVSync = enabled; }
+    
+    public static int getTextureQuality() { return textureQuality; }
+    public static void setTextureQuality(int quality) { 
+        textureQuality = Math.max(0, Math.min(2, quality)); 
+    }
+    
+    // Логирование
+    public static int getLogLevel() { return logLevel; }
+    public static void setLogLevel(int level) { 
+        logLevel = Math.max(0, Math.min(4, level)); 
+        GameLogger.setLogLevel(level);
+    }
+    
+    public static boolean isDebugMode() { return debugMode; }
+    public static void setDebugMode(boolean enabled) { 
+        debugMode = enabled; 
+        GameLogger.setDebugMode(enabled);
+    }
+    
     // === УТИЛИТЫ ===
     
     /**
@@ -221,6 +287,12 @@ public class GameSettings {
         useOptimizedCollisions = true;
         enableSound = false;
         soundVolume = 0.5f;
+        displayMode = 0;
+        resolution = 1;
+        enableVSync = false;
+        textureQuality = 1;
+        logLevel = 3;
+        debugMode = false;
         
         // Обновляем GameConfig
         GameConfig.updateFromSettings();

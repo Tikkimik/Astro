@@ -49,6 +49,10 @@ public class GameStateManager {
         gameState.draw();
     }
     
+    public void handleInput(){
+        gameState.handleInput();
+    }
+    
     public void push(GameState state) {
         if(gameState != null){
             gameState.dispose();

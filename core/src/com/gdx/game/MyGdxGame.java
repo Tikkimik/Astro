@@ -12,6 +12,9 @@ import com.gdx.managers.GameStateManager;
 import com.gdx.managers.AndroidInputManager;
 import com.gdx.utils.TimeManager;
 import com.gdx.utils.GameConfig;
+import com.gdx.utils.DisplayManager;
+import com.gdx.utils.GameLogger;
+import com.gdx.utils.GameSettings;
 
 public class MyGdxGame extends ApplicationAdapter {
 	SpriteBatch batch;
@@ -36,20 +39,31 @@ public class MyGdxGame extends ApplicationAdapter {
 	
 	// Рекорд
 	public static int highScore = 0;
+	
+	// Переменные для полноэкранного режима
+	private static boolean isFullscreen = false;
+	private static int windowedWidth = 1280;
+	private static int windowedHeight = 720;
 
 	/**
 	 * метод инициализации
 	 */
 	@Override
 	public void create () {  //метод инициализации по сути
+		// Инициализируем GameLogger с настройками из GameSettings
+		GameLogger.setLogLevel(GameSettings.getLogLevel());
+		GameLogger.setDebugMode(GameSettings.isDebugMode());
+		
 		// Диагностика системы
-		System.out.println("=== SYSTEM DIAGNOSTICS ===");
-		System.out.println("Java version: " + System.getProperty("java.version"));
-		System.out.println("OS: " + System.getProperty("os.name") + " " + System.getProperty("os.version"));
-		System.out.println("OpenGL: " + Gdx.gl.glGetString(com.badlogic.gdx.graphics.GL20.GL_VERSION));
-		System.out.println("GPU: " + Gdx.gl.glGetString(com.badlogic.gdx.graphics.GL20.GL_RENDERER));
-		System.out.println("Display refresh rate: " + Gdx.graphics.getDisplayMode().refreshRate + "Hz");
-		System.out.println("==========================");
+		GameLogger.info("=== SYSTEM DIAGNOSTICS ===");
+		GameLogger.info("Java version: " + System.getProperty("java.version"));
+		GameLogger.info("OS: " + System.getProperty("os.name") + " " + System.getProperty("os.version"));
+		GameLogger.info("OpenGL: " + Gdx.gl.glGetString(com.badlogic.gdx.graphics.GL20.GL_VERSION));
+		GameLogger.info("GPU: " + Gdx.gl.glGetString(com.badlogic.gdx.graphics.GL20.GL_RENDERER));
+		GameLogger.info("Display refresh rate: " + Gdx.graphics.getDisplayMode().refreshRate + "Hz");
+		GameLogger.info("Log Level: " + GameLogger.getCurrentLogLevelName());
+		GameLogger.info("Debug Mode: " + (GameSettings.isDebugMode() ? "ON" : "OFF"));
+		GameLogger.info("==========================");
 		
 		WIDTH = Gdx.graphics.getWidth();
 		HEIGHT = Gdx.graphics.getHeight();
@@ -98,6 +112,9 @@ public class MyGdxGame extends ApplicationAdapter {
 			gameStateManager.update(TimeManager.getFixedTimestep());
 		}
 		
+		// Обработка ввода
+		gameStateManager.handleInput();
+		
 		// Отрисовка происходит каждый кадр (не зависит от временного шага)
 		gameStateManager.draw();
 		TimeManager.incrementRenderCount();
@@ -109,11 +126,19 @@ public class MyGdxGame extends ApplicationAdapter {
 		
 		GameKeys.update();
 		
+		// Обработка переключения полноэкранного режима
+		if (GameKeys.isDown(GameKeys.TOGGLE_FULLSCREEN)) {
+			GameLogger.input("F11 pressed - toggling fullscreen");
+			toggleFullscreen();
+			// Сбрасываем состояние клавиши, чтобы избежать повторного срабатывания
+			GameKeys.setKey(GameKeys.TOGGLE_FULLSCREEN, false);
+		}
+		
 		// Мониторинг FPS с настраиваемым интервалом
 		if (Gdx.graphics.getFrameId() % GameConfig.STATS_INTERVAL == 0) {
 			String stats = TimeManager.getStats();
 			if (!stats.isEmpty()) {
-				System.out.println(stats);
+				GameLogger.performance(stats);
 			}
 			TimeManager.resetStats();
 		}
@@ -187,5 +212,10 @@ public class MyGdxGame extends ApplicationAdapter {
 				Gdx.graphics.setForegroundFPS(targetFPS);
 			}
 		}
+	}
+	
+	// Метод для переключения полноэкранного режима
+	private static void toggleFullscreen() {
+		DisplayManager.toggleFullscreen();
 	}
 }

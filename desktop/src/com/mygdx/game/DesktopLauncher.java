@@ -11,7 +11,7 @@ public class DesktopLauncher {
 		config.setForegroundFPS(600);
 		config.setTitle("Astro");
 		config.setWindowedMode(1280, 720); // Фиксированный размер окна
-		// config.setFullscreenMode(Lwjgl3ApplicationConfiguration.getDisplayMode());
+		// config.setFullscreenMode(Lwjgl3ApplicationConfiguration.getDisplayMode()); // Раскомментируйте для запуска в полноэкранном режиме
 		config.setResizable(true);
 		
 		// МИНИМАЛЬНЫЕ настройки для теста FPS
