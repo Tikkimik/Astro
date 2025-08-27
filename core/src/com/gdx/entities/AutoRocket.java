@@ -24,16 +24,19 @@ public class AutoRocket extends SpaceObject {
     // Цель ракеты (теперь любой враг)
     private Enemy target;
     
+    // Урон ракеты
+    private float damage = 1f;
+    
     // Частицы ракеты
     private ArrayList<RocketParticle> rocketParticles;
     
-    public AutoRocket(float x, float y, float shipDirection, Enemy target) {
+    public AutoRocket(float x, float y, float rocketDirection, Enemy target) {
         this.x = x;
         this.y = y;
         this.target = target;
         
-        // Начальное направление - под 90 градусов от носа корабля
-        this.radians = shipDirection + MathUtils.HALF_PI; // 90 градусов от направления корабля
+        // Начальное направление ракеты (уже задано извне)
+        this.radians = rocketDirection;
         this.dx = MathUtils.cos(radians) * initialSpeed;
         this.dy = MathUtils.sin(radians) * initialSpeed;
         
@@ -237,5 +240,15 @@ public class AutoRocket extends SpaceObject {
         for(RocketParticle particle : rocketParticles) {
             particle.draw(shapeRenderer, camera);
         }
+    }
+    
+    // Метод для установки урона ракеты
+    public void setDamage(float damage) {
+        this.damage = damage;
+    }
+    
+    // Геттер для урона ракеты
+    public float getDamage() {
+        return damage;
     }
 }

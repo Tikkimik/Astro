@@ -10,7 +10,7 @@ import java.util.ArrayList;
 public class Background {
     
     private ArrayList<Star> stars;
-    private final int NUM_STARS = 800; // Больше звезд для большего мира
+    private final int NUM_STARS = 2000; // Значительно больше звезд для плотного фона
     private Camera camera;
     
     public Background(Camera camera) {
@@ -21,14 +21,14 @@ public class Background {
     
     private void generateStars() {
         // Генерируем звезды в большом радиусе вокруг центра для бесконечного мира
-        float starRadius = 10000; // Очень большой радиус для звезд
+        float starRadius = 15000; // Увеличенный радиус для большего покрытия
         for (int i = 0; i < NUM_STARS; i++) {
             float angle = MathUtils.random(0, MathUtils.PI2);
             float distance = MathUtils.random(0, starRadius);
             float x = MathUtils.cos(angle) * distance;
             float y = MathUtils.sin(angle) * distance;
-            float size = MathUtils.random(0.5f, 2.0f);
-            float brightness = MathUtils.random(0.3f, 1.0f);
+            float size = MathUtils.random(0.2f, 2.5f); // Больше разнообразия в размерах
+            float brightness = MathUtils.random(0.2f, 1.0f); // Больше разнообразия в яркости
             stars.add(new Star(x, y, size, brightness));
         }
     }
@@ -45,14 +45,14 @@ public class Background {
         
         // Если игрок ушел далеко от центра, добавляем новые звезды
         float distanceFromCenter = (float) Math.sqrt(playerX * playerX + playerY * playerY);
-        if (distanceFromCenter > 5000 && stars.size() < NUM_STARS * 2) {
+        if (distanceFromCenter > 5000 && stars.size() < NUM_STARS * 3) { // Увеличили лимит
             // Добавляем звезды в новом секторе
             float angle = MathUtils.random(0, MathUtils.PI2);
             float newDistance = distanceFromCenter + MathUtils.random(1000, 3000);
             float x = MathUtils.cos(angle) * newDistance;
             float y = MathUtils.sin(angle) * newDistance;
-            float size = MathUtils.random(0.5f, 2.0f);
-            float brightness = MathUtils.random(0.3f, 1.0f);
+            float size = MathUtils.random(0.2f, 2.5f); // Больше разнообразия в размерах
+            float brightness = MathUtils.random(0.2f, 1.0f); // Больше разнообразия в яркости
             stars.add(new Star(x, y, size, brightness));
         }
     }
@@ -82,7 +82,7 @@ public class Background {
             this.size = size;
             this.brightness = brightness;
             this.twinkleTimer = MathUtils.random(0, MathUtils.PI2);
-            this.twinkleSpeed = MathUtils.random(1f, 3f);
+            this.twinkleSpeed = MathUtils.random(0.5f, 4f); // Больше разнообразия в скорости мерцания
         }
         
         public void update(float dt) {

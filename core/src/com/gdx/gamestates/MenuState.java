@@ -169,7 +169,12 @@ public class MenuState extends GameState {
         String hint2 = "In game: ESC - return to menu, SPACE - shoot";
         float hint2Width = menuFont.draw(spriteBatch, hint2, 0, 0).width;
         menuFont.draw(spriteBatch, hint2, 
-            (screenWidth - hint2Width) / 2, screenHeight * 0.1f);
+            (screenWidth - hint2Width) / 2, screenHeight * 0.12f);
+        
+        String hint3 = "Your progress is automatically saved when you pause";
+        float hint3Width = menuFont.draw(spriteBatch, hint3, 0, 0).width;
+        menuFont.draw(spriteBatch, hint3, 
+            (screenWidth - hint3Width) / 2, screenHeight * 0.08f);
         
         spriteBatch.end();
     }

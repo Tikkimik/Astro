@@ -7,7 +7,7 @@ public class GameKeys {
     private static boolean[] keys;
     private static boolean[] pkeys;
 
-    private static final int NUM_KEYS = 15;
+    private static final int NUM_KEYS = 16;
 
     public static final int UP = 0;
     public static final int LEFT = 1;
@@ -26,6 +26,7 @@ public class GameKeys {
     public static final int FPS_UP = 12;    // Увеличить лимит FPS (клавиша `)
     public static final int FPS_DOWN = 13;  // Уменьшить лимит FPS (клавиша 1)
     public static final int TOGGLE_FULLSCREEN = 14; // Переключение полноэкранного режима (F11)
+    public static final int TEST = 15;      // Тестовая кнопка для получения опыта
 
     static {
         keys = new boolean[NUM_KEYS];
@@ -76,6 +77,7 @@ public class GameKeys {
             case FPS_UP: return "FPS_UP";
             case FPS_DOWN: return "FPS_DOWN";
             case TOGGLE_FULLSCREEN: return "TOGGLE_FULLSCREEN";
+            case TEST: return "TEST";
             default: return "UNKNOWN(" + k + ")";
         }
     }

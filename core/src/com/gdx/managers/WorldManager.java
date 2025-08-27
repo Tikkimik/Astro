@@ -37,16 +37,53 @@ public class WorldManager {
         this.loadedSectors = new HashMap<>();
     }
     
-    public void update(float dt) {
+    public void update(float dt, boolean isRestoredFromSave) {
         // Получаем позицию игрока
         float playerX = player.getX();
         float playerY = player.getY();
         
-        // Генерируем новые секторы вокруг игрока
-        generateSectorsAroundPlayer(playerX, playerY);
+        // Генерируем новые секторы вокруг игрока (только если это не восстановление из сохранения)
+        if (!isRestoredFromSave) {
+            generateSectorsAroundPlayer(playerX, playerY);
+        }
         
         // Очищаем объекты, которые ушли слишком далеко
         cleanupDistantObjects(playerX, playerY);
+    }
+    
+    // Метод для обновления ссылок после восстановления состояния
+    public void updateReferences(ArrayList<Asteroid> asteroids, ArrayList<OrkAsteroid> orkAsteroids, 
+                                ArrayList<OrkBullet> orkBullets, Player player) {
+        this.asteroids = asteroids;
+        this.orkAsteroids = orkAsteroids;
+        this.orkBullets = orkBullets;
+        this.player = player;
+        
+        // Инициализируем loadedSectors на основе существующих астероидов
+        initializeLoadedSectors();
+    }
+    
+    // Инициализируем loadedSectors на основе существующих объектов
+    private void initializeLoadedSectors() {
+        loadedSectors.clear();
+        
+        // Добавляем секторы для существующих астероидов
+        for (Asteroid asteroid : asteroids) {
+            int sectorX = (int)(asteroid.getX() / SECTOR_SIZE);
+            int sectorY = (int)(asteroid.getY() / SECTOR_SIZE);
+            String sectorKey = sectorX + "," + sectorY;
+            loadedSectors.put(sectorKey, true);
+        }
+        
+        // Добавляем секторы для существующих орк-астероидов
+        for (OrkAsteroid orkAsteroid : orkAsteroids) {
+            int sectorX = (int)(orkAsteroid.getX() / SECTOR_SIZE);
+            int sectorY = (int)(orkAsteroid.getY() / SECTOR_SIZE);
+            String sectorKey = sectorX + "," + sectorY;
+            loadedSectors.put(sectorKey, true);
+        }
+        
+        System.out.println("Инициализировано " + loadedSectors.size() + " секторов на основе существующих объектов");
     }
     
     private void generateSectorsAroundPlayer(float playerX, float playerY) {
@@ -77,6 +114,8 @@ public class WorldManager {
         
         // Генерируем астероиды в секторе
         int asteroidCount = MathUtils.random(3, 8);
+        System.out.println("Генерируем сектор (" + sectorX + ", " + sectorY + ") с " + asteroidCount + " астероидами");
+        
         for (int i = 0; i < asteroidCount; i++) {
             float x = centerX + MathUtils.random(-SECTOR_SIZE/2, SECTOR_SIZE/2);
             float y = centerY + MathUtils.random(-SECTOR_SIZE/2, SECTOR_SIZE/2);
@@ -86,11 +125,13 @@ public class WorldManager {
                 int type = MathUtils.random(0, 2); // SMALL, MEDIUM, LARGE
                 Asteroid asteroid = new Asteroid(x, y, type);
                 asteroids.add(asteroid);
+                System.out.println("Создан астероид в позиции (" + x + ", " + y + ")");
             } else {
                 // Создаем орк-астероид
                 int type = MathUtils.random(0, 2); // SMALL, MEDIUM, LARGE
                 OrkAsteroid orkAsteroid = new OrkAsteroid(x, y, type, player, orkBullets);
                 orkAsteroids.add(orkAsteroid);
+                System.out.println("Создан орк-астероид в позиции (" + x + ", " + y + ")");
             }
         }
     }

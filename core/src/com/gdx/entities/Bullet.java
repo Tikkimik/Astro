@@ -9,6 +9,7 @@ public class Bullet extends SpaceObject{
     private float lifeTime;
     private float lifeTimer;
     private boolean remove;
+    private float damage = 1f;
 
     public Bullet(float x, float y, float radians){
         this.x = x;
@@ -28,6 +29,15 @@ public class Bullet extends SpaceObject{
 
     public boolean shouldRemove(){
         return  remove;
+    }
+    
+    // Методы для работы с уроном
+    public void setDamage(float damage) {
+        this.damage = damage;
+    }
+    
+    public float getDamage() {
+        return damage;
     }
 
     public void update(float dt){

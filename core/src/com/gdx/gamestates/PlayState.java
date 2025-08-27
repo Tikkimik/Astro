@@ -18,12 +18,14 @@ import com.gdx.managers.GameKeys;
 import com.gdx.managers.GameStateManager;
 import com.gdx.managers.AndroidInputManager;
 import com.gdx.managers.WorldManager;
+import com.gdx.managers.ProgressionManager;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.FPSLogger;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class PlayState extends GameState {
 
@@ -34,6 +36,7 @@ public class PlayState extends GameState {
     private Player player;
     private ArrayList<Bullet> bullets;
     private ArrayList<Asteroid> asteroids;
+    private ArrayList<Enemy> enemies;
     private ArrayList<AutoRocket> autoRockets;
     private ArrayList<OrkAsteroid> orkAsteroids;
     private ArrayList<OrkBullet> orkBullets;
@@ -78,30 +81,78 @@ public class PlayState extends GameState {
     
     // Управление бесконечным миром
     private WorldManager worldManager;
+    
+    // Система прокачки
+    private ProgressionManager progressionManager;
+    private boolean showUpgradeScreen = false;
+    
+    // Анимация полоски опыта
+    private float experienceBarTimer = 0f;
+    private float lastExperienceProgress = 0f;
+    private float animatedProgress = 0f;
+    private boolean isLevelingUp = false;
+    private float levelUpTimer = 0f;
+    
+    // Флаг для предотвращения повторной инициализации
+    private boolean isInitialized = false;
+    private boolean isRestoredFromSave = false;
+    private boolean autoRocketLeftSide = true; // Флаг для чередования сторон авторакет
 
     public PlayState(GameStateManager gameStateManager) {
         super(gameStateManager);
     }
+    
+    public PlayState(GameStateManager gameStateManager, ProgressionManager progressionManager) {
+        super(gameStateManager);
+        this.progressionManager = progressionManager;
+    }
 
     @Override
     public void init() {
+        System.out.println("=== ИНИЦИАЛИЗАЦИЯ PLAYSTATE ===");
+        System.out.println("isInitialized: " + isInitialized);
+        // Проверяем, была ли уже инициализация
+        System.out.println("Проверяем isInitialized: " + isInitialized);
+        if (isInitialized) {
+            System.out.println("Пропускаем инициализацию - уже инициализировано");
+            return;
+        }
+        
+        // Инициализируем только базовые компоненты, которые не зависят от состояния игры
         shapeRenderer = new ShapeRenderer();
         camera = new Camera();
         background = new Background(camera);
-        bullets = new ArrayList<Bullet>();
-        player = new Player(bullets);
-        asteroids = new ArrayList<>();
-        autoRockets = new ArrayList<AutoRocket>();
-        orkAsteroids = new ArrayList<OrkAsteroid>();
-        orkBullets = new ArrayList<OrkBullet>();
-        particles = new ArrayList<Particle>();
+        
+        // Инициализируем списки объектов (только если они еще не инициализированы)
+        if (bullets == null) bullets = new ArrayList<Bullet>();
+        if (asteroids == null) asteroids = new ArrayList<>();
+        if (enemies == null) enemies = new ArrayList<Enemy>();
+        if (autoRockets == null) autoRockets = new ArrayList<AutoRocket>();
+        if (orkAsteroids == null) orkAsteroids = new ArrayList<OrkAsteroid>();
+        if (orkBullets == null) orkBullets = new ArrayList<OrkBullet>();
+        if (particles == null) particles = new ArrayList<Particle>();
 
-        level = 1;
-        score = 0;
-        highScore = MyGdxGame.highScore; // Загружаем глобальный рекорд
+        // Инициализируем игровые параметры по умолчанию (только если они еще не инициализированы)
+        if (level == 0) level = 1;
+        if (score == 0 && asteroids == null) score = 0; // Сбрасываем счет только при новой игре
+        if (highScore == 0) highScore = MyGdxGame.highScore; // Загружаем глобальный рекорд
 
-        // Инициализируем WorldManager для бесконечного мира
+        // Создаем игрока только если он еще не создан (не восстановлен из состояния)
+        if (player == null) {
+            System.out.println("Создаем нового игрока в центре экрана");
+            player = new Player(bullets);
+        } else {
+            System.out.println("Используем восстановленного игрока в позиции: (" + player.getX() + ", " + player.getY() + ")");
+        }
+
+        // Инициализируем WorldManager для бесконечного мира (после создания игрока)
         worldManager = new WorldManager(asteroids, orkAsteroids, orkBullets, player);
+        
+        // Инициализируем систему прокачки только если её еще нет
+        if (progressionManager == null) {
+            progressionManager = new ProgressionManager();
+            progressionManager.setGameStateManager(gameStateManager);
+        }
         
         // Инициализируем FPS счетчик
         fpsLogger = new FPSLogger();
@@ -110,6 +161,18 @@ public class PlayState extends GameState {
         
         // Инициализируем Android управление
         androidInputManager = new AndroidInputManager();
+        
+        // Инициализируем списки объектов (только если они еще не инициализированы)
+        if (bullets == null) bullets = new ArrayList<Bullet>();
+        if (asteroids == null) asteroids = new ArrayList<>();
+        if (enemies == null) enemies = new ArrayList<Enemy>();
+        if (autoRockets == null) autoRockets = new ArrayList<AutoRocket>();
+        if (orkAsteroids == null) orkAsteroids = new ArrayList<OrkAsteroid>();
+        if (orkBullets == null) orkBullets = new ArrayList<OrkBullet>();
+        if (particles == null) particles = new ArrayList<Particle>();
+        
+        // Отмечаем, что инициализация завершена
+        isInitialized = true;
     }
 
     private void createParticles(float x, float y) {
@@ -141,6 +204,9 @@ public class PlayState extends GameState {
             highScore = score;
             MyGdxGame.highScore = highScore; // Обновляем глобальный рекорд
         }
+        
+        // Добавляем опыт за очки
+        progressionManager.addExperience(points);
     }
     
     // Найти ближайшего врага к игроку (оптимизированная версия)
@@ -178,7 +244,20 @@ public class PlayState extends GameState {
     // Создать автоматическую ракету
     private void createAutoRocket() {
         if (cachedNearestEnemy != null) {
-            autoRockets.add(new AutoRocket(player.getX(), player.getY(), player.getRadians(), cachedNearestEnemy));
+            // Определяем сторону для запуска ракеты
+            float rocketAngle;
+            if (autoRocketLeftSide) {
+                // Левая сторона (90 градусов от носа корабля)
+                rocketAngle = player.getRadians() + MathUtils.HALF_PI;
+            } else {
+                // Правая сторона (-90 градусов от носа корабля)
+                rocketAngle = player.getRadians() - MathUtils.HALF_PI;
+            }
+            
+            autoRockets.add(new AutoRocket(player.getX(), player.getY(), rocketAngle, cachedNearestEnemy));
+            
+            // Переключаем сторону для следующей ракеты
+            autoRocketLeftSide = !autoRocketLeftSide;
         }
     }
 
@@ -319,32 +398,46 @@ public class PlayState extends GameState {
             
             // Проверяем орк-астероиды
             for (int j = 0; j < orkAsteroids.size(); j++) {
-                OrkAsteroid oa = orkAsteroids.get(j);
-                if (rocket.intersects(oa)) {
-                    autoRockets.remove(i);
-                    i--;
-                    orkAsteroids.remove(j);
-                    j--;
-                    addScore(25); // 25 очков за орк-астероид
-                    createExplosion(oa.getX(), oa.getY(), 12);
-                    break;
+                if (j >= 0 && j < orkAsteroids.size()) {
+                    OrkAsteroid oa = orkAsteroids.get(j);
+                    if (rocket.intersects(oa)) {
+                        if (i >= 0 && i < autoRockets.size()) {
+                            autoRockets.remove(i);
+                            i--;
+                        }
+                        if (j >= 0 && j < orkAsteroids.size()) {
+                            orkAsteroids.remove(j);
+                            j--;
+                        }
+                        addScore(25); // 25 очков за орк-астероид
+                        createExplosion(oa.getX(), oa.getY(), 12);
+                        break;
+                    }
                 }
             }
         }
         
         //bullet-ork asteroid collision
         for (int i = 0; i < bullets.size(); i++) {
-            Bullet b = bullets.get(i);
-            for (int j = 0; j < orkAsteroids.size(); j++) {
-                OrkAsteroid oa = orkAsteroids.get(j);
-                if (oa.intersects(b)) {
-                    bullets.remove(i);
-                    i--;
-                    orkAsteroids.remove(j);
-                    j--;
-                    addScore(25); // 25 очков за орк-астероид
-                    createExplosion(oa.getX(), oa.getY(), 12);
-                    break;
+            if (i >= 0 && i < bullets.size()) {
+                Bullet b = bullets.get(i);
+                for (int j = 0; j < orkAsteroids.size(); j++) {
+                    if (j >= 0 && j < orkAsteroids.size()) {
+                        OrkAsteroid oa = orkAsteroids.get(j);
+                        if (oa.intersects(b)) {
+                            if (i >= 0 && i < bullets.size()) {
+                                bullets.remove(i);
+                                i--;
+                            }
+                            if (j >= 0 && j < orkAsteroids.size()) {
+                                orkAsteroids.remove(j);
+                                j--;
+                            }
+                            addScore(25); // 25 очков за орк-астероид
+                            createExplosion(oa.getX(), oa.getY(), 12);
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -354,12 +447,16 @@ public class PlayState extends GameState {
         //ork bullet-player collision
         if(!player.isHit() && !player.isInvulnerable()) {
             for (int i = 0; i < orkBullets.size(); i++) {
-                OrkBullet ob = orkBullets.get(i);
-                if (ob.intersects(player)) {
-                    orkBullets.remove(i);
-                    i--;
-                    player.hit();
-                    break;
+                if (i >= 0 && i < orkBullets.size()) {
+                    OrkBullet ob = orkBullets.get(i);
+                    if (ob.intersects(player)) {
+                        if (i >= 0 && i < orkBullets.size()) {
+                            orkBullets.remove(i);
+                            i--;
+                        }
+                        player.hit();
+                        break;
+                    }
                 }
             }
         }
@@ -374,6 +471,9 @@ public class PlayState extends GameState {
             System.out.println("WARNING: Invalid deltaTime: " + dt + ", using 0.016f (60 FPS)");
             dt = 0.016f; // Принудительно устанавливаем 60 FPS
         }
+        
+        // Применяем улучшения к игровым объектам (если есть новые)
+        progressionManager.applyUpgradesToGameObjects(player, autoRockets, bullets);
 
         // Начинаем профилирование
         long startTime = System.nanoTime();
@@ -393,7 +493,7 @@ public class PlayState extends GameState {
         handleInput();
 
         // Обновляем бесконечный мир
-        worldManager.update(dt);
+        worldManager.update(dt, isRestoredFromSave);
 
         //next level (теперь не нужен, так как мир бесконечный)
         // if(asteroids.size() == 0 && orkAsteroids.size() == 0) {
@@ -404,10 +504,15 @@ public class PlayState extends GameState {
 
         //update player
         long playerStart = System.nanoTime();
-        player.update(dt);
-        if (player.isDead()) {
-            player.reset();
-            return;
+        if (player != null) {
+            player.update(dt);
+            if (player.isDead()) {
+                System.out.println("Player умер, сбрасываем...");
+                player.reset();
+                return;
+            }
+        } else {
+            System.out.println("ОШИБКА: Player == null в update!");
         }
         playerTime = System.nanoTime() - playerStart;
 
@@ -464,6 +569,36 @@ public class PlayState extends GameState {
                 i--;
             }
         }
+        
+        // Анимация полоски опыта
+        experienceBarTimer += dt;
+        float currentProgress = progressionManager.getExperienceProgress();
+        
+        // Проверяем, произошло ли повышение уровня
+        if (currentProgress < lastExperienceProgress) {
+            isLevelingUp = true;
+            levelUpTimer = 0f;
+        }
+        
+        // Анимация повышения уровня
+        if (isLevelingUp) {
+            levelUpTimer += dt;
+            if (levelUpTimer >= 1.0f) {
+                isLevelingUp = false;
+                animatedProgress = 0f;
+            }
+        }
+        
+        // Плавная анимация прогресса
+        if (!isLevelingUp) {
+            float targetProgress = currentProgress;
+            float diff = targetProgress - animatedProgress;
+            if (Math.abs(diff) > 0.001f) {
+                animatedProgress += diff * dt * 5f; // Скорость анимации
+            }
+        }
+        
+        lastExperienceProgress = currentProgress;
         
         for(int i = 0; i < orkBullets.size(); i++) {
             orkBullets.get(i).update(dt);
@@ -565,7 +700,9 @@ public class PlayState extends GameState {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         
         //draw player
-        player.draw(shapeRenderer, camera, spriteBatch);
+
+            player.draw(shapeRenderer, camera, spriteBatch);
+        
 
         //draw asteroids
         for (int i = 0; i < asteroids.size(); i++) {
@@ -601,19 +738,112 @@ public class PlayState extends GameState {
         font.setColor(1, 1, 1, 1); // Белый цвет
         font.draw(spriteBatch, "Score: " + score, 10, MyGdxGame.HEIGHT - 10);
         font.draw(spriteBatch, "High: " + highScore, 10, MyGdxGame.HEIGHT - 35);
-        font.draw(spriteBatch, "Level: " + level, 10, MyGdxGame.HEIGHT - 60);
+        
+        // Система прокачки
+        font.setColor(0, 1, 1, 1); // Голубой цвет для уровня
+        font.draw(spriteBatch, "Level: " + progressionManager.getCurrentLevel(), 10, MyGdxGame.HEIGHT - 60);
+        
+        // Прогресс опыта
+        font.setColor(1, 1, 0, 1); // Желтый цвет для опыта
+        String expText = "XP: " + progressionManager.getCurrentExperience() + "/" + progressionManager.getExperienceToNextLevel();
+        font.draw(spriteBatch, expText, 10, MyGdxGame.HEIGHT - 85);
+        
+        spriteBatch.end();
+        
+        // Крутая анимированная полоска прогресса опыта
+        float progressBarWidth = 200f;
+        float progressBarHeight = 12f;
+        float progressBarX = 10f;
+        float progressBarY = MyGdxGame.HEIGHT - 95f;
+        
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        
+        // Тень полоски
+        shapeRenderer.setColor(0f, 0f, 0f, 0.5f);
+        shapeRenderer.rect(progressBarX + 2, progressBarY - 2, progressBarWidth, progressBarHeight);
+        
+        // Фон полоски с градиентом
+        shapeRenderer.setColor(0.2f, 0.2f, 0.3f, 1f);
+        shapeRenderer.rect(progressBarX, progressBarY, progressBarWidth, progressBarHeight);
+        
+        // Внутренний фон с эффектом глубины
+        shapeRenderer.setColor(0.1f, 0.1f, 0.2f, 1f);
+        shapeRenderer.rect(progressBarX + 1, progressBarY + 1, progressBarWidth - 2, progressBarHeight - 2);
+        
+        // Анимированное заполнение полоски
+        if (isLevelingUp) {
+            // Эффект повышения уровня - пульсирующий градиент
+            float pulseIntensity = 0.5f + 0.5f * MathUtils.sin(levelUpTimer * 10f);
+            shapeRenderer.setColor(1f, 1f, 0f, pulseIntensity);
+            shapeRenderer.rect(progressBarX + 2, progressBarY + 2, progressBarWidth - 4, progressBarHeight - 4);
+            
+            // Дополнительный эффект свечения
+            shapeRenderer.setColor(1f, 0.8f, 0f, pulseIntensity * 0.5f);
+            shapeRenderer.rect(progressBarX + 2, progressBarY + 2, progressBarWidth - 4, progressBarHeight - 4);
+        } else {
+            // Обычное заполнение с анимацией
+            float fillWidth = (progressBarWidth - 4) * animatedProgress;
+            
+            // Градиентное заполнение
+            for (int i = 0; i < fillWidth; i += 2) {
+                float segmentProgress = i / fillWidth;
+                float r = 1f;
+                float g = 0.5f + 0.5f * segmentProgress;
+                float b = 0f;
+                float alpha = 0.8f + 0.2f * MathUtils.sin(experienceBarTimer * 3f + i * 0.1f);
+                
+                shapeRenderer.setColor(r, g, b, alpha);
+                shapeRenderer.rect(progressBarX + 2 + i, progressBarY + 2, 2, progressBarHeight - 4);
+            }
+            
+            // Эффект свечения на конце полоски
+            if (animatedProgress > 0) {
+                float glowIntensity = 0.3f + 0.2f * MathUtils.sin(experienceBarTimer * 5f);
+                shapeRenderer.setColor(1f, 1f, 0f, glowIntensity);
+                shapeRenderer.rect(progressBarX + 2 + fillWidth - 4, progressBarY + 2, 4, progressBarHeight - 4);
+            }
+        }
+        
+        // Рамка полоски
+        shapeRenderer.setColor(0.6f, 0.6f, 0.8f, 1f);
+        shapeRenderer.rect(progressBarX, progressBarY, progressBarWidth, 2);
+        shapeRenderer.rect(progressBarX, progressBarY + progressBarHeight - 2, progressBarWidth, 2);
+        shapeRenderer.rect(progressBarX, progressBarY, 2, progressBarHeight);
+        shapeRenderer.rect(progressBarX + progressBarWidth - 2, progressBarY, 2, progressBarHeight);
+        
+        // Дополнительные эффекты
+        if (animatedProgress > 0.9f) {
+            // Эффект готовности к повышению уровня
+            float readyPulse = 0.2f + 0.3f * MathUtils.sin(experienceBarTimer * 8f);
+            shapeRenderer.setColor(1f, 0f, 0f, readyPulse);
+            shapeRenderer.rect(progressBarX + 2, progressBarY + 2, progressBarWidth - 4, 2);
+        }
+        
+        shapeRenderer.end();
         
         // FPS счетчик если включен
         if (showFPS) {
             font.setColor(1, 1, 0, 1); // Желтый цвет
-            font.draw(spriteBatch, "FPS: " + currentFPS, 10, MyGdxGame.HEIGHT - 85);
+            font.draw(spriteBatch, "FPS: " + currentFPS, 10, MyGdxGame.HEIGHT - 110);
             
-            // Показываем текущий лимит FPS
-            String fpsLimit = MyGdxGame.targetFPS == 0 ? "UNLIMITED" : String.valueOf(MyGdxGame.targetFPS);
-            font.draw(spriteBatch, "Limit: " + fpsLimit + " (` ↑ 1 ↓)", 10, MyGdxGame.HEIGHT - 110);
+                    // Показываем текущий лимит FPS
+        String fpsLimit = MyGdxGame.targetFPS == 0 ? "UNLIMITED" : String.valueOf(MyGdxGame.targetFPS);
+        font.draw(spriteBatch, "Limit: " + fpsLimit + " (` ↑ 1 ↓)", 10, MyGdxGame.HEIGHT - 135);
+        
+        // Показываем выбранные улучшения (справа)
+        font.setColor(0, 1, 0, 1); // Зеленый цвет для улучшений
+        font.getData().setScale(0.8f);
+        font.draw(spriteBatch, "Upgrades:", MyGdxGame.WIDTH - 150, MyGdxGame.HEIGHT - 10);
+        
+        List<ProgressionManager.Upgrade> selectedUpgrades = progressionManager.getSelectedUpgrades();
+        for (int i = 0; i < Math.min(selectedUpgrades.size(), 5); i++) {
+            ProgressionManager.Upgrade upgrade = selectedUpgrades.get(i);
+            font.draw(spriteBatch, "• " + upgrade.getName(), MyGdxGame.WIDTH - 150, MyGdxGame.HEIGHT - 30 - i * 20);
         }
         
-        spriteBatch.end();
+        // Сбрасываем размер шрифта
+        font.getData().setScale(1f);
+        }
         
         // Рендерим Android элементы управления поверх всего
         if (androidInputManager != null && androidInputManager.isAndroid()) {
@@ -626,6 +856,11 @@ public class PlayState extends GameState {
 
     @Override
     public void handleInput() {
+        // Отладка клавиш
+        if (GameKeys.isPressed(GameKeys.ESCAPE)) {
+            System.out.println("ESCAPE нажата!");
+        }
+        
         player.setLeft(GameKeys.isDown(GameKeys.LEFT));
         player.setRight(GameKeys.isDown(GameKeys.RIGHT));
         player.setUp(GameKeys.isDown(GameKeys.UP));
@@ -657,9 +892,125 @@ public class PlayState extends GameState {
             MyGdxGame.decreaseFPS();
         }
         
-        // Возврат в меню
+        // Возврат в меню с сохранением состояния
         if (GameKeys.isPressed(GameKeys.ESCAPE)) {
-            gameStateManager.setState(GameStateManager.MENU);
+            System.out.println("=== ПАУЗА: Сохраняем состояние игры ===");
+            System.out.println("Очки: " + score + ", Астероиды: " + asteroids.size());
+            if (player != null) {
+                System.out.println("Позиция игрока: (" + player.getX() + ", " + player.getY() + ")");
+            }
+            if (!asteroids.isEmpty()) {
+                System.out.println("Позиция первого астероида: (" + asteroids.get(0).getX() + ", " + asteroids.get(0).getY() + ")");
+            }
+            gameStateManager.setState(GameStateManager.MENU, saveGameState());
+        }
+        
+        // Тестовая кнопка для получения опыта (для тестирования)
+        if (GameKeys.isPressed(GameKeys.TEST)) {
+            progressionManager.addExperience(50);
+        }
+    }
+    
+    // Геттеры для применения улучшений
+    public Player getPlayer() {
+        return player;
+    }
+    
+    public ArrayList<AutoRocket> getAutoRockets() {
+        return autoRockets;
+    }
+    
+    // Методы для сохранения и восстановления состояния
+    public com.gdx.managers.GameState saveGameState() {
+        System.out.println("=== СОХРАНЕНИЕ СОСТОЯНИЯ ===");
+        System.out.println("До сохранения - Очки: " + score + ", Астероиды: " + asteroids.size());
+        if (player != null) {
+            System.out.println("Player позиция: (" + player.getX() + ", " + player.getY() + ")");
+        }
+        
+        com.gdx.managers.GameState gameState = new com.gdx.managers.GameState();
+        gameState.setPlayer(player);
+        gameState.setAsteroids(asteroids);
+        gameState.setEnemies(enemies);
+        gameState.setAutoRockets(autoRockets);
+        gameState.setBullets(bullets);
+        gameState.setOrkAsteroids(orkAsteroids);
+        gameState.setOrkBullets(orkBullets);
+        gameState.setParticles(particles);
+        gameState.setLevel(level);
+        gameState.setTotalAsteroids(totalAsteroids);
+        gameState.setNumAsteroidsLeft(numAsteroidsLeft);
+        gameState.setScore(score);
+        gameState.setHighScore(highScore);
+        gameState.setAutoRocketTimer(autoRocketTimer);
+        
+        System.out.println("Состояние создано - Очки: " + gameState.getScore() + ", Астероиды: " + gameState.getAsteroids().size());
+        return gameState;
+    }
+    
+    public void restoreGameState(com.gdx.managers.GameState gameState) {
+        if (gameState != null) {
+            System.out.println("=== ВОССТАНОВЛЕНИЕ СОСТОЯНИЯ ===");
+            
+            // Восстанавливаем игровые объекты
+            player = gameState.getPlayer();
+            asteroids = gameState.getAsteroids();
+            enemies = gameState.getEnemies();
+            autoRockets = gameState.getAutoRockets();
+            bullets = gameState.getBullets();
+            orkAsteroids = gameState.getOrkAsteroids();
+            orkBullets = gameState.getOrkBullets();
+            particles = gameState.getParticles();
+            
+            // Восстанавливаем игровые параметры
+            level = gameState.getLevel();
+            totalAsteroids = gameState.getTotalAsteroids();
+            numAsteroidsLeft = gameState.getNumAsteroidsLeft();
+            score = gameState.getScore();
+            highScore = gameState.getHighScore();
+            autoRocketTimer = gameState.getAutoRocketTimer();
+            
+            System.out.println("После восстановления:");
+            if (player != null) {
+                System.out.println("Позиция игрока: (" + player.getX() + ", " + player.getY() + ")");
+                System.out.println("Player объект: " + player.hashCode());
+                System.out.println("Player жив: " + !player.isDead());
+                System.out.println("Player невидимый: " + player.isInvulnerable());
+            } else {
+                System.out.println("ОШИБКА: Player == null после восстановления!");
+            }
+            System.out.println("Астероиды: " + asteroids.size());
+            System.out.println("Пули: " + bullets.size());
+            System.out.println("Орк-астероиды: " + orkAsteroids.size());
+            System.out.println("Орк-пули: " + orkBullets.size());
+            if (!asteroids.isEmpty()) {
+                System.out.println("Позиция первого астероида: (" + asteroids.get(0).getX() + ", " + asteroids.get(0).getY() + ")");
+            }
+            
+            // Обновляем ссылки в объектах
+            if (player != null) {
+                // Обновляем ссылку на bullets в Player
+                try {
+                    java.lang.reflect.Field bulletsField = player.getClass().getDeclaredField("bullets");
+                    bulletsField.setAccessible(true);
+                    bulletsField.set(player, bullets);
+                } catch (Exception e) {
+                    // Игнорируем ошибку
+                }
+            }
+            
+            // Обновляем WorldManager
+            if (worldManager != null) {
+                worldManager.updateReferences(asteroids, orkAsteroids, orkBullets, player);
+            }
+            
+            // Проверяем и пересоздаем текстуру корабля, если нужно
+            if (player != null) {
+                player.recreateTextureIfNeeded();
+            }
+            
+            // Отмечаем, что состояние восстановлено из сохранения
+            isRestoredFromSave = true;
         }
     }
 

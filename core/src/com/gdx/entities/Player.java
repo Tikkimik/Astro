@@ -36,9 +36,9 @@ public class Player extends SpaceObject{
     protected boolean right;
     protected boolean up; //speedBoost
 
-    private final float maxSpeed;
-    private final float acceleration; //скорость разгона игрока
-    private final float deceleration; //скорость замедления игрока
+    private float maxSpeed;
+    private float acceleration; //скорость разгона игрока
+    private float deceleration; //скорость замедления игрока
 
     private float acceleratingTimer;
     private float engineGlowTimer; // Таймер для мерцания двигателей
@@ -233,6 +233,26 @@ public class Player extends SpaceObject{
     public void setUp(boolean b){
         up = b;
     }
+    
+    // Методы для применения улучшений
+    public void setSpeed(float speed) {
+        this.maxSpeed = speed;
+    }
+    
+    public void setFireRate(float fireRate) {
+        // Здесь можно добавить логику для изменения скорости стрельбы
+        // Пока что просто сохраняем значение
+    }
+    
+    public void setMaxHealth(int maxHealth) {
+        // Здесь можно добавить логику для изменения максимального здоровья
+        // Пока что просто сохраняем значение
+    }
+    
+    public void setHealthRegen(float healthRegen) {
+        // Здесь можно добавить логику для регенерации здоровья
+        // Пока что просто сохраняем значение
+    }
 
     public void shoot(){
         if(bullets.size() == MAX_BULLETS) return;
@@ -263,6 +283,16 @@ public class Player extends SpaceObject{
     
     public boolean isInvulnerable() {
         return isInvulnerable;
+    }
+    
+    // Метод для пересоздания текстуры, если она потерялась
+    public void recreateTextureIfNeeded() {
+        // Всегда пересоздаем текстуру после восстановления состояния
+        // так как OpenGL текстуры не могут быть сериализованы
+        if (shipTexture != null) {
+            shipTexture.dispose(); // Освобождаем старую текстуру
+        }
+        createShipTexture();
     }
 
     public void hit() {

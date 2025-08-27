@@ -55,6 +55,9 @@ public class GameInputProcessor extends InputAdapter {
         if(k == Input.Keys.F11) { // Клавиша F11 для переключения полноэкранного режима
             GameKeys.setKey(GameKeys.TOGGLE_FULLSCREEN, true);
         }
+        if(k == Input.Keys.T) { // Клавиша T для тестирования системы прокачки
+            GameKeys.setKey(GameKeys.TEST, true);
+        }
 
         return true;
     }
@@ -106,6 +109,9 @@ public class GameInputProcessor extends InputAdapter {
         }
         if(k == Input.Keys.F11) { // Клавиша F11 для переключения полноэкранного режима
             GameKeys.setKey(GameKeys.TOGGLE_FULLSCREEN, false);
+        }
+        if(k == Input.Keys.T) { // Клавиша T для тестирования системы прокачки
+            GameKeys.setKey(GameKeys.TEST, false);
         }
         return true;
     }
