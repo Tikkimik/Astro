@@ -88,6 +88,13 @@ public class GameSettings {
      */
     private static float rocketParticleLifetime = 1.2f;
     
+    // === НАСТРОЙКИ ПАУЗЫ ===
+    
+    /**
+     * Тип системы паузы (0 = Pause, 1 = Traditional)
+     */
+    private static int pauseSystemType = 0; // 0 = Pause (локальная пауза)
+    
     // === НАСТРОЙКИ КОЛЛИЗИЙ ===
     
     /**
@@ -225,6 +232,12 @@ public class GameSettings {
         rocketParticleLifetime = Math.max(0.1f, Math.min(5.0f, lifetime)); 
     }
     
+    // Пауза
+    public static int getPauseSystemType() { return pauseSystemType; }
+    public static void setPauseSystemType(int type) { 
+        pauseSystemType = Math.max(0, Math.min(1, type)); 
+    }
+    
     // Коллизии
     public static boolean isCollisionsEnabled() { return enableCollisions; }
     public static void setCollisionsEnabled(boolean enabled) { enableCollisions = enabled; }
@@ -290,6 +303,7 @@ public class GameSettings {
         playerSpeed = 300.0f;
         bulletSpeed = 350.0f;
         bulletLifetime = 1.0f;
+        pauseSystemType = 0;
         maxParticles = 1000;
         shipEngineParticles = 8; // Возвращаем к нормальному значению
         rocketParticleRate = 0.9f;

@@ -39,6 +39,7 @@ public class SettingsState extends GameState {
         "Ship Engine Particles: " + GameSettings.getShipEngineParticles(),
         "Player Speed: " + (int)GameSettings.getPlayerSpeed(),
         "Bullet Speed: " + (int)GameSettings.getBulletSpeed(),
+        "Pause System: " + getPauseSystemText(),
         "BACK"
     };
     
@@ -57,6 +58,7 @@ public class SettingsState extends GameState {
         "Ship engine particle count (0-100)",
         "Player ship movement speed (100-1000)",
         "Bullet projectile speed (100-1000)",
+        "Pause system type (Style/Traditional)",
         "Return to main menu"
     };
     
@@ -360,6 +362,14 @@ public class SettingsState extends GameState {
         return GameLogger.getCurrentLogLevelName();
     }
     
+    private String getPauseSystemText() {
+        switch (GameSettings.getPauseSystemType()) {
+            case 0: return "Style";
+            case 1: return "Traditional";
+            default: return "Style";
+        }
+    }
+    
     private void updateSettingsTexts() {
         // Обновляем Gameplay настройки
         gameplayItems[0] = "Logic FPS: " + GameSettings.getTargetLogicFPS();
@@ -368,6 +378,7 @@ public class SettingsState extends GameState {
         gameplayItems[3] = "Ship Engine Particles: " + GameSettings.getShipEngineParticles();
         gameplayItems[4] = "Player Speed: " + (int)GameSettings.getPlayerSpeed();
         gameplayItems[5] = "Bullet Speed: " + (int)GameSettings.getBulletSpeed();
+        gameplayItems[6] = "Pause System: " + getPauseSystemText();
         
         // Обновляем Graphics настройки
         graphicsItems[0] = "Display Mode: " + getDisplayModeText();
@@ -478,6 +489,14 @@ public class SettingsState extends GameState {
             }
             if (GameKeys.isPressed(GameKeys.RIGHT)) {
                 GameSettings.setBulletSpeed(GameSettings.getBulletSpeed() + 25);
+            }
+        }
+        else if (selectedItem == 6) { // Pause System
+            if (GameKeys.isPressed(GameKeys.LEFT) || GameKeys.isPressed(GameKeys.RIGHT)) {
+                int current = GameSettings.getPauseSystemType();
+                current = (current + 1) % 2;
+                GameSettings.setPauseSystemType(current);
+                GameLogger.settings("Pause system changed to: " + getPauseSystemText());
             }
         }
     }

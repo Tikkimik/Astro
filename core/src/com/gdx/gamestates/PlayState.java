@@ -11,7 +11,9 @@ import com.gdx.entities.OrkAsteroid;
 import com.gdx.entities.OrkBullet;
 import com.gdx.entities.Particle;
 import com.gdx.entities.Player;
+import com.gdx.entities.EnemyShip;
 import com.gdx.entities.ExplosionParticle;
+import com.gdx.entities.OptimizedParticle;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 import com.gdx.managers.GameKeys;
@@ -24,8 +26,9 @@ import com.badlogic.gdx.graphics.FPSLogger;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 
-import java.util.ArrayList;
+import com.badlogic.gdx.utils.Array;
 import java.util.List;
+import com.gdx.utils.ObjectPools;
 
 public class PlayState extends GameState {
 
@@ -34,14 +37,16 @@ public class PlayState extends GameState {
     private Camera camera;
     private Background background;
     private Player player;
-    private ArrayList<Bullet> bullets;
-    private ArrayList<Asteroid> asteroids;
-    private ArrayList<Enemy> enemies;
-    private ArrayList<AutoRocket> autoRockets;
-    private ArrayList<OrkAsteroid> orkAsteroids;
-    private ArrayList<OrkBullet> orkBullets;
+    private Array<Bullet> bullets;
+    private Array<Asteroid> asteroids;
+    private Array<Enemy> enemies;
+    private Array<AutoRocket> autoRockets;
+    private Array<OrkAsteroid> orkAsteroids;
+    private Array<OrkBullet> orkBullets;
+    private Array<EnemyShip> enemyShips;
 
-    private ArrayList<Particle> particles;
+    private Array<Particle> particles;
+    private Array<OptimizedParticle> optimizedParticles;
 
     private int level;
     private int totalAsteroids;
@@ -66,7 +71,7 @@ public class PlayState extends GameState {
     private int currentFPS = 0;
     private float fpsTimer = 0f;
     
-    // Система паузы в стиле Mindustry
+    // Система паузы
     private boolean isPaused = false;
     private float pauseTime = 0f;
     private float totalPauseTime = 0f;
@@ -130,14 +135,16 @@ public class PlayState extends GameState {
         camera = new Camera();
         background = new Background(camera);
         
-        // Инициализируем списки объектов (только если они еще не инициализированы)
-        if (bullets == null) bullets = new ArrayList<Bullet>();
-        if (asteroids == null) asteroids = new ArrayList<>();
-        if (enemies == null) enemies = new ArrayList<Enemy>();
-        if (autoRockets == null) autoRockets = new ArrayList<AutoRocket>();
-        if (orkAsteroids == null) orkAsteroids = new ArrayList<OrkAsteroid>();
-        if (orkBullets == null) orkBullets = new ArrayList<OrkBullet>();
-        if (particles == null) particles = new ArrayList<Particle>();
+        // Инициализируем списки объектов (используем Array вместо ArrayList)
+        if (bullets == null) bullets = new Array<Bullet>();
+        if (asteroids == null) asteroids = new Array<Asteroid>();
+        if (enemies == null) enemies = new Array<Enemy>();
+        if (autoRockets == null) autoRockets = new Array<AutoRocket>();
+        if (orkAsteroids == null) orkAsteroids = new Array<OrkAsteroid>();
+        if (orkBullets == null) orkBullets = new Array<OrkBullet>();
+        if (enemyShips == null) enemyShips = new Array<EnemyShip>();
+        if (particles == null) particles = new Array<Particle>();
+        if (optimizedParticles == null) optimizedParticles = new Array<OptimizedParticle>();
 
         // Инициализируем игровые параметры по умолчанию (только если они еще не инициализированы)
         if (level == 0) level = 1;
@@ -153,7 +160,7 @@ public class PlayState extends GameState {
         }
 
         // Инициализируем WorldManager для бесконечного мира (после создания игрока)
-        worldManager = new WorldManager(asteroids, orkAsteroids, orkBullets, player);
+        worldManager = new WorldManager(asteroids, orkAsteroids, orkBullets, enemyShips, player);
         
         // Инициализируем систему прокачки только если её еще нет
         if (progressionManager == null) {
@@ -168,15 +175,6 @@ public class PlayState extends GameState {
         
         // Инициализируем Android управление
         androidInputManager = new AndroidInputManager();
-        
-        // Инициализируем списки объектов (только если они еще не инициализированы)
-        if (bullets == null) bullets = new ArrayList<Bullet>();
-        if (asteroids == null) asteroids = new ArrayList<>();
-        if (enemies == null) enemies = new ArrayList<Enemy>();
-        if (autoRockets == null) autoRockets = new ArrayList<AutoRocket>();
-        if (orkAsteroids == null) orkAsteroids = new ArrayList<OrkAsteroid>();
-        if (orkBullets == null) orkBullets = new ArrayList<OrkBullet>();
-        if (particles == null) particles = new ArrayList<Particle>();
         
         // Отмечаем, что инициализация завершена
         isInitialized = true;
@@ -202,6 +200,25 @@ public class PlayState extends GameState {
         // Добавляем несколько обычных частиц
         for(int i = 0; i < 8; i++) {
             particles.add(new Particle(x, y));
+        }
+    }
+    
+    // Методы для создания оптимизированных частиц
+    private void createOptimizedExplosion(float x, float y, int particleCount) {
+        for(int i = 0; i < particleCount; i++) {
+            optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "explosion"));
+        }
+    }
+    
+    private void createOptimizedFlameParticles(float x, float y, int particleCount) {
+        for(int i = 0; i < particleCount; i++) {
+            optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "flame"));
+        }
+    }
+    
+    private void createOptimizedSmokeParticles(float x, float y, int particleCount) {
+        for(int i = 0; i < particleCount; i++) {
+            optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "smoke"));
         }
     }
     
@@ -340,13 +357,13 @@ public class PlayState extends GameState {
 
         //player-asteroids
         if(!player.isHit() && !player.isInvulnerable()) {
-            for (int i = 0; i < asteroids.size(); i++) {
+            for (int i = 0; i < asteroids.size; i++) {
                 Asteroid asteroid = asteroids.get(i);
 
                 if (asteroid.intersects(player)) {
                     player.hit();
                     createShipExplosion(player.getX(), player.getY());
-                    asteroids.remove(i);
+                    asteroids.removeIndex(i);
                     i--;
                     splitAsteroids(asteroid);
                     break;
@@ -354,7 +371,7 @@ public class PlayState extends GameState {
             }
             
             // player-ork asteroids
-            for (int i = 0; i < orkAsteroids.size(); i++) {
+            for (int i = 0; i < orkAsteroids.size; i++) {
                 OrkAsteroid orkAsteroid = orkAsteroids.get(i);
 
                 if (orkAsteroid.intersects(player)) {
@@ -367,14 +384,14 @@ public class PlayState extends GameState {
         }
 
         //bullet-asteroid collision
-        for (int i = 0; i < bullets.size(); i++) {
+        for (int i = 0; i < bullets.size; i++) {
             Bullet b = bullets.get(i);
-            for (int j = 0; j < asteroids.size(); j++) {
+            for (int j = 0; j < asteroids.size; j++) {
                 Asteroid a = asteroids.get(j);
                 if (a.contains(b.getX(), b.getY())) {
-                    bullets.remove(i);
+                    bullets.removeIndex(i);
                     i--;
-                    asteroids.remove(j);
+                    asteroids.removeIndex(j);
                     j--;
                     addScore(10); // 10 очков за обычный астероид
                     createExplosion(a.getX(), a.getY(), 8);
@@ -385,16 +402,16 @@ public class PlayState extends GameState {
         }
         
         //auto rocket-enemy collision
-        for (int i = 0; i < autoRockets.size(); i++) {
+        for (int i = 0; i < autoRockets.size; i++) {
             AutoRocket rocket = autoRockets.get(i);
             
             // Проверяем обычные астероиды
-            for (int j = 0; j < asteroids.size(); j++) {
+            for (int j = 0; j < asteroids.size; j++) {
                 Asteroid a = asteroids.get(j);
                 if (rocket.intersects(a)) {
-                    autoRockets.remove(i);
+                    autoRockets.removeIndex(i);
                     i--;
-                    asteroids.remove(j);
+                    asteroids.removeIndex(j);
                     j--;
                     addScore(10); // 10 очков за обычный астероид
                     createExplosion(a.getX(), a.getY(), 6);
@@ -404,16 +421,16 @@ public class PlayState extends GameState {
             }
             
             // Проверяем орк-астероиды
-            for (int j = 0; j < orkAsteroids.size(); j++) {
-                if (j >= 0 && j < orkAsteroids.size()) {
+            for (int j = 0; j < orkAsteroids.size; j++) {
+                if (j >= 0 && j < orkAsteroids.size) {
                     OrkAsteroid oa = orkAsteroids.get(j);
                     if (rocket.intersects(oa)) {
-                        if (i >= 0 && i < autoRockets.size()) {
-                            autoRockets.remove(i);
+                        if (i >= 0 && i < autoRockets.size) {
+                            autoRockets.removeIndex(i);
                             i--;
                         }
-                        if (j >= 0 && j < orkAsteroids.size()) {
-                            orkAsteroids.remove(j);
+                        if (j >= 0 && j < orkAsteroids.size) {
+                            orkAsteroids.removeIndex(j);
                             j--;
                         }
                         addScore(25); // 25 очков за орк-астероид
@@ -425,19 +442,19 @@ public class PlayState extends GameState {
         }
         
         //bullet-ork asteroid collision
-        for (int i = 0; i < bullets.size(); i++) {
-            if (i >= 0 && i < bullets.size()) {
+        for (int i = 0; i < bullets.size; i++) {
+            if (i >= 0 && i < bullets.size) {
                 Bullet b = bullets.get(i);
-                for (int j = 0; j < orkAsteroids.size(); j++) {
-                    if (j >= 0 && j < orkAsteroids.size()) {
+                for (int j = 0; j < orkAsteroids.size; j++) {
+                    if (j >= 0 && j < orkAsteroids.size) {
                         OrkAsteroid oa = orkAsteroids.get(j);
                         if (oa.intersects(b)) {
-                            if (i >= 0 && i < bullets.size()) {
-                                bullets.remove(i);
+                            if (i >= 0 && i < bullets.size) {
+                                bullets.removeIndex(i);
                                 i--;
                             }
-                            if (j >= 0 && j < orkAsteroids.size()) {
-                                orkAsteroids.remove(j);
+                            if (j >= 0 && j < orkAsteroids.size) {
+                                orkAsteroids.removeIndex(j);
                                 j--;
                             }
                             addScore(25); // 25 очков за орк-астероид
@@ -453,12 +470,12 @@ public class PlayState extends GameState {
         
         //ork bullet-player collision
         if(!player.isHit() && !player.isInvulnerable()) {
-            for (int i = 0; i < orkBullets.size(); i++) {
-                if (i >= 0 && i < orkBullets.size()) {
+            for (int i = 0; i < orkBullets.size; i++) {
+                if (i >= 0 && i < orkBullets.size) {
                     OrkBullet ob = orkBullets.get(i);
                     if (ob.intersects(player)) {
-                        if (i >= 0 && i < orkBullets.size()) {
-                            orkBullets.remove(i);
+                        if (i >= 0 && i < orkBullets.size) {
+                            orkBullets.removeIndex(i);
                             i--;
                         }
                         player.hit();
@@ -479,8 +496,17 @@ public class PlayState extends GameState {
             dt = 0.016f; // Принудительно устанавливаем 60 FPS
         }
         
+        // Система паузы
+        if (isPaused) {
+            pauseTime += dt;
+            totalPauseTime += dt;
+            // Обрабатываем только ввод для паузы, но пропускаем всю игровую логику
+            handlePauseInput();
+            return;
+        }
+        
         // Применяем улучшения к игровым объектам (если есть новые)
-        progressionManager.applyUpgradesToGameObjects(player, autoRockets, bullets);
+        // progressionManager.applyUpgradesToGameObjects(player, autoRockets, bullets);
 
         // Начинаем профилирование
         long startTime = System.nanoTime();
@@ -503,7 +529,7 @@ public class PlayState extends GameState {
         worldManager.update(dt, isRestoredFromSave);
 
         //next level (теперь не нужен, так как мир бесконечный)
-        // if(asteroids.size() == 0 && orkAsteroids.size() == 0) {
+        // if(asteroids.size == 0 && orkAsteroids.size == 0) {
         //     level++;
         //     spawnAsteroids();
         //     spawnOrkAsteroids();
@@ -525,10 +551,10 @@ public class PlayState extends GameState {
 
         //update player bullets
         long bulletsStart = System.nanoTime();
-        for (int i = 0; i < bullets.size(); i++) {
+        for (int i = 0; i < bullets.size; i++) {
             bullets.get(i).update(dt);
             if (bullets.get(i).shouldRemove()) {
-                bullets.remove(i);
+                bullets.removeIndex(i);
                 i--;
             }
         }
@@ -536,10 +562,10 @@ public class PlayState extends GameState {
 
         //update asteroids
         long asteroidsStart = System.nanoTime();
-        for (int i = 0; i < asteroids.size(); i++) {
+        for (int i = 0; i < asteroids.size; i++) {
             asteroids.get(i).update(dt);
             if (asteroids.get(i).shouldRemove()) {
-                asteroids.remove(i);
+                asteroids.removeIndex(i);
                 i--;
             }
         }
@@ -547,10 +573,20 @@ public class PlayState extends GameState {
 
         //update particles
         long particlesStart = System.nanoTime();
-        for(int i = 0; i < particles.size(); i++) {
+        for(int i = 0; i < particles.size; i++) {
             particles.get(i).update(dt);
             if(particles.get(i).shouldRemove()) {
-                particles.remove(i);
+                particles.removeIndex(i);
+                i--;
+            }
+        }
+        
+        //update optimized particles
+        for(int i = 0; i < optimizedParticles.size; i++) {
+            optimizedParticles.get(i).update(dt);
+            if(optimizedParticles.get(i).shouldRemove()) {
+                ObjectPools.freeOptimizedParticle(optimizedParticles.get(i));
+                optimizedParticles.removeIndex(i);
                 i--;
             }
         }
@@ -558,10 +594,10 @@ public class PlayState extends GameState {
         
         //update auto rockets
         long rocketsStart = System.nanoTime();
-        for(int i = 0; i < autoRockets.size(); i++) {
+        for(int i = 0; i < autoRockets.size; i++) {
             autoRockets.get(i).update(dt);
             if(autoRockets.get(i).shouldRemove()) {
-                autoRockets.remove(i);
+                autoRockets.removeIndex(i);
                 i--;
             }
         }
@@ -569,10 +605,10 @@ public class PlayState extends GameState {
         
         //update ork asteroids and bullets
         long orkStart = System.nanoTime();
-        for(int i = 0; i < orkAsteroids.size(); i++) {
+        for(int i = 0; i < orkAsteroids.size; i++) {
             orkAsteroids.get(i).update(dt);
             if(orkAsteroids.get(i).shouldRemove()) {
-                orkAsteroids.remove(i);
+                orkAsteroids.removeIndex(i);
                 i--;
             }
         }
@@ -607,10 +643,10 @@ public class PlayState extends GameState {
         
         lastExperienceProgress = currentProgress;
         
-        for(int i = 0; i < orkBullets.size(); i++) {
+        for(int i = 0; i < orkBullets.size; i++) {
             orkBullets.get(i).update(dt);
             if(orkBullets.get(i).shouldRemove()) {
-                orkBullets.remove(i);
+                orkBullets.removeIndex(i);
                 i--;
             }
         }
@@ -652,9 +688,9 @@ public class PlayState extends GameState {
                            asteroidsTime + particlesTime + rocketsTime + orkTime + collisionsTime;
             
             System.out.println("=== PERFORMANCE PROFILE ===");
-            System.out.println("FPS: " + currentFPS + " | Objects: A=" + asteroids.size() + 
-                             " OA=" + orkAsteroids.size() + " B=" + bullets.size() + 
-                             " AR=" + autoRockets.size() + " P=" + particles.size());
+            System.out.println("FPS: " + currentFPS + " | Objects: A=" + asteroids.size + 
+                             " OA=" + orkAsteroids.size + " B=" + bullets.size + 
+                             " AR=" + autoRockets.size + " P=" + particles.size);
             System.out.println("World: " + worldManager.getWorldInfo());
             System.out.println("Times (μs): Camera=" + (cameraTime/1000) + 
                              " Background=" + (backgroundTime/1000) + 
@@ -687,17 +723,17 @@ public class PlayState extends GameState {
         }
         
         //draw auto rockets
-        for(int i = 0; i < autoRockets.size(); i++) {
+        for(int i = 0; i < autoRockets.size; i++) {
             autoRockets.get(i).draw(shapeRenderer, camera);
         }
         
         //draw ork bullets
-        for(int i = 0; i < orkBullets.size(); i++) {
+        for(int i = 0; i < orkBullets.size; i++) {
             orkBullets.get(i).draw(shapeRenderer, camera);
         }
         
         //draw ork asteroids (заполненные части)
-        for(int i = 0; i < orkAsteroids.size(); i++) {
+        for(int i = 0; i < orkAsteroids.size; i++) {
             orkAsteroids.get(i).drawFilled(shapeRenderer, camera);
         }
         
@@ -712,7 +748,7 @@ public class PlayState extends GameState {
         
 
         //draw asteroids
-        for (int i = 0; i < asteroids.size(); i++) {
+        for (int i = 0; i < asteroids.size; i++) {
             asteroids.get(i).draw(shapeRenderer, camera);
         }
 
@@ -722,8 +758,13 @@ public class PlayState extends GameState {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
         //draw particles
-        for(int i = 0; i < particles.size(); i++) {
+        for(int i = 0; i < particles.size; i++) {
             particles.get(i).draw(shapeRenderer, camera);
+        }
+        
+        //draw optimized particles
+        for(int i = 0; i < optimizedParticles.size; i++) {
+            optimizedParticles.get(i).draw(spriteBatch, camera);
         }
         
         shapeRenderer.end();
@@ -732,7 +773,7 @@ public class PlayState extends GameState {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         
         //draw ork asteroids (контуры)
-        for(int i = 0; i < orkAsteroids.size(); i++) {
+        for(int i = 0; i < orkAsteroids.size; i++) {
             orkAsteroids.get(i).draw(shapeRenderer, camera);
         }
         
@@ -850,6 +891,77 @@ public class PlayState extends GameState {
         
         // Сбрасываем размер шрифта
         font.getData().setScale(1f);
+        
+        // Отрисовка оверлея паузы
+        if (isPaused) {
+            // Анимированный полупрозрачный фон с пульсацией
+            float pulseAlpha = 0.6f + 0.1f * (float)Math.sin(pauseTime * 2f);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            shapeRenderer.setColor(0, 0, 0, pulseAlpha);
+            shapeRenderer.rect(0, 0, MyGdxGame.WIDTH, MyGdxGame.HEIGHT);
+            shapeRenderer.end();
+            
+            // Рамка вокруг экрана
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(1, 1, 1, 0.3f);
+            shapeRenderer.rect(10, 10, MyGdxGame.WIDTH - 20, MyGdxGame.HEIGHT - 20);
+            shapeRenderer.end();
+            
+            // Основной текст паузы с анимацией
+            font.setColor(1, 1, 1, 1);
+            font.getData().setScale(3f);
+            String pauseText = "⏸ ПАУЗА ⏸";
+            float textWidth = font.draw(spriteBatch, pauseText, 0, 0).width;
+            float textY = MyGdxGame.HEIGHT / 2 + 80;
+            font.draw(spriteBatch, pauseText, 
+                     (MyGdxGame.WIDTH - textWidth) / 2, 
+                     textY);
+            
+            // Подсказка с миганием
+            font.getData().setScale(1.2f);
+            String hintText = "Нажмите ESC для продолжения";
+            textWidth = font.draw(spriteBatch, hintText, 0, 0).width;
+            float blinkAlpha = 0.5f + 0.5f * (float)Math.abs(Math.sin(pauseTime * 3f));
+            font.setColor(1, 1, 1, blinkAlpha);
+            font.draw(spriteBatch, hintText, 
+                     (MyGdxGame.WIDTH - textWidth) / 2, 
+                     MyGdxGame.HEIGHT / 2 - 10);
+            
+            // Время в паузе
+            font.setColor(0.9f, 0.9f, 0.9f, 1);
+            String timeText = String.format("⏱ Время в паузе: %.1f сек", pauseTime);
+            textWidth = font.draw(spriteBatch, timeText, 0, 0).width;
+            font.draw(spriteBatch, timeText, 
+                     (MyGdxGame.WIDTH - textWidth) / 2, 
+                     MyGdxGame.HEIGHT / 2 - 60);
+            
+            // Общее время в паузе
+            font.setColor(0.7f, 0.7f, 0.7f, 1);
+            String totalTimeText = String.format("📊 Общее время: %.1f сек", totalPauseTime);
+            textWidth = font.draw(spriteBatch, totalTimeText, 0, 0).width;
+            font.draw(spriteBatch, totalTimeText, 
+                     (MyGdxGame.WIDTH - textWidth) / 2, 
+                     MyGdxGame.HEIGHT / 2 - 90);
+            
+            // Дополнительные подсказки
+            font.getData().setScale(0.9f);
+            font.setColor(0.6f, 0.6f, 0.6f, 1);
+            String extraHint = "💡 Игра продолжает отрисовываться";
+            textWidth = font.draw(spriteBatch, extraHint, 0, 0).width;
+            font.draw(spriteBatch, extraHint, 
+                     (MyGdxGame.WIDTH - textWidth) / 2, 
+                     MyGdxGame.HEIGHT / 2 - 120);
+            
+            // Подсказка о выходе в меню
+            String menuHint = "🎮 Нажмите TAB для выхода в меню";
+            textWidth = font.draw(spriteBatch, menuHint, 0, 0).width;
+            font.draw(spriteBatch, menuHint, 
+                     (MyGdxGame.WIDTH - textWidth) / 2, 
+                     MyGdxGame.HEIGHT / 2 - 150);
+            
+            // Сбрасываем размер шрифта
+            font.getData().setScale(1f);
+        }
         }
         
         // Рендерим Android элементы управления поверх всего
@@ -861,6 +973,22 @@ public class PlayState extends GameState {
         drawTime = System.nanoTime() - drawStart;
     }
 
+    // Метод для обработки ввода в паузе
+    private void handlePauseInput() {
+        // Выход в меню из паузы (TAB для Menu)
+        if (GameKeys.isPressed(GameKeys.TAB)) {
+            System.out.println("=== ВЫХОД В МЕНЮ ИЗ ПАУЗЫ ===");
+            gameStateManager.setState(GameStateManager.MENU, saveGameState());
+        }
+        
+        // Переключение паузы (ESC)
+        if (GameKeys.isPressed(GameKeys.ESCAPE)) {
+            isPaused = false;
+            System.out.println("=== ПАУЗА ОТКЛЮЧЕНА ===");
+            System.out.println("Общее время в паузе: " + totalPauseTime + " сек");
+        }
+    }
+    
     @Override
     public void handleInput() {
         // Отладка клавиш
@@ -899,18 +1027,31 @@ public class PlayState extends GameState {
             MyGdxGame.decreaseFPS();
         }
         
-        // Возврат в меню с сохранением состояния
+        // Система паузы 
         if (GameKeys.isPressed(GameKeys.ESCAPE)) {
-            System.out.println("=== ПАУЗА: Сохраняем состояние игры ===");
-            System.out.println("Очки: " + score + ", Астероиды: " + asteroids.size());
-            if (player != null) {
-                System.out.println("Позиция игрока: (" + player.getX() + ", " + player.getY() + ")");
+            isPaused = !isPaused;
+            if (isPaused) {
+                System.out.println("=== ПАУЗА АКТИВИРОВАНА ===");
+                pauseTime = 0f;
+                pauseOverlayTimer = 0f;
+            } else {
+                System.out.println("=== ПАУЗА ОТКЛЮЧЕНА ===");
+                System.out.println("Общее время в паузе: " + totalPauseTime + " сек");
             }
-            if (!asteroids.isEmpty()) {
-                System.out.println("Позиция первого астероида: (" + asteroids.get(0).getX() + ", " + asteroids.get(0).getY() + ")");
-            }
-            gameStateManager.setState(GameStateManager.MENU, saveGameState());
         }
+        
+        // Возврат в меню с сохранением состояния (только если не в паузе)
+        // if (GameKeys.isPressed(GameKeys.ESCAPE) && !isPaused) {
+        //     System.out.println("=== ВОЗВРАТ В МЕНЮ: Сохраняем состояние игры ===");
+        //     System.out.println("Очки: " + score + ", Астероиды: " + asteroids.size);
+        //     if (player != null) {
+        //         System.out.println("Позиция игрока: (" + player.getX() + ", " + player.getY() + ")");
+        //     }
+        //     if (!asteroids.isEmpty()) {
+        //         System.out.println("Позиция первого астероида: (" + asteroids.get(0).getX() + ", " + asteroids.get(0).getY() + ")");
+        //     }
+        //     gameStateManager.setState(GameStateManager.MENU, saveGameState());
+        // }
         
         // Тестовая кнопка для получения опыта (для тестирования)
         if (GameKeys.isPressed(GameKeys.TEST)) {
@@ -923,14 +1064,14 @@ public class PlayState extends GameState {
         return player;
     }
     
-    public ArrayList<AutoRocket> getAutoRockets() {
+    public Array<AutoRocket> getAutoRockets() {
         return autoRockets;
     }
     
     // Методы для сохранения и восстановления состояния
     public com.gdx.managers.GameState saveGameState() {
         System.out.println("=== СОХРАНЕНИЕ СОСТОЯНИЯ ===");
-        System.out.println("До сохранения - Очки: " + score + ", Астероиды: " + asteroids.size());
+        System.out.println("До сохранения - Очки: " + score + ", Астероиды: " + asteroids.size);
         if (player != null) {
             System.out.println("Player позиция: (" + player.getX() + ", " + player.getY() + ")");
         }
@@ -951,7 +1092,7 @@ public class PlayState extends GameState {
         gameState.setHighScore(highScore);
         gameState.setAutoRocketTimer(autoRocketTimer);
         
-        System.out.println("Состояние создано - Очки: " + gameState.getScore() + ", Астероиды: " + gameState.getAsteroids().size());
+        System.out.println("Состояние создано - Очки: " + gameState.getScore() + ", Астероиды: " + gameState.getAsteroids().size);
         return gameState;
     }
     
@@ -986,11 +1127,11 @@ public class PlayState extends GameState {
             } else {
                 System.out.println("ОШИБКА: Player == null после восстановления!");
             }
-            System.out.println("Астероиды: " + asteroids.size());
-            System.out.println("Пули: " + bullets.size());
-            System.out.println("Орк-астероиды: " + orkAsteroids.size());
-            System.out.println("Орк-пули: " + orkBullets.size());
-            if (!asteroids.isEmpty()) {
+            System.out.println("Астероиды: " + asteroids.size);
+            System.out.println("Пули: " + bullets.size);
+            System.out.println("Орк-астероиды: " + orkAsteroids.size);
+            System.out.println("Орк-пули: " + orkBullets.size);
+            if (asteroids.size > 0) {
                 System.out.println("Позиция первого астероида: (" + asteroids.get(0).getX() + ", " + asteroids.get(0).getY() + ")");
             }
             
@@ -1008,7 +1149,7 @@ public class PlayState extends GameState {
             
             // Обновляем WorldManager
             if (worldManager != null) {
-                worldManager.updateReferences(asteroids, orkAsteroids, orkBullets, player);
+                worldManager.updateReferences(asteroids, orkAsteroids, orkBullets, enemyShips, player);
             }
             
             // Проверяем и пересоздаем текстуру корабля, если нужно
