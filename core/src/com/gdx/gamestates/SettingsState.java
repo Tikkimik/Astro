@@ -36,6 +36,7 @@ public class SettingsState extends GameState {
         "Logic FPS: " + GameSettings.getTargetLogicFPS(),
         "Render FPS: " + (GameSettings.getMaxRenderFPS() == 0 ? "UNLIMITED" : GameSettings.getMaxRenderFPS()),
         "Particles: " + GameSettings.getMaxParticles(),
+        "Ship Engine Particles: " + GameSettings.getShipEngineParticles(),
         "Player Speed: " + (int)GameSettings.getPlayerSpeed(),
         "Bullet Speed: " + (int)GameSettings.getBulletSpeed(),
         "BACK"
@@ -53,6 +54,7 @@ public class SettingsState extends GameState {
         "Game logic update frequency (30-240 FPS)",
         "Maximum render FPS (30-240, UNLIMITED)",
         "Maximum particle count (100-5000)",
+        "Ship engine particle count (0-100)",
         "Player ship movement speed (100-1000)",
         "Bullet projectile speed (100-1000)",
         "Return to main menu"
@@ -269,14 +271,22 @@ public class SettingsState extends GameState {
                     else if (particles <= 2000) return "Enhanced effects";
                     else return "Maximum effects";
                     
-                case 3: // Player Speed
+                case 3: // Ship Engine Particles
+                    int engineParticles = GameSettings.getShipEngineParticles();
+                    if (engineParticles == 0) return "No engine effects";
+                    else if (engineParticles <= 5) return "Minimal engine effects";
+                    else if (engineParticles <= 15) return "Standard engine effects";
+                    else if (engineParticles <= 30) return "Enhanced engine effects";
+                    else return "Maximum engine effects";
+                    
+                case 4: // Player Speed
                     float playerSpeed = GameSettings.getPlayerSpeed();
                     if (playerSpeed <= 200) return "Slow movement";
                     else if (playerSpeed <= 300) return "Standard speed";
                     else if (playerSpeed <= 500) return "Fast movement";
                     else return "Very fast movement";
                     
-                case 4: // Bullet Speed
+                case 5: // Bullet Speed
                     float bulletSpeed = GameSettings.getBulletSpeed();
                     if (bulletSpeed <= 200) return "Slow bullets";
                     else if (bulletSpeed <= 350) return "Standard speed";
@@ -355,8 +365,9 @@ public class SettingsState extends GameState {
         gameplayItems[0] = "Logic FPS: " + GameSettings.getTargetLogicFPS();
         gameplayItems[1] = "Render FPS: " + (GameSettings.getMaxRenderFPS() == 0 ? "UNLIMITED" : GameSettings.getMaxRenderFPS());
         gameplayItems[2] = "Particles: " + GameSettings.getMaxParticles();
-        gameplayItems[3] = "Player Speed: " + (int)GameSettings.getPlayerSpeed();
-        gameplayItems[4] = "Bullet Speed: " + (int)GameSettings.getBulletSpeed();
+        gameplayItems[3] = "Ship Engine Particles: " + GameSettings.getShipEngineParticles();
+        gameplayItems[4] = "Player Speed: " + (int)GameSettings.getPlayerSpeed();
+        gameplayItems[5] = "Bullet Speed: " + (int)GameSettings.getBulletSpeed();
         
         // Обновляем Graphics настройки
         graphicsItems[0] = "Display Mode: " + getDisplayModeText();
@@ -445,7 +456,15 @@ public class SettingsState extends GameState {
                 GameSettings.setMaxParticles(GameSettings.getMaxParticles() + 100);
             }
         }
-        else if (selectedItem == 3) { // Player Speed
+        else if (selectedItem == 3) { // Ship Engine Particles
+            if (GameKeys.isPressed(GameKeys.LEFT)) {
+                GameSettings.setShipEngineParticles(GameSettings.getShipEngineParticles() - 1);
+            }
+            if (GameKeys.isPressed(GameKeys.RIGHT)) {
+                GameSettings.setShipEngineParticles(GameSettings.getShipEngineParticles() + 1);
+            }
+        }
+        else if (selectedItem == 4) { // Player Speed
             if (GameKeys.isPressed(GameKeys.LEFT)) {
                 GameSettings.setPlayerSpeed(GameSettings.getPlayerSpeed() - 25);
             }
@@ -453,7 +472,7 @@ public class SettingsState extends GameState {
                 GameSettings.setPlayerSpeed(GameSettings.getPlayerSpeed() + 25);
             }
         }
-        else if (selectedItem == 4) { // Bullet Speed
+        else if (selectedItem == 5) { // Bullet Speed
             if (GameKeys.isPressed(GameKeys.LEFT)) {
                 GameSettings.setBulletSpeed(GameSettings.getBulletSpeed() - 25);
             }

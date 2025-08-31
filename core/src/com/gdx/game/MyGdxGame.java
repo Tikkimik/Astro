@@ -50,6 +50,12 @@ public class MyGdxGame extends ApplicationAdapter {
 	 */
 	@Override
 	public void create () {  //метод инициализации по сути
+		// Принудительно отключаем V-Sync для максимальной производительности
+		Gdx.graphics.setVSync(false);
+		
+		// Включаем встроенные инструменты профилирования LibGDX
+		Gdx.app.setLogLevel(com.badlogic.gdx.Application.LOG_DEBUG);
+		
 		// Инициализируем GameLogger с настройками из GameSettings
 		GameLogger.setLogLevel(GameSettings.getLogLevel());
 		GameLogger.setDebugMode(GameSettings.isDebugMode());
@@ -61,6 +67,7 @@ public class MyGdxGame extends ApplicationAdapter {
 		GameLogger.info("OpenGL: " + Gdx.gl.glGetString(com.badlogic.gdx.graphics.GL20.GL_VERSION));
 		GameLogger.info("GPU: " + Gdx.gl.glGetString(com.badlogic.gdx.graphics.GL20.GL_RENDERER));
 		GameLogger.info("Display refresh rate: " + Gdx.graphics.getDisplayMode().refreshRate + "Hz");
+		GameLogger.info("VSync: DISABLED (forced)");
 		GameLogger.info("Log Level: " + GameLogger.getCurrentLogLevelName());
 		GameLogger.info("Debug Mode: " + (GameSettings.isDebugMode() ? "ON" : "OFF"));
 		GameLogger.info("==========================");
@@ -101,7 +108,7 @@ public class MyGdxGame extends ApplicationAdapter {
 	public void render () {
 		ScreenUtils.clear(0, 0, 0, 1); //black
 
-		// Получаем deltaTime через TimeManager
+		// Получаем deltaTime через TimeManager для независимости от FPS
 		float deltaTime = TimeManager.getDeltaTime();
 		
 		// Обновляем аккумулятор времени
@@ -134,18 +141,19 @@ public class MyGdxGame extends ApplicationAdapter {
 			GameKeys.setKey(GameKeys.TOGGLE_FULLSCREEN, false);
 		}
 		
-		// Мониторинг FPS с настраиваемым интервалом
-		if (Gdx.graphics.getFrameId() % GameConfig.STATS_INTERVAL == 0) {
-			String stats = TimeManager.getStats();
-			if (!stats.isEmpty()) {
-				GameLogger.performance(stats);
+		// Мониторинг FPS и фреймтайма с детальной статистикой
+		if (Gdx.graphics.getFrameId() % 120 == 0) { // Каждые 2 секунды
+			float fps = 1.0f / deltaTime;
+			float frameTime = deltaTime * 1000; // В миллисекундах
+			if (fps > 0 && fps < 300) {
+				String stats = TimeManager.getStats();
+				if (!stats.isEmpty()) {
+					GameLogger.performance(String.format("RENDER FPS: %.1f | Render Frame Time: %.2fms | %s", fps, frameTime, stats));
+				} else {
+					GameLogger.performance(String.format("RENDER FPS: %.1f | Render Frame Time: %.2fms", fps, frameTime));
+				}
 			}
-			TimeManager.resetStats();
 		}
-
-		// batch.begin();
-		// batch.draw(img, 0, 0); // Убираем отрисовку логотипа
-		// batch.end();
 	}
 
 	@Override

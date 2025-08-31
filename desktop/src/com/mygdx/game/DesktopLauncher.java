@@ -20,8 +20,8 @@ public class DesktopLauncher {
 		// Принудительно отключаем V-Sync
 		config.useVsync(false);
 		
-		// Устанавливаем начальный лимит FPS (60)
-		config.setForegroundFPS(60);
+		// Убираем ограничение FPS для максимальной производительности
+		config.setForegroundFPS(0); // 0 = без ограничений
 		
 		// Простые настройки OpenGL
 		System.setProperty("org.lwjgl.opengl.Display.allowSoftwareOpenGL", "false");

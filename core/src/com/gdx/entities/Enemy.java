@@ -67,6 +67,11 @@ public abstract class Enemy extends SpaceObject {
     public abstract void draw(ShapeRenderer shapeRenderer, Camera camera);
     
     /**
+     * Обновление состояния врага
+     */
+    public abstract void update(float dt);
+    
+    /**
      * Проверка коллизии с другим объектом (оптимизированная)
      */
     public boolean intersects(SpaceObject other) {

@@ -10,18 +10,23 @@ public class Particle extends SpaceObject {
     private float time;
     private boolean remove;
 
-    public  Particle(float x, float y) {
+    public Particle(float x, float y) {
+        init(x, y);
+    }
+    
+    // Метод инициализации для пула объектов
+    public void init(float x, float y) {
         this.x = x;
         this.y = y;
-        width = height = 2;
+        this.remove = false;
+        this.timer = 0;
+        this.time = 1f;
 
+        width = height = 2;
         speed = 50;
         radians = MathUtils.random(2 * MathUtils.PI);
         dx = MathUtils.cos(radians) * speed;
         dy = MathUtils.sin(radians) * speed;
-
-        timer = 0;
-        time = 1;
     }
 
     public boolean shouldRemove() {

@@ -5,17 +5,17 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.utils.Array;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 
 import com.gdx.utils.Line2D;
 import com.gdx.utils.Point2D;
-import java.util.ArrayList;
 
 public class Player extends SpaceObject{
 
     private final int MAX_BULLETS = 4;
-    private ArrayList<Bullet> bullets;
+    private Array<Bullet> bullets;
 
     private final float[] flameX;
     private final float[] flameY;
@@ -42,8 +42,9 @@ public class Player extends SpaceObject{
 
     private float acceleratingTimer;
     private float engineGlowTimer; // Таймер для мерцания двигателей
-    private ArrayList<FlameParticle> flameParticles; // Частицы огня
-    private ArrayList<ShieldParticle> shieldParticles; // Синие частицы щита
+    private float particleTimer = 0f; // Таймер для создания частиц с фиксированной частотой
+    private Array<FlameParticle> flameParticles; // Частицы огня
+    private Array<ShieldParticle> shieldParticles; // Синие частицы щита
     
     // Система неуязвимости (i-frames)
     private float invulnerabilityTimer;
@@ -61,7 +62,7 @@ public class Player extends SpaceObject{
     
     private Texture shipTexture;
 
-    public Player(ArrayList<Bullet> bullets){
+    public Player(Array<Bullet> bullets){
 
         this.bullets = bullets;
 
@@ -97,8 +98,8 @@ public class Player extends SpaceObject{
         hitTime = 2;
         
         // Инициализируем списки частиц
-        flameParticles = new ArrayList<>();
-        shieldParticles = new ArrayList<>();
+        flameParticles = new Array<>();
+        shieldParticles = new Array<>();
         
         // Активируем неуязвимость при создании корабля
         startInvulnerability();
@@ -203,12 +204,12 @@ public class Player extends SpaceObject{
     
     private void createShipTexture() {
         // Загружаем текстуру корабля из файла
-        try {
+        // try {
             shipTexture = new Texture("ship.png");
-        } catch (Exception e) {
+        // } catch (Exception e) {
             // Если текстура не найдена, используем заглушку
-            shipTexture = new Texture("badlogic.jpg");
-        }
+            // shipTexture = new Texture("badlogic.jpg");
+        // }
     }
 
     private void setFlame(){
@@ -255,7 +256,7 @@ public class Player extends SpaceObject{
     }
 
     public void shoot(){
-        if(bullets.size() == MAX_BULLETS) return;
+        if(bullets.size == MAX_BULLETS) return;
         bullets.add(new Bullet(x, y, radians));
     }
 
@@ -402,15 +403,21 @@ public class Player extends SpaceObject{
             engineGlowTimer -= MathUtils.PI2;
         }
         
+        // Создаем частицы огня при движении (фиксированная частота)
+        createFlameParticles(dt);
+        
         // Обновляем частицы огня
-        for(int i = flameParticles.size() - 1; i >= 0; i--) {
+        for(int i = flameParticles.size - 1; i >= 0; i--) {
             FlameParticle particle = flameParticles.get(i);
-            particle.update(dt);
+            // Используем фиксированный временной шаг для обновления частиц
+            particle.update(com.gdx.utils.TimeManager.FIXED_TIMESTEP);
             
             if(particle.shouldRemove()) {
-                flameParticles.remove(i);
+                flameParticles.removeIndex(i);
             }
         }
+        
+
         
         // Обновляем таймер неуязвимости
         if(isInvulnerable) {
@@ -428,17 +435,37 @@ public class Player extends SpaceObject{
         }
         
         // Обновляем синие частицы
-        for(int i = shieldParticles.size() - 1; i >= 0; i--) {
+        for(int i = shieldParticles.size - 1; i >= 0; i--) {
             ShieldParticle particle = shieldParticles.get(i);
-            particle.update(dt);
+            // Используем фиксированный временной шаг для обновления частиц
+            particle.update(com.gdx.utils.TimeManager.FIXED_TIMESTEP);
             
             if(particle.shouldRemove()) {
-                shieldParticles.remove(i);
+                shieldParticles.removeIndex(i);
             }
         }
 
         //screen warp
         wrap();
+    }
+    
+    private void createFlameParticles(float dt) {
+        // Создаем частицы огня из сопла (каждый кадр игровой логики)
+        if(up) {
+            float nozzleX = x - MathUtils.cos(radians) * 8;
+            float nozzleY = y - MathUtils.sin(radians) * 8 - 2; // Смещаем немного ниже
+            float flameAngle = radians + MathUtils.PI; // Огонь направлен назад
+            
+            // Используем настройку количества частиц
+            int particleCount = com.gdx.utils.GameSettings.getShipEngineParticles();
+            
+            // Создаем частицы согласно настройке
+            for(int i = 0; i < particleCount; i++) {
+                float spreadAngle = flameAngle + (MathUtils.random() - 0.5f) * 0.4f; // Больший разброс
+                float flameSpeed = 150 + MathUtils.random() * 150; // Случайная скорость
+                flameParticles.add(new FlameParticle(nozzleX, nozzleY, spreadAngle, flameSpeed));
+            }
+        }
     }
 
     public void draw(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch){
@@ -517,32 +544,20 @@ public class Player extends SpaceObject{
             spriteBatch.end();
         }
 
-        // Частицы огня двигателей
-        if(up){
-            // Создаем частицы огня из сопла
-            float nozzleX = x - MathUtils.cos(radians) * 8;
-            float nozzleY = y - MathUtils.sin(radians) * 8 - 2; // Смещаем немного ниже
-            float flameAngle = radians + MathUtils.PI; // Огонь направлен назад
-            
-            // Создаем больше частиц для лучшего эффекта
-            for(int i = 0; i < 5; i++) {
-                float spreadAngle = flameAngle + (MathUtils.random() - 0.5f) * 0.4f; // Больший разброс
-                float flameSpeed = 150 + MathUtils.random() * 150; // Случайная скорость
-                flameParticles.add(new FlameParticle(nozzleX, nozzleY, spreadAngle, flameSpeed));
-            }
-        }
+        // Частицы огня двигателей (создаются в update с фиксированной частотой)
+        // Здесь только отрисовка
         
         // Рисуем частицы огня (заполненные круги)
         shapeRenderer.end(); // Заканчиваем рендеринг линий
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
-        for(int i = flameParticles.size() - 1; i >= 0; i--) {
+        for(int i = flameParticles.size - 1; i >= 0; i--) {
             FlameParticle particle = flameParticles.get(i);
             particle.draw(shapeRenderer, camera);
         }
         
         // Рисуем синие частицы щита
-        for(int i = shieldParticles.size() - 1; i >= 0; i--) {
+        for(int i = shieldParticles.size - 1; i >= 0; i--) {
             ShieldParticle particle = shieldParticles.get(i);
             particle.draw(shapeRenderer, camera);
         }
@@ -570,5 +585,9 @@ public class Player extends SpaceObject{
         if (shipTexture != null) {
             shipTexture.dispose();
         }
+    }
+    
+    public Array<FlameParticle> getFlameParticles() {
+        return flameParticles;
     }
 }

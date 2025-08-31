@@ -10,25 +10,31 @@ public class Bullet extends SpaceObject{
     private float lifeTimer;
     private boolean remove;
     private float damage = 1f;
+    private float speed = 350f;
 
     public Bullet(float x, float y, float radians){
+        init(x, y, radians);
+    }
+    
+    // Метод инициализации для пула объектов
+    public void init(float x, float y, float radians){
         this.x = x;
         this.y = y;
         this.radians = radians;
+        this.remove = false;
+        this.lifeTimer = 0;
+        this.lifeTime = 1f;
+        this.damage = 1f;
 
-        float speed = 350;
         dx = MathUtils.cos(radians) * speed;
         dy = MathUtils.sin(radians) * speed;
 
         width = 2;
         height = 2;
-
-        lifeTimer = 0;
-        lifeTime = 1;
     }
 
     public boolean shouldRemove(){
-        return  remove;
+        return remove;
     }
     
     // Методы для работы с уроном

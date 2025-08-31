@@ -83,6 +83,7 @@ public class Asteroid extends Enemy {
         return remove;
     }
 
+    @Override
     public void update(float dt){
         x += dx * dt;
         y += dy * dt;
@@ -93,6 +94,7 @@ public class Asteroid extends Enemy {
         wrap();
     }
 
+    @Override
     public void draw(ShapeRenderer shapeRenderer, Camera camera){
         shapeRenderer.setColor(1,1,1,1);
 

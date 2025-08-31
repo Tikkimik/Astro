@@ -14,6 +14,13 @@ public class ShieldParticle extends Particle {
     
     public ShieldParticle(float x, float y, float angle, float radius) {
         super(x, y);
+        init(x, y, angle, radius);
+    }
+    
+    // Метод инициализации для пула объектов
+    public void init(float x, float y, float angle, float radius) {
+        this.x = x;
+        this.y = y;
         this.angle = angle;
         this.radius = radius;
         this.speed = 50 + MathUtils.random() * 100; // Случайная скорость
@@ -28,6 +35,11 @@ public class ShieldParticle extends Particle {
         float outwardSpeed = 20 + MathUtils.random() * 30;
         this.dx = MathUtils.cos(angle) * outwardSpeed;
         this.dy = MathUtils.sin(angle) * outwardSpeed;
+    }
+    
+    // Метод инициализации для пула объектов (переопределение базового)
+    public void init(float x, float y) {
+        init(x, y, MathUtils.random(2 * MathUtils.PI), 20 + MathUtils.random(30));
     }
     
     @Override

@@ -12,6 +12,13 @@ public class RocketParticle extends Particle {
     
     public RocketParticle(float x, float y, float angle) {
         super(x, y);
+        init(x, y, angle);
+    }
+    
+    // Метод инициализации для пула объектов
+    public void init(float x, float y, float angle) {
+        this.x = x;
+        this.y = y;
         this.maxLife = 1.2f + MathUtils.random() * 0.8f; // Время жизни 1.2-2.0 секунды (дольше)
         this.life = maxLife;
         this.size = 1.5f + MathUtils.random() * 1.0f; // Размер 1.5-2.5 пикселя (увеличили для более заметного следа)
@@ -22,6 +29,11 @@ public class RocketParticle extends Particle {
         
         this.dx = MathUtils.cos(spreadAngle) * speed;
         this.dy = MathUtils.sin(spreadAngle) * speed;
+    }
+    
+    // Метод инициализации для пула объектов (переопределение базового)
+    public void init(float x, float y) {
+        init(x, y, MathUtils.random(2 * MathUtils.PI));
     }
     
     @Override

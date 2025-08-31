@@ -2,9 +2,8 @@ package com.gdx.entities;
 
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.utils.Array;
 import com.gdx.managers.Camera;
-
-import java.util.ArrayList;
 
 public class OrkAsteroid extends Enemy {
     
@@ -28,10 +27,10 @@ public class OrkAsteroid extends Enemy {
     // Цель для стрельбы
     private Player target;
     
-    // Список пуль орков
-    private ArrayList<OrkBullet> orkBullets;
+    // Список пуль орков (используем Array вместо ArrayList)
+    private Array<OrkBullet> orkBullets;
     
-    public OrkAsteroid(float x, float y, int type, Player target, ArrayList<OrkBullet> orkBullets) {
+    public OrkAsteroid(float x, float y, int type, Player target, Array<OrkBullet> orkBullets) {
         super(x, y, 2); // Здоровье = 2 для орк-астероидов
         this.type = type;
         this.target = target;
@@ -87,6 +86,7 @@ public class OrkAsteroid extends Enemy {
         return remove;
     }
     
+    @Override
     public void update(float dt){
         x += dx * dt;
         y += dy * dt;
@@ -122,12 +122,12 @@ public class OrkAsteroid extends Enemy {
     private void shoot() {
         if (target == null) return;
         
-        // Вычисляем направление к цели
+        // Вычисляем направление к цели (оптимизировано - без квадратного корня)
         float targetDx = target.getX() - x;
         float targetDy = target.getY() - y;
-        float distance = (float) Math.sqrt(targetDx * targetDx + targetDy * targetDy);
+        float distanceSq = targetDx * targetDx + targetDy * targetDy;
         
-        if (distance > 0) {
+        if (distanceSq > 100) { // Минимальное расстояние для стрельбы (10² = 100)
             // Добавляем небольшое отклонение для реалистичности
             float accuracy = 0.3f; // Точность стрельбы (0 = идеально, 1 = очень неточно)
             float angle = (float) Math.atan2(targetDy, targetDx);
@@ -138,16 +138,23 @@ public class OrkAsteroid extends Enemy {
         }
     }
     
+    @Override
     public void draw(ShapeRenderer shapeRenderer, Camera camera) {
-        // Рисуем контур астероида
-        shapeRenderer.setColor(0.6f, 0.4f, 0.2f, 1); // Светло-коричневый контур
+        // Рисуем орк-астероид как красный многоугольник
+        shapeRenderer.setColor(0.8f, 0.2f, 0.2f, 1); // Красный цвет
         
-        for(int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++){
-            float screenX1 = camera.worldToScreenX(shapeX[i]);
-            float screenY1 = camera.worldToScreenY(shapeY[i]);
-            float screenX2 = camera.worldToScreenX(shapeX[j]);
-            float screenY2 = camera.worldToScreenY(shapeY[j]);
-            shapeRenderer.line(screenX1, screenY1, screenX2, screenY2);
+        float[] screenX = new float[shapeX.length];
+        float[] screenY = new float[shapeY.length];
+        
+        for (int i = 0; i < shapeX.length; i++) {
+            screenX[i] = camera.worldToScreenX(shapeX[i]);
+            screenY[i] = camera.worldToScreenY(shapeY[i]);
+        }
+        
+        // Рисуем многоугольник
+        for (int i = 0; i < screenX.length; i++) {
+            int next = (i + 1) % screenX.length;
+            shapeRenderer.line(screenX[i], screenY[i], screenX[next], screenY[next]);
         }
     }
     

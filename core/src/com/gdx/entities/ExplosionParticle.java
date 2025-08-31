@@ -15,8 +15,14 @@ public class ExplosionParticle extends Particle {
 
     public ExplosionParticle(float x, float y) {
         super(x, y);
+        init(x, y);
+    }
+    
+    // Метод инициализации для пула объектов
+    public void init(float x, float y) {
         this.x = x;
         this.y = y;
+        this.remove = false;
         
         // Случайное направление взрыва
         speed = MathUtils.random(100, 200);

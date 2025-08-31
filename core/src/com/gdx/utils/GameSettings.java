@@ -74,6 +74,11 @@ public class GameSettings {
     private static int maxParticles = 1000;
     
     /**
+     * Количество частиц двигателя корабля (0-100)
+     */
+    private static int shipEngineParticles = 8; // Значение по умолчанию
+    
+    /**
      * Частота создания частиц ракет (0.0 - 1.0)
      */
     private static float rocketParticleRate = 0.9f;
@@ -205,6 +210,11 @@ public class GameSettings {
         maxParticles = Math.max(100, Math.min(5000, max)); 
     }
     
+    public static int getShipEngineParticles() { return shipEngineParticles; }
+    public static void setShipEngineParticles(int count) { 
+        shipEngineParticles = Math.max(0, Math.min(100, count)); 
+    }
+    
     public static float getRocketParticleRate() { return rocketParticleRate; }
     public static void setRocketParticleRate(float rate) { 
         rocketParticleRate = Math.max(0.0f, Math.min(1.0f, rate)); 
@@ -281,6 +291,7 @@ public class GameSettings {
         bulletSpeed = 350.0f;
         bulletLifetime = 1.0f;
         maxParticles = 1000;
+        shipEngineParticles = 8; // Возвращаем к нормальному значению
         rocketParticleRate = 0.9f;
         rocketParticleLifetime = 1.2f;
         enableCollisions = true;

@@ -66,6 +66,13 @@ public class PlayState extends GameState {
     private int currentFPS = 0;
     private float fpsTimer = 0f;
     
+    // Система паузы в стиле Mindustry
+    private boolean isPaused = false;
+    private float pauseTime = 0f;
+    private float totalPauseTime = 0f;
+    private boolean pauseOverlayVisible = true;
+    private float pauseOverlayTimer = 0f;
+    
     // Профилирование производительности
     private long lastUpdateTime = 0;
     private long cameraTime = 0, backgroundTime = 0, playerTime = 0;

@@ -12,9 +12,16 @@ public class OrkBullet extends SpaceObject {
     private boolean remove = false;
     
     public OrkBullet(float x, float y, float angle) {
+        init(x, y, angle);
+    }
+    
+    // Метод инициализации для пула объектов
+    public void init(float x, float y, float angle) {
         this.x = x;
         this.y = y;
         this.radians = angle;
+        this.remove = false;
+        this.lifeTimer = 0f;
         
         // Задаем направление движения
         dx = MathUtils.cos(angle) * speed;
@@ -55,11 +62,12 @@ public class OrkBullet extends SpaceObject {
         shapeRenderer.rect(screenX - scaledWidth/2, screenY - scaledHeight/2, scaledWidth, scaledHeight);
     }
     
-    // Проверяем столкновение с игроком
+    // Проверяем столкновение с игроком (оптимизировано без Math.sqrt)
     public boolean intersects(Player player) {
         float dx = x - player.getX();
         float dy = y - player.getY();
-        float distance = (float) Math.sqrt(dx * dx + dy * dy);
-        return distance < player.getWidth() / 2 + width / 2;
+        float distanceSq = dx * dx + dy * dy;
+        float radiusSum = player.getWidth() / 2 + width / 2;
+        return distanceSq < radiusSum * radiusSum;
     }
 }
