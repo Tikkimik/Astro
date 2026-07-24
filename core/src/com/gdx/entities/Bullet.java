@@ -4,7 +4,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
 
-public class Bullet extends SpaceObject{
+public class Bullet extends SpaceObject implements GameObject.Updatable {
 
     private float lifeTime;
     private float lifeTimer;
@@ -44,6 +44,14 @@ public class Bullet extends SpaceObject{
     
     public float getDamage() {
         return damage;
+    }
+
+    public boolean intersects(SpaceObject other) {
+        float dx = x - other.getX();
+        float dy = y - other.getY();
+        float distSq = dx * dx + dy * dy;
+        float radiusSum = width / 2f + other.getWidth() / 2f;
+        return distSq < radiusSum * radiusSum;
     }
 
     public void update(float dt){

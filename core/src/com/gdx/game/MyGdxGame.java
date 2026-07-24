@@ -8,13 +8,19 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.gdx.managers.GameInputProcessor;
 import com.gdx.managers.GameKeys;
-import com.gdx.managers.GameStateManager;
+import com.gdx.managers.ImprovedGameStateManager;
 import com.gdx.managers.AndroidInputManager;
 import com.gdx.utils.TimeManager;
 import com.gdx.utils.GameConfig;
 import com.gdx.utils.DisplayManager;
 import com.gdx.utils.GameLogger;
 import com.gdx.utils.GameSettings;
+import com.gdx.utils.ParticlePool;
+import com.gdx.managers.MenuStateHandler;
+import com.gdx.managers.RealPlayStateHandler;
+import com.gdx.managers.PausedStateHandler;
+import com.gdx.managers.SettingsStateHandler;
+import com.gdx.managers.UpgradeSelectionStateHandler;
 
 public class MyGdxGame extends ApplicationAdapter {
 	SpriteBatch batch;
@@ -25,7 +31,7 @@ public class MyGdxGame extends ApplicationAdapter {
 
 	public static OrthographicCamera camera;
 
-	public GameStateManager gameStateManager;
+	public ImprovedGameStateManager gameStateManager;
 	public AndroidInputManager androidInputManager;
 	
 	// Настройки FPS
@@ -39,6 +45,9 @@ public class MyGdxGame extends ApplicationAdapter {
 	
 	// Рекорд
 	public static int highScore = 0;
+	
+	// Режим отладки для оптимизации логирования
+	public static final boolean DEBUG_MODE = GameSettings.isDebugMode();
 	
 	// Переменные для полноэкранного режима
 	private static boolean isFullscreen = false;
@@ -89,7 +98,10 @@ public class MyGdxGame extends ApplicationAdapter {
 			Gdx.input.setInputProcessor(new GameInputProcessor());
 		}
 
-		gameStateManager = new GameStateManager();
+		gameStateManager = new ImprovedGameStateManager();
+		
+		// Инициализируем новую систему состояний
+		initializeStateSystem();
 		
 		// Вернули обычную игру для профилирования
 		// gameStateManager.push(new com.gdx.gamestates.FPSTestState(gameStateManager));
@@ -101,9 +113,7 @@ public class MyGdxGame extends ApplicationAdapter {
 	/**
 	 * тут происходить вся игра
 	 * нужно все делить все на разные составляющие чтобы тут небыло хаоса
-	 */
-	// Аккумулятор времени теперь управляется TimeManager
-	
+	 */	
 	@Override
 	public void render () {
 		ScreenUtils.clear(0, 0, 0, 1); //black
@@ -123,7 +133,7 @@ public class MyGdxGame extends ApplicationAdapter {
 		gameStateManager.handleInput();
 		
 		// Отрисовка происходит каждый кадр (не зависит от временного шага)
-		gameStateManager.draw();
+		gameStateManager.render();
 		TimeManager.incrementRenderCount();
 
 		// Обновляем Android управление
@@ -185,12 +195,58 @@ public class MyGdxGame extends ApplicationAdapter {
 	}
 
 	/**
+	 * Инициализация системы состояний
+	 */
+	private void initializeStateSystem() {
+		GameLogger.info("=== ИНИЦИАЛИЗАЦИЯ НОВОЙ СИСТЕМЫ СОСТОЯНИЙ ===");
+		
+		// Регистрируем обработчики для всех состояний
+		MenuStateHandler menuHandler = new MenuStateHandler();
+		menuHandler.setStateManager(gameStateManager);
+		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.MENU, menuHandler);
+		
+		RealPlayStateHandler playHandler = new RealPlayStateHandler();
+		playHandler.setStateManager(gameStateManager);
+		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.PLAYING, playHandler);
+		
+		PausedStateHandler pauseHandler = new PausedStateHandler();
+		pauseHandler.setStateManager(gameStateManager);
+		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.PAUSED, pauseHandler);
+		
+		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.SETTINGS, new SettingsStateHandler());
+		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.UPGRADE_SELECTION, new UpgradeSelectionStateHandler());
+		
+		// Добавляем слушателя для логирования изменений состояния
+		gameStateManager.addStateChangeListener((from, to) -> {
+			String fromDesc = from != null ? from.getDescription() : "null";
+			String toDesc = to != null ? to.getDescription() : "null";
+			GameLogger.info("🔄 ПЕРЕХОД: " + fromDesc + " → " + toDesc);
+		});
+		
+		// Устанавливаем начальное состояние - меню
+		gameStateManager.setState(ImprovedGameStateManager.GameState.MENU);
+		
+		// Принудительно вызываем onEnter для начального состояния
+		GameLogger.info("Принудительно вызываем onEnter для начального состояния...");
+		
+		GameLogger.info("Система состояний инициализирована");
+	}
+	
+	/**
 	 * заключительый метод
 	 */
 	@Override
 	public void dispose () {
 		batch.dispose();
 		// img.dispose(); // Убираем освобождение ресурсов логотипа
+		
+		// Очищаем пулы частиц
+		ParticlePool.clearAllPools();
+		
+		// Очищаем систему состояний
+		if (gameStateManager != null) {
+			gameStateManager.dispose();
+		}
 	}
 	
 	// Методы для управления FPS

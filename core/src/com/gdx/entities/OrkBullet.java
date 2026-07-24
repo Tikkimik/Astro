@@ -4,7 +4,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
 
-public class OrkBullet extends SpaceObject {
+public class OrkBullet extends SpaceObject implements GameObject.Updatable {
     
     private float speed = 250f;
     private float lifeTime = 4f;
@@ -62,6 +62,14 @@ public class OrkBullet extends SpaceObject {
         shapeRenderer.rect(screenX - scaledWidth/2, screenY - scaledHeight/2, scaledWidth, scaledHeight);
     }
     
+    public boolean intersects(SpaceObject other) {
+        float dx = x - other.getX();
+        float dy = y - other.getY();
+        float distSq = dx * dx + dy * dy;
+        float radiusSum = width / 2f + other.getWidth() / 2f;
+        return distSq < radiusSum * radiusSum;
+    }
+
     // Проверяем столкновение с игроком (оптимизировано без Math.sqrt)
     public boolean intersects(Player player) {
         float dx = x - player.getX();

@@ -6,16 +6,19 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
+import com.gdx.managers.GameObjectManager;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 
 import com.gdx.utils.Line2D;
 import com.gdx.utils.Point2D;
+import com.gdx.utils.ParticlePool;
 
 public class Player extends SpaceObject{
 
     private final int MAX_BULLETS = 4;
-    private Array<Bullet> bullets;
+    private Array<Bullet> bullets; // Оставляем для совместимости, но не используем
+    private GameObjectManager gameObjectManager; // Ссылка на менеджер объектов
 
     private final float[] flameX;
     private final float[] flameY;
@@ -65,6 +68,7 @@ public class Player extends SpaceObject{
     public Player(Array<Bullet> bullets){
 
         this.bullets = bullets;
+        this.gameObjectManager = null; // Будет установлен позже
 
         x = MyGdxGame.WIDTH / 2;
         y = MyGdxGame.WIDTH / 2;
@@ -254,10 +258,29 @@ public class Player extends SpaceObject{
         // Здесь можно добавить логику для регенерации здоровья
         // Пока что просто сохраняем значение
     }
+    
+    public void setGameObjectManager(GameObjectManager gameObjectManager) {
+        this.gameObjectManager = gameObjectManager;
+    }
+
+    public boolean intersects(SpaceObject other) {
+        float dx = x - other.getX();
+        float dy = y - other.getY();
+        float distSq = dx * dx + dy * dy;
+        float radiusSum = getWidth() / 2f + other.getWidth() / 2f;
+        return distSq < radiusSum * radiusSum;
+    }
 
     public void shoot(){
-        if(bullets.size == MAX_BULLETS) return;
-        bullets.add(new Bullet(x, y, radians));
+        if (gameObjectManager != null) {
+            // Используем новую систему через GameObjectManager
+            if (gameObjectManager.getProjectileCount() >= MAX_BULLETS) return;
+            gameObjectManager.addBullet(new Bullet(x, y, radians));
+        } else {
+            // Fallback на старую систему для совместимости
+            if(bullets.size == MAX_BULLETS) return;
+            bullets.add(new Bullet(x, y, radians));
+        }
     }
 
     public boolean isHit() {
@@ -413,6 +436,8 @@ public class Player extends SpaceObject{
             particle.update(com.gdx.utils.TimeManager.FIXED_TIMESTEP);
             
             if(particle.shouldRemove()) {
+                // Возвращаем частицу в пул
+                ParticlePool.freeFlameParticle(particle);
                 flameParticles.removeIndex(i);
             }
         }
@@ -431,7 +456,11 @@ public class Player extends SpaceObject{
         if (isInvulnerable && MathUtils.random() < 0.5f) { // 50% шанс создания частицы каждый кадр
             float angle = MathUtils.random() * MathUtils.PI2;
             float radius = 20 + MathUtils.random() * 10; // Радиус от 20 до 30
-            shieldParticles.add(new ShieldParticle(x, y, angle, radius));
+            
+            // Получаем частицу из пула
+            ShieldParticle particle = ParticlePool.obtainShieldParticle();
+            particle.init(x, y, angle, radius);
+            shieldParticles.add(particle);
         }
         
         // Обновляем синие частицы
@@ -441,6 +470,8 @@ public class Player extends SpaceObject{
             particle.update(com.gdx.utils.TimeManager.FIXED_TIMESTEP);
             
             if(particle.shouldRemove()) {
+                // Возвращаем частицу в пул
+                ParticlePool.freeShieldParticle(particle);
                 shieldParticles.removeIndex(i);
             }
         }
@@ -463,7 +494,11 @@ public class Player extends SpaceObject{
             for(int i = 0; i < particleCount; i++) {
                 float spreadAngle = flameAngle + (MathUtils.random() - 0.5f) * 0.4f; // Больший разброс
                 float flameSpeed = 150 + MathUtils.random() * 150; // Случайная скорость
-                flameParticles.add(new FlameParticle(nozzleX, nozzleY, spreadAngle, flameSpeed));
+                
+                // Получаем частицу из пула
+                FlameParticle particle = ParticlePool.obtainFlameParticle();
+                particle.init(nozzleX, nozzleY, spreadAngle, flameSpeed);
+                flameParticles.add(particle);
             }
         }
     }

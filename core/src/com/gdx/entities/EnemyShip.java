@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import com.gdx.managers.Camera;
+import com.gdx.managers.GameObjectManager;
 
 public class EnemyShip extends Enemy {
     
@@ -23,6 +24,7 @@ public class EnemyShip extends Enemy {
     
     // Список пуль врага (используем Array вместо ArrayList)
     private Array<OrkBullet> enemyBullets;
+    private GameObjectManager gameObjectManager;
     
     // Параметры движения
     private float maxSpeed = 120f;
@@ -47,7 +49,7 @@ public class EnemyShip extends Enemy {
     public EnemyShip(float x, float y, Player target, Array<OrkBullet> enemyBullets) {
         super(x, y, 3); // Здоровье = 3 для вражеского корабля
         this.target = target;
-        this.enemyBullets = enemyBullets;
+        this.enemyBullets = enemyBullets != null ? enemyBullets : new Array<>();
         
         // Инициализация размеров
         width = height = 24;
@@ -220,8 +222,16 @@ public class EnemyShip extends Enemy {
             angle += (MathUtils.random() - 0.5f) * accuracy;
             
             // Создаем пулю врага
-            enemyBullets.add(new OrkBullet(x, y, angle));
+            OrkBullet bullet = new OrkBullet(x, y, angle);
+            if (gameObjectManager != null) {
+                gameObjectManager.addOrkBullet(bullet);
+            }
+            enemyBullets.add(bullet);
         }
+    }
+    
+    public void setGameObjectManager(GameObjectManager gameObjectManager) {
+        this.gameObjectManager = gameObjectManager;
     }
     
     private void createFlameParticles(float dt) {

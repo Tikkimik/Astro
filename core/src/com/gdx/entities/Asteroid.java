@@ -10,10 +10,8 @@ public class Asteroid extends Enemy {
     public static final int MEDIUM = 1;
     public static final int LARGE = 2;
 
-    private int numPoints; //количество граней у астероида
-    private float[] dists; //растояние от центра до грани астероида
-
-    private boolean remove;
+    private int numPoints;
+    private float[] dists;
 
     public Asteroid(float x, float y, int type){
         super(x, y, 1); // Здоровье = 1 для астероидов
@@ -79,10 +77,6 @@ public class Asteroid extends Enemy {
         return "Asteroid";
     }
     
-    public boolean shouldRemove() {
-        return remove;
-    }
-
     @Override
     public void update(float dt){
         x += dx * dt;

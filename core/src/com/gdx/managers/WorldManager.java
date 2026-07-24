@@ -4,6 +4,7 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectMap;
 import com.gdx.entities.*;
+import com.gdx.entities.GameObject;
 import com.gdx.game.MyGdxGame;
 import com.gdx.utils.SpatialGrid;
 
@@ -21,22 +22,15 @@ public class WorldManager {
     // Карта загруженных секторов (используем ObjectMap вместо HashMap)
     private ObjectMap<String, Boolean> loadedSectors;
     
-    // Ссылки на списки объектов (используем Array вместо ArrayList)
-    private Array<Asteroid> asteroids;
-    private Array<OrkAsteroid> orkAsteroids;
-    private Array<OrkBullet> orkBullets;
-    private Array<EnemyShip> enemyShips;
+    // Ссылки на GameObjectManager и игрока
+    private GameObjectManager gameObjectManager;
     private Player player;
     
     // Система пространственного разделения для оптимизации коллизий
     private SpatialGrid spatialGrid;
     
-    public WorldManager(Array<Asteroid> asteroids, Array<OrkAsteroid> orkAsteroids, 
-                       Array<OrkBullet> orkBullets, Array<EnemyShip> enemyShips, Player player) {
-        this.asteroids = asteroids;
-        this.orkAsteroids = orkAsteroids;
-        this.orkBullets = orkBullets;
-        this.enemyShips = enemyShips;
+    public WorldManager(GameObjectManager gameObjectManager, Player player) {
+        this.gameObjectManager = gameObjectManager;
         this.player = player;
         this.loadedSectors = new ObjectMap<>();
         
@@ -62,12 +56,8 @@ public class WorldManager {
     }
     
     // Метод для обновления ссылок после восстановления состояния
-    public void updateReferences(Array<Asteroid> asteroids, Array<OrkAsteroid> orkAsteroids, 
-                                Array<OrkBullet> orkBullets, Array<EnemyShip> enemyShips, Player player) {
-        this.asteroids = asteroids;
-        this.orkAsteroids = orkAsteroids;
-        this.orkBullets = orkBullets;
-        this.enemyShips = enemyShips;
+    public void updateReferences(GameObjectManager gameObjectManager, Player player) {
+        this.gameObjectManager = gameObjectManager;
         this.player = player;
         
         // Инициализируем loadedSectors на основе существующих астероидов
@@ -83,30 +73,47 @@ public class WorldManager {
         loadedSectors.clear();
         
         // Добавляем секторы для существующих астероидов
-        for (Asteroid asteroid : asteroids) {
-            int sectorX = (int)(asteroid.getX() / SECTOR_SIZE);
-            int sectorY = (int)(asteroid.getY() / SECTOR_SIZE);
-            String sectorKey = sectorX + "," + sectorY;
-            loadedSectors.put(sectorKey, true);
+        for (GameObject obj : gameObjectManager.getObstacles()) {
+            if (obj.isAsteroid()) {
+                Asteroid asteroid = obj.as(Asteroid.class);
+                if (asteroid != null) {
+                    int sectorX = (int)(asteroid.getX() / SECTOR_SIZE);
+                    int sectorY = (int)(asteroid.getY() / SECTOR_SIZE);
+                    String sectorKey = sectorX + "," + sectorY;
+                    loadedSectors.put(sectorKey, true);
+                }
+            }
         }
         
         // Добавляем секторы для существующих орк-астероидов
-        for (OrkAsteroid orkAsteroid : orkAsteroids) {
-            int sectorX = (int)(orkAsteroid.getX() / SECTOR_SIZE);
-            int sectorY = (int)(orkAsteroid.getY() / SECTOR_SIZE);
-            String sectorKey = sectorX + "," + sectorY;
-            loadedSectors.put(sectorKey, true);
+        for (GameObject obj : gameObjectManager.getObstacles()) {
+            if (obj.isOrkAsteroid()) {
+                OrkAsteroid orkAsteroid = obj.as(OrkAsteroid.class);
+                if (orkAsteroid != null) {
+                    int sectorX = (int)(orkAsteroid.getX() / SECTOR_SIZE);
+                    int sectorY = (int)(orkAsteroid.getY() / SECTOR_SIZE);
+                    String sectorKey = sectorX + "," + sectorY;
+                    loadedSectors.put(sectorKey, true);
+                }
+            }
         }
         
         // Добавляем секторы для существующих вражеских кораблей
-        for (EnemyShip enemyShip : enemyShips) {
-            int sectorX = (int)(enemyShip.getX() / SECTOR_SIZE);
-            int sectorY = (int)(enemyShip.getY() / SECTOR_SIZE);
-            String sectorKey = sectorX + "," + sectorY;
-            loadedSectors.put(sectorKey, true);
+        for (GameObject obj : gameObjectManager.getEnemies()) {
+            if (obj.isEnemyShip()) {
+                EnemyShip enemyShip = obj.as(EnemyShip.class);
+                if (enemyShip != null) {
+                    int sectorX = (int)(enemyShip.getX() / SECTOR_SIZE);
+                    int sectorY = (int)(enemyShip.getY() / SECTOR_SIZE);
+                    String sectorKey = sectorX + "," + sectorY;
+                    loadedSectors.put(sectorKey, true);
+                }
+            }
         }
         
-        System.out.println("Инициализировано " + loadedSectors.size + " секторов на основе существующих объектов");
+        if (MyGdxGame.DEBUG_MODE) {
+            System.out.println("Инициализировано " + loadedSectors.size + " секторов на основе существующих объектов");
+        }
     }
     
     private void generateSectorsAroundPlayer(float playerX, float playerY) {
@@ -137,7 +144,9 @@ public class WorldManager {
         
         // Генерируем астероиды в секторе
         int asteroidCount = MathUtils.random(3, 8);
-        System.out.println("Генерируем сектор (" + sectorX + ", " + sectorY + ") с " + asteroidCount + " астероидами");
+        if (MyGdxGame.DEBUG_MODE) {
+            System.out.println("Генерируем сектор (" + sectorX + ", " + sectorY + ") с " + asteroidCount + " астероидами");
+        }
         
         for (int i = 0; i < asteroidCount; i++) {
             float x = centerX + MathUtils.random(-SECTOR_SIZE/2, SECTOR_SIZE/2);
@@ -147,55 +156,75 @@ public class WorldManager {
             if (MathUtils.random() < 0.3f) {
                 int type = MathUtils.random(0, 2); // SMALL, MEDIUM, LARGE
                 Asteroid asteroid = new Asteroid(x, y, type);
-                asteroids.add(asteroid);
-                System.out.println("Создан астероид в позиции (" + x + ", " + y + ")");
+                gameObjectManager.addAsteroid(asteroid);
+                if (MyGdxGame.DEBUG_MODE) {
+                    System.out.println("Создан астероид в позиции (" + x + ", " + y + ")");
+                }
             } else if (MathUtils.random() < 0.3f) { // Уменьшили вероятность с 0.5 до 0.3
                 // Создаем орк-астероид (оптимизированный)
                 int type = MathUtils.random(0, 2); // SMALL, MEDIUM, LARGE
-                OrkAsteroid orkAsteroid = new OrkAsteroid(x, y, type, player, orkBullets);
-                orkAsteroids.add(orkAsteroid);
-                System.out.println("Создан орк-астероид в позиции (" + x + ", " + y + ")");
+                OrkAsteroid orkAsteroid = new OrkAsteroid(x, y, type, player, null); // orkBullets теперь управляется GameObjectManager
+                gameObjectManager.addOrkAsteroid(orkAsteroid);
+                if (MyGdxGame.DEBUG_MODE) {
+                    System.out.println("Создан орк-астероид в позиции (" + x + ", " + y + ")");
+                }
             } else if (MathUtils.random() < 0.4f) { // Вернули нормальную вероятность
                 // Создаем вражеский корабль
-                EnemyShip enemyShip = new EnemyShip(x, y, player, orkBullets);
-                enemyShips.add(enemyShip);
+                EnemyShip enemyShip = new EnemyShip(x, y, player, null); // orkBullets теперь управляется GameObjectManager
+                gameObjectManager.addEnemyShip(enemyShip);
                 // System.out.println("Создан вражеский корабль в позиции (" + x + ", " + y + ")");
             }
         }
     }
     
     private void cleanupDistantObjects(float playerX, float playerY) {
-        // Очищаем астероиды (оптимизированная итерация)
-        for (int i = asteroids.size - 1; i >= 0; i--) {
-            Asteroid asteroid = asteroids.get(i);
-            float distanceSq = (asteroid.getX() - playerX) * (asteroid.getX() - playerX) +
-                              (asteroid.getY() - playerY) * (asteroid.getY() - playerY);
-            
-            if (distanceSq > CLEANUP_RADIUS * CLEANUP_RADIUS) {
-                asteroids.removeIndex(i);
+        // Очищаем все объекты через GameObjectManager
+        // GameObjectManager сам управляет удалением объектов
+        // Здесь мы только помечаем объекты для удаления
+        
+        // Очищаем астероиды
+        for (GameObject obj : gameObjectManager.getObstacles()) {
+            if (obj.isAsteroid()) {
+                Asteroid asteroid = obj.as(Asteroid.class);
+                if (asteroid != null) {
+                    float distanceSq = (asteroid.getX() - playerX) * (asteroid.getX() - playerX) +
+                                      (asteroid.getY() - playerY) * (asteroid.getY() - playerY);
+                    
+                    if (distanceSq > CLEANUP_RADIUS * CLEANUP_RADIUS) {
+                        obj.markForRemoval();
+                    }
+                }
             }
         }
         
         // Очищаем орк-астероиды
-        for (int i = orkAsteroids.size - 1; i >= 0; i--) {
-            OrkAsteroid orkAsteroid = orkAsteroids.get(i);
-            float distanceSq = (orkAsteroid.getX() - playerX) * (orkAsteroid.getX() - playerX) +
-                              (orkAsteroid.getY() - playerY) * (orkAsteroid.getY() - playerY);
-            
-            if (distanceSq > CLEANUP_RADIUS * CLEANUP_RADIUS) {
-                orkAsteroids.removeIndex(i);
+        for (GameObject obj : gameObjectManager.getObstacles()) {
+            if (obj.isOrkAsteroid()) {
+                OrkAsteroid orkAsteroid = obj.as(OrkAsteroid.class);
+                if (orkAsteroid != null) {
+                    float distanceSq = (orkAsteroid.getX() - playerX) * (orkAsteroid.getX() - playerX) +
+                                      (orkAsteroid.getY() - playerY) * (orkAsteroid.getY() - playerY);
+                    
+                    if (distanceSq > CLEANUP_RADIUS * CLEANUP_RADIUS) {
+                        obj.markForRemoval();
+                    }
+                }
             }
         }
         
         // Очищаем вражеские корабли (больший радиус для более долгой жизни)
-        for (int i = enemyShips.size - 1; i >= 0; i--) {
-            EnemyShip enemyShip = enemyShips.get(i);
-            float distanceSq = (enemyShip.getX() - playerX) * (enemyShip.getX() - playerX) +
-                              (enemyShip.getY() - playerY) * (enemyShip.getY() - playerY);
-            
-            // Вражеские корабли живут дольше - больший радиус очистки
-            if (distanceSq > (CLEANUP_RADIUS * 1.5f) * (CLEANUP_RADIUS * 1.5f)) {
-                enemyShips.removeIndex(i);
+        for (GameObject obj : gameObjectManager.getEnemies()) {
+            if (obj.isEnemyShip()) {
+                EnemyShip enemyShip = obj.as(EnemyShip.class);
+                if (enemyShip != null) {
+                    float distanceSq = (enemyShip.getX() - playerX) * (enemyShip.getX() - playerX) +
+                                      (enemyShip.getY() - playerY) * (enemyShip.getY() - playerY);
+                    
+                    // Вражеские корабли живут дольше - больший радиус очистки
+                    if (distanceSq > (CLEANUP_RADIUS * 1.5f) * (CLEANUP_RADIUS * 1.5f)) {
+                        obj.markForRemoval();
+                    }
+                }
             }
         }
     }
@@ -204,18 +233,11 @@ public class WorldManager {
     private void updateSpatialGrid() {
         spatialGrid.clear();
         
-        // Добавляем все объекты в сетку
-        for (Asteroid asteroid : asteroids) {
-            spatialGrid.add(asteroid);
-        }
-        for (OrkAsteroid orkAsteroid : orkAsteroids) {
-            spatialGrid.add(orkAsteroid);
-        }
-        for (EnemyShip enemyShip : enemyShips) {
-            spatialGrid.add(enemyShip);
-        }
-        for (OrkBullet orkBullet : orkBullets) {
-            spatialGrid.add(orkBullet);
+        // Добавляем все объекты в сетку через GameObjectManager
+        for (GameObject obj : gameObjectManager.getAllObjects()) {
+            if (obj.isActive()) {
+                spatialGrid.add(obj.getObject());
+            }
         }
     }
     
@@ -232,7 +254,7 @@ public class WorldManager {
     
     // Получить информацию о мире для отладки
     public String getWorldInfo() {
-        return String.format("Sectors: %d | Asteroids: %d | OrkAsteroids: %d | EnemyShips: %d | Grid Cells: %d", 
-            loadedSectors.size, asteroids.size, orkAsteroids.size, enemyShips.size, spatialGrid.getCellCount());
+        return String.format("Sectors: %d | Obstacles: %d | Enemies: %d | Grid Cells: %d", 
+            loadedSectors.size, gameObjectManager.getObstacleCount(), gameObjectManager.getEnemyCount(), spatialGrid.getCellCount());
     }
 }

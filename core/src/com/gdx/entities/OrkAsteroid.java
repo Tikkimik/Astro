@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import com.gdx.managers.Camera;
+import com.gdx.managers.GameObjectManager;
 
 public class OrkAsteroid extends Enemy {
     
@@ -14,7 +15,6 @@ public class OrkAsteroid extends Enemy {
     
     private int numPoints;
     private float[] dists;
-    private boolean remove = false;
     
     // Система стрельбы
     private float shootTimer = 0f;
@@ -29,12 +29,13 @@ public class OrkAsteroid extends Enemy {
     
     // Список пуль орков (используем Array вместо ArrayList)
     private Array<OrkBullet> orkBullets;
+    private GameObjectManager gameObjectManager;
     
     public OrkAsteroid(float x, float y, int type, Player target, Array<OrkBullet> orkBullets) {
         super(x, y, 2); // Здоровье = 2 для орк-астероидов
         this.type = type;
         this.target = target;
-        this.orkBullets = orkBullets;
+        this.orkBullets = orkBullets != null ? orkBullets : new Array<>();
         
         // Настройка размера и скорости в зависимости от типа
         if(type == SMALL){
@@ -78,12 +79,12 @@ public class OrkAsteroid extends Enemy {
         }
     }
     
+    public void setGameObjectManager(GameObjectManager gameObjectManager) {
+        this.gameObjectManager = gameObjectManager;
+    }
+
     public int getType(){
         return type;
-    }
-    
-    public boolean shouldRemove() {
-        return remove;
     }
     
     @Override
@@ -134,7 +135,11 @@ public class OrkAsteroid extends Enemy {
             angle += (MathUtils.random() - 0.5f) * accuracy;
             
             // Создаем пулю орка
-            orkBullets.add(new OrkBullet(x, y, angle));
+            OrkBullet bullet = new OrkBullet(x, y, angle);
+            if (gameObjectManager != null) {
+                gameObjectManager.addOrkBullet(bullet);
+            }
+            orkBullets.add(bullet);
         }
     }
     

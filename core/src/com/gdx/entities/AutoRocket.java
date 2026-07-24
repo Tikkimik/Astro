@@ -3,15 +3,15 @@ package com.gdx.entities;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
-import java.util.ArrayList;
+import com.gdx.managers.GameObjectManager;
 
 
-public class AutoRocket extends SpaceObject {
+public class AutoRocket extends SpaceObject implements GameObject.Updatable {
     
-    private float initialSpeed = 200f; // Начальная скорость (медленнее)
-    private float maxSpeed = 600f; // Максимальная скорость
-    private float currentSpeed = 200f;
-    private float acceleration = 800f; // Ускорение ракеты
+    private float initialSpeed = 33f;
+    private float maxSpeed = 100f;
+    private float currentSpeed = 33f;
+    private float acceleration = 133f;
     private float lifeTime = 8f; // Увеличиваем время жизни
     private float lifeTimer = 0f;
     private boolean remove = false;
@@ -24,26 +24,30 @@ public class AutoRocket extends SpaceObject {
     // Цель ракеты (теперь любой враг)
     private Enemy target;
     
+    private float lostTargetLifeTimer = 0f;
+    private static final float LOST_TARGET_LIFETIME = 3f;
+    
+    public static final float DETECTION_RANGE = 1200f;
+    
     // Урон ракеты
     private float damage = 1f;
     
-    // Частицы ракеты
-    private ArrayList<RocketParticle> rocketParticles;
+    private GameObjectManager manager;
+    
+    public void setGameObjectManager(GameObjectManager manager) {
+        this.manager = manager;
+    }
     
     public AutoRocket(float x, float y, float rocketDirection, Enemy target) {
         this.x = x;
         this.y = y;
         this.target = target;
         
-        // Начальное направление ракеты (уже задано извне)
         this.radians = rocketDirection;
         this.dx = MathUtils.cos(radians) * initialSpeed;
         this.dy = MathUtils.sin(radians) * initialSpeed;
         
         width = height = 3;
-        
-        // Инициализируем частицы ракеты
-        rocketParticles = new ArrayList<>();
     }
     
     public void update(float dt) {
@@ -51,7 +55,6 @@ public class AutoRocket extends SpaceObject {
         lifeTimer += dt;
         launchTimer += dt;
         
-        // Проверяем время жизни
         if (lifeTimer > lifeTime) {
             remove = true;
             return;
@@ -73,6 +76,14 @@ public class AutoRocket extends SpaceObject {
             // Постоянно пересчитываем траекторию для самонаведения
             recalculateTrajectory();
             
+            if (target == null) {
+                lostTargetLifeTimer += dt;
+                if (lostTargetLifeTimer >= LOST_TARGET_LIFETIME) {
+                    remove = true;
+                    return;
+                }
+            }
+            
             // Ускоряем ракету
             currentSpeed += acceleration * dt;
             if (currentSpeed > maxSpeed) {
@@ -88,46 +99,43 @@ public class AutoRocket extends SpaceObject {
         // Проверяем границы мира
         wrap();
         
-        // Создаем густые серые частицы ракеты (из задней части) - независимо от FPS
-        float particleChance = 2.5f * dt * 60f; // Увеличили с 0.9f до 2.5f для более густого следа
-        if (MathUtils.random() < particleChance) {
-            float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI; // Противоположное направление движения
-            rocketParticles.add(new RocketParticle(x, y, trailAngle));
-        }
-        
-        // Создаем дополнительные частицы для еще более плотного следа
-        float extraParticleChance = 1.8f * dt * 60f; // Увеличили с 0.3f до 1.8f
-        if (MathUtils.random() < extraParticleChance) {
-            float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI;
-            rocketParticles.add(new RocketParticle(x, y, trailAngle));
-        }
-        
-        // Еще больше частиц для очень густого следа
-        float thirdParticleChance = 1.2f * dt * 60f; // Новый уровень частиц
-        if (MathUtils.random() < thirdParticleChance) {
-            float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI;
-            rocketParticles.add(new RocketParticle(x, y, trailAngle));
-        }
-        
-        // Обновляем частицы ракеты
-        for(int i = rocketParticles.size() - 1; i >= 0; i--) {
-            RocketParticle particle = rocketParticles.get(i);
-            particle.update(dt);
+        // Создаем частицы следа, которые живут независимо от ракеты
+        if (manager != null) {
+            float particleChance = 2.5f * dt * 60f;
+            if (MathUtils.random() < particleChance) {
+                float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI;
+                manager.addRocketParticle(new RocketParticle(x, y, trailAngle));
+            }
             
-            if(particle.shouldRemove()) {
-                rocketParticles.remove(i);
+            float extraParticleChance = 1.8f * dt * 60f;
+            if (MathUtils.random() < extraParticleChance) {
+                float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI;
+                manager.addRocketParticle(new RocketParticle(x, y, trailAngle));
+            }
+            
+            float thirdParticleChance = 1.2f * dt * 60f;
+            if (MathUtils.random() < thirdParticleChance) {
+                float trailAngle = (float) Math.atan2(dy, dx) + MathUtils.PI;
+                manager.addRocketParticle(new RocketParticle(x, y, trailAngle));
             }
         }
     }
     
     // Пересчет траектории для самонаведения
     private void recalculateTrajectory() {
-        if (target == null) return;
+        if (target == null || target.shouldRemove()) {
+            target = null;
+            return;
+        }
         
-        // Вычисляем направление к цели
         float targetDx = target.getX() - x;
         float targetDy = target.getY() - y;
         float distance = (float) Math.sqrt(targetDx * targetDx + targetDy * targetDy);
+        
+        if (distance > DETECTION_RANGE) {
+            target = null;
+            return;
+        }
         
         if (distance > 0) {
             // Плавно поворачиваем к цели
@@ -207,8 +215,6 @@ public class AutoRocket extends SpaceObject {
             drawTrail(shapeRenderer, camera, direction);
         }
         
-        // Рисуем синие частицы ракеты
-        drawRocketParticles(shapeRenderer, camera);
     }
     
     // Рисуем след ракеты
@@ -226,6 +232,14 @@ public class AutoRocket extends SpaceObject {
         shapeRenderer.line(screenX, screenY, trailX, trailY);
     }
     
+    public boolean intersects(SpaceObject other) {
+        float dx = x - other.getX();
+        float dy = y - other.getY();
+        float distSq = dx * dx + dy * dy;
+        float radiusSum = width / 2f + other.getWidth() / 2f;
+        return distSq < radiusSum * radiusSum;
+    }
+
         // Проверяем столкновение с любым врагом (оптимизированная)
     public boolean intersects(Enemy enemy) {
         float dx = x - enemy.getX();
@@ -233,13 +247,6 @@ public class AutoRocket extends SpaceObject {
         float distanceSquared = dx * dx + dy * dy;
         float radiusSum = enemy.getWidth() / 2 + width / 2;
         return distanceSquared < radiusSum * radiusSum;
-    }
-    
-    // Рисуем синие частицы ракеты
-    private void drawRocketParticles(ShapeRenderer shapeRenderer, Camera camera) {
-        for(RocketParticle particle : rocketParticles) {
-            particle.draw(shapeRenderer, camera);
-        }
     }
     
     // Метод для установки урона ракеты

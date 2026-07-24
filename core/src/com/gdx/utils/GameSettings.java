@@ -151,7 +151,7 @@ public class GameSettings {
     /**
      * Режим отладки
      */
-    private static boolean debugMode = false;
+    private static boolean debugMode = true; // Включено для тестирования
     
     // === ГЕТТЕРЫ И СЕТТЕРЫ ===
     

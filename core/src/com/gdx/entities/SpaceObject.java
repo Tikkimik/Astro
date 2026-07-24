@@ -96,6 +96,8 @@ public class SpaceObject {
         return false;
     }
 
+    public boolean shouldRemove() { return false; }
+
     public boolean contains(float x, float y) { //математика для коллизий
         boolean b = false;
 

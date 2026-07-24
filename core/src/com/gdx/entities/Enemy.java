@@ -7,7 +7,7 @@ import com.gdx.managers.Camera;
  * Базовый класс для всех врагов в игре
  * Наследуется от SpaceObject и добавляет функциональность врага
  */
-public abstract class Enemy extends SpaceObject {
+public abstract class Enemy extends SpaceObject implements GameObject.Updatable {
     
     protected boolean remove = false;
     protected int health;
