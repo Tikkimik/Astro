@@ -89,6 +89,25 @@ public class OrkAsteroid extends Enemy {
     
     @Override
     public void update(float dt){
+        // Медленно дрейфуем к игроку
+        if (target != null) {
+            float tx = target.getX() - x;
+            float ty = target.getY() - y;
+            float dist = (float) Math.sqrt(tx * tx + ty * ty);
+            if (dist > 0) {
+                float pull = 15f;
+                dx += (tx / dist) * pull * dt;
+                dy += (ty / dist) * pull * dt;
+                // Ограничение скорости
+                float spd = (float) Math.sqrt(dx * dx + dy * dy);
+                float maxSpd = speed * 1.5f;
+                if (spd > maxSpd) {
+                    dx = (dx / spd) * maxSpd;
+                    dy = (dy / spd) * maxSpd;
+                }
+            }
+        }
+        
         x += dx * dt;
         y += dy * dt;
         
@@ -145,43 +164,41 @@ public class OrkAsteroid extends Enemy {
     
     @Override
     public void draw(ShapeRenderer shapeRenderer, Camera camera) {
-        // Рисуем орк-астероид как красный многоугольник
-        shapeRenderer.setColor(0.8f, 0.2f, 0.2f, 1); // Красный цвет
+        float zoom = camera.getCurrentZoom();
         
-        float[] screenX = new float[shapeX.length];
-        float[] screenY = new float[shapeY.length];
-        
+        // Тело — закрашенный многоугольник через треугольники от центра к вершинам
+        shapeRenderer.setColor(0.3f, 0.2f, 0.1f, 1);
+        float cx = camera.worldToScreenX(x);
+        float cy = camera.worldToScreenY(y);
         for (int i = 0; i < shapeX.length; i++) {
-            screenX[i] = camera.worldToScreenX(shapeX[i]);
-            screenY[i] = camera.worldToScreenY(shapeY[i]);
+            int next = (i + 1) % shapeX.length;
+            float sx1 = camera.worldToScreenX(shapeX[i]);
+            float sy1 = camera.worldToScreenY(shapeY[i]);
+            float sx2 = camera.worldToScreenX(shapeX[next]);
+            float sy2 = camera.worldToScreenY(shapeY[next]);
+            shapeRenderer.triangle(cx, cy, sx1, sy1, sx2, sy2);
         }
         
-        // Рисуем многоугольник
-        for (int i = 0; i < screenX.length; i++) {
-            int next = (i + 1) % screenX.length;
-            shapeRenderer.line(screenX[i], screenY[i], screenX[next], screenY[next]);
-        }
-    }
-    
-    public void drawFilled(ShapeRenderer shapeRenderer, Camera camera) {
-        // Рисуем астероид
-        shapeRenderer.setColor(0.3f, 0.2f, 0.1f, 1); // Темно-коричневый цвет
-        
-        for(int i = 0; i < shapeX.length; i++) {
-            float screenX = camera.worldToScreenX(shapeX[i]);
-            float screenY = camera.worldToScreenY(shapeY[i]);
-            shapeRenderer.circle(screenX, screenY, 2);
+        // Контур — точки на гранях
+        shapeRenderer.setColor(0.8f, 0.2f, 0.2f, 1);
+        for (int i = 0; i < shapeX.length; i++) {
+            int next = (i + 1) % shapeX.length;
+            float sx1 = camera.worldToScreenX(shapeX[i]);
+            float sy1 = camera.worldToScreenY(shapeY[i]);
+            float sx2 = camera.worldToScreenX(shapeX[next]);
+            float sy2 = camera.worldToScreenY(shapeY[next]);
+            shapeRenderer.circle(sx1, sy1, 3 * zoom);
+            shapeRenderer.circle(sx2, sy2, 3 * zoom);
         }
         
-        // Рисуем "орков" на астероиде (маленькие зеленые точки)
-        shapeRenderer.setColor(0.2f, 0.8f, 0.2f, 1); // Зеленый цвет орков
-        
-        for(int i = 0; i < 3; i++) {
+        // "Орки" на астероиде — заметные зелёные точки
+        shapeRenderer.setColor(0.2f, 0.8f, 0.2f, 1);
+        for (int i = 0; i < 3; i++) {
             float orkX = x + MathUtils.cos(radians + i * MathUtils.PI2 / 3) * (width / 3);
             float orkY = y + MathUtils.sin(radians + i * MathUtils.PI2 / 3) * (width / 3);
             float screenOrkX = camera.worldToScreenX(orkX);
             float screenOrkY = camera.worldToScreenY(orkY);
-            shapeRenderer.circle(screenOrkX, screenOrkY, 1.5f);
+            shapeRenderer.circle(screenOrkX, screenOrkY, 4 * zoom);
         }
     }
     

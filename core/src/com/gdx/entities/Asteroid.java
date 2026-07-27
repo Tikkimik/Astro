@@ -82,7 +82,7 @@ public class Asteroid extends Enemy {
         x += dx * dt;
         y += dy * dt;
 
-        radians = rotationSpeed * dt;
+        radians += rotationSpeed * dt;
         setShape();
 
         wrap();

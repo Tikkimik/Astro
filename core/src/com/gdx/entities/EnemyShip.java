@@ -102,78 +102,49 @@ public class EnemyShip extends Enemy {
     private void updateMovement(float dt) {
         if (target == null) return;
         
-        // Вычисляем расстояние до цели
         float targetDx = target.getX() - x;
         float targetDy = target.getY() - y;
         float distance = (float) Math.sqrt(targetDx * targetDx + targetDy * targetDy);
         
-        // Если цель близко, переходим в режим атаки
-        if (distance < 200) {
-            isPatrolling = false;
-            // Поворачиваемся к цели
-            float targetAngle = (float) Math.atan2(targetDy, targetDx);
-            float angleDiff = targetAngle - radians;
-            
-            // Нормализуем разность углов
-            while (angleDiff > MathUtils.PI) angleDiff -= MathUtils.PI2;
-            while (angleDiff < -MathUtils.PI) angleDiff += MathUtils.PI2;
-            
-            // Поворачиваемся к цели
-            if (Math.abs(angleDiff) > 0.1f) {
-                if (angleDiff > 0) {
-                    radians += rotationSpeed * dt;
-                } else {
-                    radians -= rotationSpeed * dt;
-                }
-            }
-            
-            // Двигаемся к цели
-            dx += MathUtils.cos(radians) * acceleration * dt;
-            dy += MathUtils.sin(radians) * acceleration * dt;
-        } else {
-            // Патрулирование
-            isPatrolling = true;
-            if (patrolTimer > patrolChangeTime) {
-                targetAngle = MathUtils.random(2 * MathUtils.PI);
-                patrolTimer = 0f;
-            }
-            
-            // Поворачиваемся к цели патрулирования
-            float angleDiff = targetAngle - radians;
-            while (angleDiff > MathUtils.PI) angleDiff -= MathUtils.PI2;
-            while (angleDiff < -MathUtils.PI) angleDiff += MathUtils.PI2;
-            
-            if (Math.abs(angleDiff) > 0.1f) {
-                if (angleDiff > 0) {
-                    radians += rotationSpeed * 0.5f * dt;
-                } else {
-                    radians -= rotationSpeed * 0.5f * dt;
-                }
-            }
-            
-            // Медленно двигаемся в направлении патрулирования
-            dx += MathUtils.cos(radians) * acceleration * 0.3f * dt;
-            dy += MathUtils.sin(radians) * acceleration * 0.3f * dt;
+        // Всегда поворачиваемся к цели
+        float targetAngle = (float) Math.atan2(targetDy, targetDx);
+        float angleDiff = targetAngle - radians;
+        while (angleDiff > MathUtils.PI) angleDiff -= MathUtils.PI2;
+        while (angleDiff < -MathUtils.PI) angleDiff += MathUtils.PI2;
+        
+        float rotSpeed = (distance < 400) ? rotationSpeed : rotationSpeed * 0.5f;
+        if (Math.abs(angleDiff) > 0.1f) {
+            radians += Math.signum(angleDiff) * rotSpeed * dt;
         }
         
-        // Ограничиваем скорость
+        if (distance < 150) {
+            // Атака — двигаемся к цели
+            dx += MathUtils.cos(radians) * acceleration * dt;
+            dy += MathUtils.sin(radians) * acceleration * dt;
+            isPatrolling = false;
+        } else if (distance < 350) {
+            // Средняя дистанция — орбита (движемся перпендикулярно)
+            float strafeAngle = targetAngle + MathUtils.HALF_PI * (float)Math.signum(MathUtils.random(-1, 1));
+            dx += MathUtils.cos(strafeAngle) * acceleration * 0.5f * dt;
+            dy += MathUtils.sin(strafeAngle) * acceleration * 0.5f * dt;
+            isPatrolling = false;
+        } else {
+            // Далеко — двигаемся к цели
+            dx += MathUtils.cos(radians) * acceleration * 0.4f * dt;
+            dy += MathUtils.sin(radians) * acceleration * 0.4f * dt;
+            isPatrolling = true;
+        }
+        
+        // Ограничение скорости
         float speed = (float) Math.sqrt(dx * dx + dy * dy);
         if (speed > maxSpeed) {
             dx = (dx / speed) * maxSpeed;
             dy = (dy / speed) * maxSpeed;
         }
         
-        // Замедление
-        if (speed > 0) {
-            dx -= (dx / speed) * deceleration * dt;
-            dy -= (dy / speed) * deceleration * dt;
-        }
-        
-        // Обновляем позицию
         x += dx * dt;
         y += dy * dt;
         
-        // Создаем частицы огня при движении (фиксированная частота)
         createFlameParticles(dt);
     }
     
@@ -269,49 +240,29 @@ public class EnemyShip extends Enemy {
     
     @Override
     public void draw(ShapeRenderer shapeRenderer, Camera camera) {
-        // Рисуем контур для отладки
-        float screenX = camera.worldToScreenX(x);
-        float screenY = camera.worldToScreenY(y);
-        float radius = (width / 2) * camera.getCurrentZoom();
-        shapeRenderer.circle(screenX, screenY, radius);
-    }
-    
-    public void drawWithSpriteBatch(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch) {
-        // Рисуем текстуру корабля (оптимизировано - без begin/end)
-        if (shipTexture != null) {
-            float screenX = camera.worldToScreenX(x);
-            float screenY = camera.worldToScreenY(y);
-            float textureSize = 24 * camera.getCurrentZoom();
-            
-            // Основная текстура корабля (предполагаем, что spriteBatch уже начат)
-            spriteBatch.setColor(1, 1, 1, 1);
-            spriteBatch.draw(
-                shipTexture, 
-                screenX - textureSize/2, 
-                screenY - textureSize/2, 
-                textureSize/2, textureSize/2, // Точка вращения
-                textureSize, textureSize, // Размер
-                1, 1, // Масштаб
-                (radians * MathUtils.radiansToDegrees) + 270, // Поворот
-                0, 0, // Область текстуры
-                shipTexture.getWidth(), shipTexture.getHeight(), // Размер области
-                false, false
-            );
-        }
-    }
-    
-    public void drawParticles(ShapeRenderer shapeRenderer, Camera camera) {
-        // Рисуем частицы огня отдельно (только если они есть)
-        if (!flameParticles.isEmpty()) {
-            shapeRenderer.end();
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-            
-            for (FlameParticle particle : flameParticles) {
-                particle.draw(shapeRenderer, camera);
-            }
-            
-            shapeRenderer.end();
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        float zoom = camera.getCurrentZoom();
+        float r = width / 2f;
+        
+        // Треугольный корабль: нос, левое крыло, правое крыло
+        float noseX = camera.worldToScreenX(x + MathUtils.cos(radians) * r);
+        float noseY = camera.worldToScreenY(y + MathUtils.sin(radians) * r);
+        float leftX = camera.worldToScreenX(x + MathUtils.cos(radians - 3 * MathUtils.PI / 4) * r * 0.9f);
+        float leftY = camera.worldToScreenY(y + MathUtils.sin(radians - 3 * MathUtils.PI / 4) * r * 0.9f);
+        float rightX = camera.worldToScreenX(x + MathUtils.cos(radians + 3 * MathUtils.PI / 4) * r * 0.9f);
+        float rightY = camera.worldToScreenY(y + MathUtils.sin(radians + 3 * MathUtils.PI / 4) * r * 0.9f);
+        
+        shapeRenderer.setColor(0.9f, 0.1f, 0.1f, 1);
+        shapeRenderer.triangle(noseX, noseY, leftX, leftY, rightX, rightY);
+        
+        // Кабина
+        float cockpitCX = camera.worldToScreenX(x + MathUtils.cos(radians) * r * 0.3f);
+        float cockpitCY = camera.worldToScreenY(y + MathUtils.sin(radians) * r * 0.3f);
+        shapeRenderer.setColor(0.2f, 0.6f, 1f, 1);
+        shapeRenderer.circle(cockpitCX, cockpitCY, 2 * zoom);
+        
+        // Частицы огня
+        for (FlameParticle particle : flameParticles) {
+            particle.draw(shapeRenderer, camera);
         }
     }
     
