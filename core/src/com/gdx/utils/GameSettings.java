@@ -166,6 +166,15 @@ public class GameSettings {
     public static int getMaxRenderFPS() { return maxRenderFPS; }
     public static void setMaxRenderFPS(int fps) { 
         maxRenderFPS = Math.max(0, Math.min(240, fps)); 
+        // Реально ограничиваем частоту отрисовки через backend (0 = без лимита).
+        // Применяется сразу на desktop (Lwjgl3); на мобильных/HTML зависит от backend.
+        try {
+            if (com.badlogic.gdx.Gdx.app != null) {
+                com.badlogic.gdx.Gdx.graphics.setForegroundFPS(maxRenderFPS);
+            }
+        } catch (Exception e) {
+            System.err.println("GameSettings: не удалось применить maxRenderFPS: " + e.getMessage());
+        }
     }
     
     public static float getMaxAccumulator() { return maxAccumulator; }

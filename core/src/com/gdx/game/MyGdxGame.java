@@ -16,6 +16,7 @@ import com.gdx.utils.DisplayManager;
 import com.gdx.utils.GameLogger;
 import com.gdx.utils.GameSettings;
 import com.gdx.utils.ParticlePool;
+import com.gdx.utils.PerformanceMetrics;
 import com.gdx.managers.MenuStateHandler;
 import com.gdx.managers.RealPlayStateHandler;
 import com.gdx.managers.PausedStateHandler;
@@ -38,10 +39,6 @@ public class MyGdxGame extends ApplicationAdapter {
 	public static int targetFPS = 60;  // Целевой FPS
 	public static final int[] FPS_PRESETS = {30, 60, 120, 240, 0}; // 0 = без ограничений
 	public static int currentFPSIndex = 1; // Начинаем с 60 FPS
-	
-	// Фиксированный временной шаг для независимости от FPS (теперь управляется TimeManager)
-	public static final float FIXED_TIMESTEP = TimeManager.FIXED_TIMESTEP;
-	public static final float MAX_ACCUMULATOR = TimeManager.MAX_ACCUMULATOR;
 	
 	// Рекорд
 	public static int highScore = 0;
@@ -125,8 +122,10 @@ public class MyGdxGame extends ApplicationAdapter {
 		TimeManager.updateAccumulator(deltaTime);
 		
 		// Обновляем игровую логику с фиксированным временным шагом
+		int ticksThisFrame = 0;
 		while (TimeManager.shouldUpdate()) {
 			gameStateManager.update(TimeManager.getFixedTimestep());
+			ticksThisFrame++;
 		}
 		
 		// Обработка ввода
@@ -135,6 +134,10 @@ public class MyGdxGame extends ApplicationAdapter {
 		// Отрисовка происходит каждый кадр (не зависит от временного шага)
 		gameStateManager.render();
 		TimeManager.incrementRenderCount();
+
+		// Честные метрики: реально отрисованный кадр и реально выполненные тики
+		// игровой логики (только в состоянии PLAYING — во время паузы логика не идёт).
+		PerformanceMetrics.onRenderFrame(gameStateManager.isPlaying() ? ticksThisFrame : 0);
 
 		// Обновляем Android управление
 		if (androidInputManager != null) {
@@ -213,7 +216,9 @@ public class MyGdxGame extends ApplicationAdapter {
 		pauseHandler.setStateManager(gameStateManager);
 		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.PAUSED, pauseHandler);
 		
-		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.SETTINGS, new SettingsStateHandler());
+		SettingsStateHandler settingsHandler = new SettingsStateHandler();
+		settingsHandler.setStateManager(gameStateManager);
+		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.SETTINGS, settingsHandler);
 		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.UPGRADE_SELECTION, new UpgradeSelectionStateHandler());
 		
 		// Добавляем слушателя для логирования изменений состояния

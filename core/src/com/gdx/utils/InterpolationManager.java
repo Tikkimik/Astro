@@ -12,7 +12,7 @@ public class InterpolationManager {
      */
     public static float getInterpolationFactor() {
         float accumulator = TimeManager.getAccumulator();
-        float fixedTimestep = TimeManager.FIXED_TIMESTEP;
+        float fixedTimestep = TimeManager.getFixedStep();
         
         // Если аккумулятор меньше фиксированного шага, интерполируем
         if (accumulator < fixedTimestep) {

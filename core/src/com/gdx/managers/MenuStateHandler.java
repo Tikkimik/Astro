@@ -67,6 +67,9 @@ public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
             GameLogger.info("Меню уже инициализировано, isInitialized = " + isInitialized);
         }
         
+        // Курсор всегда на первом пункте при входе в меню
+        selectedItem = 0;
+        
         GameLogger.info("Главное меню активировано");
     }
     

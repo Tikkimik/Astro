@@ -145,7 +145,7 @@ public class PerformanceTest {
         
         // Тест 1: Проверка констант
         System.out.println("1. Проверка констант:");
-        System.out.println("   FIXED_TIMESTEP: " + TimeManager.FIXED_TIMESTEP + "s (" + (TimeManager.FIXED_TIMESTEP * 1000) + "ms)");
+        System.out.println("   FIXED_TIMESTEP: " + TimeManager.getFixedStep() + "s (" + (TimeManager.getFixedStep() * 1000) + "ms)");
         System.out.println("   MAX_ACCUMULATOR: " + TimeManager.MAX_ACCUMULATOR + "s");
         System.out.println("   TARGET_LOGIC_FPS: " + GameConfig.TARGET_LOGIC_FPS);
         System.out.println();

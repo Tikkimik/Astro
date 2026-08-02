@@ -78,7 +78,7 @@ public class Player extends SpaceObject{
         x = MyGdxGame.WIDTH / 2;
         y = MyGdxGame.WIDTH / 2;
 
-        maxSpeed = 300;
+        maxSpeed = com.gdx.utils.GameSettings.getPlayerSpeed();
         acceleration = 200;
         deceleration = 10;
 
@@ -365,6 +365,11 @@ public class Player extends SpaceObject{
 
     public void update(float dt) {
 
+        // Настройка «Скорость игрока» — единый источник максимальной скорости.
+        // Читается каждый кадр логики, поэтому изменение применяется сразу,
+        // без пересоздания игрока (проверяется в Debug-меню по факту скорости).
+        maxSpeed = com.gdx.utils.GameSettings.getPlayerSpeed();
+
         //hit check
         if(hit) {
             hitTimer += dt;
@@ -443,12 +448,13 @@ public class Player extends SpaceObject{
         for(int i = flameParticles.size - 1; i >= 0; i--) {
             FlameParticle particle = flameParticles.get(i);
             // Используем фиксированный временной шаг для обновления частиц
-            particle.update(com.gdx.utils.TimeManager.FIXED_TIMESTEP);
+            particle.update(com.gdx.utils.TimeManager.getFixedStep());
             
             if(particle.shouldRemove()) {
                 // Возвращаем частицу в пул
                 ParticlePool.freeFlameParticle(particle);
                 flameParticles.removeIndex(i);
+                com.gdx.utils.ParticleBudget.release(1);
             }
         }
         
@@ -463,7 +469,7 @@ public class Player extends SpaceObject{
         }
         
         // Создаем синие частицы щита только во время неуязвимости
-        if (isInvulnerable && MathUtils.random() < 0.5f) { // 50% шанс создания частицы каждый кадр
+        if (isInvulnerable && MathUtils.random() < 0.5f && com.gdx.utils.ParticleBudget.canSpawn(1)) { // 50% шанс создания частицы каждый кадр
             float angle = MathUtils.random() * MathUtils.PI2;
             float radius = 20 + MathUtils.random() * 10; // Радиус от 20 до 30
             
@@ -471,18 +477,20 @@ public class Player extends SpaceObject{
             ShieldParticle particle = ParticlePool.obtainShieldParticle();
             particle.init(x, y, angle, radius);
             shieldParticles.add(particle);
+            com.gdx.utils.ParticleBudget.add(1);
         }
         
         // Обновляем синие частицы
         for(int i = shieldParticles.size - 1; i >= 0; i--) {
             ShieldParticle particle = shieldParticles.get(i);
             // Используем фиксированный временной шаг для обновления частиц
-            particle.update(com.gdx.utils.TimeManager.FIXED_TIMESTEP);
+            particle.update(com.gdx.utils.TimeManager.getFixedStep());
             
             if(particle.shouldRemove()) {
                 // Возвращаем частицу в пул
                 ParticlePool.freeShieldParticle(particle);
                 shieldParticles.removeIndex(i);
+                com.gdx.utils.ParticleBudget.release(1);
             }
         }
 
@@ -497,11 +505,11 @@ public class Player extends SpaceObject{
             float nozzleY = y - MathUtils.sin(radians) * 8 - 2; // Смещаем немного ниже
             float flameAngle = radians + MathUtils.PI; // Огонь направлен назад
             
-            // Используем настройку количества частиц
+            // Используем настройку количества частиц (частиц за кадр логики)
             int particleCount = com.gdx.utils.GameSettings.getShipEngineParticles();
             
-            // Создаем частицы согласно настройке
-            for(int i = 0; i < particleCount; i++) {
+            // Создаем частицы согласно настройке (с учётом глобального лимита)
+            for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
                 float spreadAngle = flameAngle + (MathUtils.random() - 0.5f) * 0.4f; // Больший разброс
                 float flameSpeed = 150 + MathUtils.random() * 150; // Случайная скорость
                 
@@ -509,6 +517,7 @@ public class Player extends SpaceObject{
                 FlameParticle particle = ParticlePool.obtainFlameParticle();
                 particle.init(nozzleX, nozzleY, spreadAngle, flameSpeed);
                 flameParticles.add(particle);
+                com.gdx.utils.ParticleBudget.add(1);
             }
         }
     }
@@ -615,14 +624,23 @@ public class Player extends SpaceObject{
         return 16; // Примерный размер корабля
     }
     
+    /**
+     * Текущая максимальная скорость корабля (из настройки «Скорость игрока»).
+     */
+    public float getMaxSpeed() {
+        return maxSpeed;
+    }
+    
     public void dispose() {
         // Очищаем частицы огня
         if (flameParticles != null) {
+            com.gdx.utils.ParticleBudget.release(flameParticles.size);
             flameParticles.clear();
         }
         
         // Очищаем синие частицы щита
         if (shieldParticles != null) {
+            com.gdx.utils.ParticleBudget.release(shieldParticles.size);
             shieldParticles.clear();
         }
         

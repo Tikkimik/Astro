@@ -8,9 +8,6 @@ import com.gdx.utils.GameConfig;
  */
 public class TimeManager {
     
-    // Фиксированный временной шаг (из конфигурации)
-    public static final float FIXED_TIMESTEP = GameConfig.getFixedTimestep();
-    
     // Максимальное накопление времени для предотвращения спирали смерти
     public static final float MAX_ACCUMULATOR = GameConfig.getMaxAccumulator();
     
@@ -56,19 +53,29 @@ public class TimeManager {
     }
     
     /**
+     * Текущий фиксированный временной шаг (1 / targetLogicFPS).
+     * Шаг вычисляется динамически из настройки GameSettings, поэтому изменение
+     * «Логический FPS» реально меняет частоту обновления игровой логики.
+     */
+    public static float getFixedStep() {
+        return 1.0f / GameSettings.getTargetLogicFPS();
+    }
+    
+    /**
      * Проверить, нужно ли выполнить обновление игровой логики
      */
     public static boolean shouldUpdate() {
-        return timeAccumulator >= FIXED_TIMESTEP;
+        return timeAccumulator >= getFixedStep();
     }
     
     /**
      * Получить фиксированный временной шаг и уменьшить аккумулятор
      */
     public static float getFixedTimestep() {
-        timeAccumulator -= FIXED_TIMESTEP;
+        float step = getFixedStep();
+        timeAccumulator -= step;
         updateCount++;
-        return FIXED_TIMESTEP;
+        return step;
     }
     
     /**
@@ -90,7 +97,7 @@ public class TimeManager {
         
         if (currentTime > 0 && currentTime < 100) {
             return String.format("Render FPS: %.1f | Updates: %d | Renders: %d | Fixed Step: %.6fms", 
-                currentTime, updateCount, renderCount, FIXED_TIMESTEP * 1000);
+                currentTime, updateCount, renderCount, getFixedStep() * 1000);
         }
         return "";
     }
@@ -104,9 +111,16 @@ public class TimeManager {
     }
     
     /**
-     * Получить текущий аккумулятор времени (для отладки)
+     * Текущий аккумулятор времени (для отладки)
      */
     public static float getAccumulator() {
         return timeAccumulator;
+    }
+
+    /**
+     * Счётчик выполненных фиксированных обновлений с последнего сброса.
+     */
+    public static int getUpdateCount() {
+        return updateCount;
     }
 }

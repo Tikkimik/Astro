@@ -47,10 +47,11 @@ public class PausedStateHandler implements ImprovedGameStateManager.StateHandler
     private final Rectangle scissor = new Rectangle();
 
     // Меню паузы
-    private static final String[] MENU_ITEMS = {"Продолжить", "Справка", "Выйти в меню"};
+    private static final String[] MENU_ITEMS = {"Продолжить", "Настройки", "Справка", "Выйти в меню"};
     private static final int ITEM_RESUME = 0;
-    private static final int ITEM_HELP = 1;
-    private static final int ITEM_EXIT = 2;
+    private static final int ITEM_SETTINGS = 1;
+    private static final int ITEM_HELP = 2;
+    private static final int ITEM_EXIT = 3;
 
     private static final float MENU_SPACING = 60f;
 
@@ -172,7 +173,7 @@ public class PausedStateHandler implements ImprovedGameStateManager.StateHandler
             new HelpEntry("+ / =", "приблизить камеру, «−» — отдалить (0.5×–2.0×), Enter — сбросить масштаб."),
             new HelpEntry("Esc / P", "пауза."),
             new HelpEntry("F", "показать или скрыть отладочную таблицу."),
-            new HelpEntry("` / 1", "увеличить / уменьшить лимит FPS: 30 → 60 → 120 → 240 → без ограничений."),
+            new HelpEntry("` / 1", "увеличить / уменьшить лимит рендера (Render cap): 30 → 60 → 120 → 240 → без ограничений. На скорость игровой логики не влияет."),
             new HelpEntry("F11", "переключить полноэкранный режим."),
         }),
         new HelpSection("Основной HUD", 0.6f, 0.85f, 1f, new HelpEntry[]{
@@ -183,9 +184,14 @@ public class PausedStateHandler implements ImprovedGameStateManager.StateHandler
             new HelpEntry("Полоса опыта", "анимированная доля опыта до следующего уровня; красная подсветка означает готовность к повышению."),
         }),
         new HelpSection("Производительность", 1f, 0.85f, 0.45f, new HelpEntry[]{
-            new HelpEntry("FPS", "фактическая частота кадров; limit — целевое ограничение: 30, 60, 120, 240 или «без ограничений»."),
-            new HelpEntry("Update time", "суммарное время обновления игровой логики за кадр в микросекундах: камера, фон, игрок, снаряды, астероиды, частицы и коллизии."),
-            new HelpEntry("Collisions", "время обработки столкновений; Camera — время обновления камеры."),
+            new HelpEntry("Render FPS", "фактическое количество отрисованных кадров в секунду. Влияет на визуальную плавность, но не должно менять скорость игровой логики."),
+            new HelpEntry("Render cap", "максимальная частота отрисовки. Значение «без ограничений» разрешает игре рендерить с максимально доступной скоростью. При включённом VSync фактический FPS также зависит от частоты монитора."),
+            new HelpEntry("Simulation UPS", "фактическое количество логических обновлений игры в секунду. Во время каждого тика обновляются движение, столкновения, враги, снаряды и игровая механика."),
+            new HelpEntry("Simulation target", "целевая частота фиксированной симуляции. Обычно составляет 60 тиков в секунду. Если фактический UPS ниже цели, процессор не успевает выполнять игровую логику."),
+            new HelpEntry("Fixed dt", "фиксированная длительность одного логического тика. При 60 Гц она равна примерно 16,67 мс."),
+            new HelpEntry("Ticks/frame", "количество логических тиков, выполненных во время последнего кадра рендера. Оно может быть 0, 1 или больше, потому что рендер и симуляция работают с разной частотой."),
+            new HelpEntry("Simulation tick", "суммарное время выполнения одного логического тика в микросекундах: камера, фон, игрок, снаряды, астероиды, частицы и коллизии."),
+            new HelpEntry("Collisions", "время обработки столкновений за последний тик; Camera — время обновления камеры за последний тик."),
             new HelpEntry(null, "Рост значений таймеров означает возросшую нагрузку соответствующей подсистемы."),
         }),
         new HelpSection("Игрок", 0.45f, 1f, 0.6f, new HelpEntry[]{
@@ -385,6 +391,12 @@ public class PausedStateHandler implements ImprovedGameStateManager.StateHandler
                 GameLogger.info("Resume game");
                 if (stateManager != null) {
                     stateManager.setState(ImprovedGameStateManager.GameState.PLAYING);
+                }
+                break;
+            case ITEM_SETTINGS:
+                GameLogger.info("Open settings");
+                if (stateManager != null) {
+                    stateManager.setState(ImprovedGameStateManager.GameState.SETTINGS);
                 }
                 break;
             case ITEM_HELP:

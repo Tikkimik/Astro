@@ -34,7 +34,10 @@ import com.badlogic.gdx.utils.Array;
 import java.util.ArrayList;
 import java.util.List;
 import com.gdx.utils.ObjectPools;
+import com.gdx.utils.PerformanceMetrics;
 import com.gdx.utils.PerformanceMonitor;
+import com.gdx.utils.TimeManager;
+import com.gdx.utils.GameSettings;
 
 public class PlayState extends GameState {
 
@@ -221,44 +224,51 @@ public class PlayState extends GameState {
     }
 
     private void createParticles(float x, float y) {
-        for(int i = 0; i < 6; i++) {
+        for(int i = 0; i < 6 && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
             particles.add(new Particle(x, y));
+            com.gdx.utils.ParticleBudget.add(1);
         }
     }
     
     private void createExplosion(float x, float y, int particleCount) {
-        for(int i = 0; i < particleCount; i++) {
+        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
             particles.add(new ExplosionParticle(x, y));
+            com.gdx.utils.ParticleBudget.add(1);
         }
     }
     
     private void createShipExplosion(float x, float y) {
         // Создаем много частиц для эффектного взрыва корабля
-        for(int i = 0; i < 15; i++) {
+        for(int i = 0; i < 15 && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
             particles.add(new ExplosionParticle(x, y));
+            com.gdx.utils.ParticleBudget.add(1);
         }
         // Добавляем несколько обычных частиц
-        for(int i = 0; i < 8; i++) {
+        for(int i = 0; i < 8 && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
             particles.add(new Particle(x, y));
+            com.gdx.utils.ParticleBudget.add(1);
         }
     }
     
     // Методы для создания оптимизированных частиц
     private void createOptimizedExplosion(float x, float y, int particleCount) {
-        for(int i = 0; i < particleCount; i++) {
+        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
             optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "explosion"));
+            com.gdx.utils.ParticleBudget.add(1);
         }
     }
     
     private void createOptimizedFlameParticles(float x, float y, int particleCount) {
-        for(int i = 0; i < particleCount; i++) {
+        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
             optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "flame"));
+            com.gdx.utils.ParticleBudget.add(1);
         }
     }
     
     private void createOptimizedSmokeParticles(float x, float y, int particleCount) {
-        for(int i = 0; i < particleCount; i++) {
+        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
             optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "smoke"));
+            com.gdx.utils.ParticleBudget.add(1);
         }
     }
     
@@ -476,6 +486,7 @@ public class PlayState extends GameState {
             particles.get(i).update(dt);
             if(particles.get(i).shouldRemove()) {
                 particles.removeIndex(i);
+                com.gdx.utils.ParticleBudget.release(1);
                 i--;
             }
         }
@@ -486,6 +497,7 @@ public class PlayState extends GameState {
             if(optimizedParticles.get(i).shouldRemove()) {
                 ObjectPools.freeOptimizedParticle(optimizedParticles.get(i));
                 optimizedParticles.removeIndex(i);
+                com.gdx.utils.ParticleBudget.release(1);
                 i--;
             }
         }
@@ -1085,12 +1097,25 @@ public class PlayState extends GameState {
         // === Производительность ===
         list.add(new DebugEntry("--- Debug menu (F чтобы скрыть) ---", 1f, 1f, 0f, true));
 
-        String fpsLimit = MyGdxGame.targetFPS == 0 ? "UNLIMITED" : String.valueOf(MyGdxGame.targetFPS);
-        list.add(new DebugEntry("FPS: " + currentFPS + "  (limit " + fpsLimit + ", ` = вверх, 1 = вниз)", 1f, 1f, 1f, false));
+        // Фактические значения измеряются в общем окне реального времени
+        // (PerformanceMetrics): кадры рендера и тики игровой логики считаются
+        // отдельно и независимо, лимит и цель показываются как настройки, а не факт.
+        int renderFps = Math.round(PerformanceMetrics.getRenderFps());
+        int simUps = Math.round(PerformanceMetrics.getSimulationUps());
+        String cap = MyGdxGame.targetFPS == 0 ? "Unlimited" : String.valueOf(MyGdxGame.targetFPS);
+        String fixedDtMs = String.format("%.2f", TimeManager.getFixedStep() * 1000f);
 
+        list.add(new DebugEntry("Render FPS: " + renderFps + " | Cap: " + cap, 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Simulation UPS: " + simUps + " | Target: " + GameSettings.getTargetLogicFPS()
+                + " Hz | Fixed dt: " + fixedDtMs + " ms", 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Ticks/frame: " + PerformanceMetrics.getTicksPerFrame(), 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Render cap controls: ` — increase, 1 — decrease", 1f, 1f, 1f, false));
+
+        // Времена одного последнего фиксированного тика (а не всего кадра):
+        // каждое поле перезаписывается внутри PlayState.update при каждом тике.
         long totalTime = cameraTime + backgroundTime + playerTime + bulletsTime + asteroidsTime
                 + particlesTime + rocketsTime + orkTime + collisionsTime;
-        list.add(new DebugEntry("Update time: " + (totalTime / 1000) + " us", 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Simulation tick: " + (totalTime / 1000) + " us", 1f, 1f, 1f, false));
         list.add(new DebugEntry("Collisions: " + (collisionsTime / 1000) + " us | Camera: " + (cameraTime / 1000) + " us", 1f, 1f, 1f, false));
 
         // === Игрок ===

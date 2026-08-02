@@ -26,11 +26,22 @@ public class Bullet extends SpaceObject implements GameObject.Updatable, GameObj
         this.lifeTime = 1f;
         this.damage = 1f;
 
+        // Новые снаряды создаются с актуальной настройкой «Скорость пуль».
+        // Уже летящие пули скорость не меняют.
+        this.speed = com.gdx.utils.GameSettings.getBulletSpeed();
+
         dx = MathUtils.cos(radians) * speed;
         dy = MathUtils.sin(radians) * speed;
 
         width = 2;
         height = 2;
+    }
+
+    /**
+     * Текущая скорость пули (пикселей в секунду).
+     */
+    public float getSpeed() {
+        return speed;
     }
 
     public boolean shouldRemove(){

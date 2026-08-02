@@ -216,13 +216,17 @@ public class EnemyShip extends Enemy implements GameObject.Drawable {
             float nozzleY = y - MathUtils.sin(radians) * 8;
             float flameAngle = radians + MathUtils.PI; // Огонь направлен назад
             
-            // Создаем много частиц для обильного эффекта
-            for(int i = 0; i < 6; i++) {
+            // Число частиц двигателя берётся из общей настройки
+            // «Частицы двигателя» (частиц за кадр логики), как и у игрока.
+            int particleCount = com.gdx.utils.GameSettings.getShipEngineParticles();
+            
+            for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
                 float spreadAngle = flameAngle + (MathUtils.random() - 0.5f) * 0.4f;
                 float flameSpeed = 80 + MathUtils.random() * 120;
                 FlameParticle particle = ParticlePool.obtainFlameParticle();
                 particle.init(nozzleX, nozzleY, spreadAngle, flameSpeed);
                 flameParticles.add(particle);
+                com.gdx.utils.ParticleBudget.add(1);
             }
         }
     }
@@ -231,11 +235,12 @@ public class EnemyShip extends Enemy implements GameObject.Drawable {
         for (int i = flameParticles.size - 1; i >= 0; i--) {
             FlameParticle particle = flameParticles.get(i);
             // Используем фиксированный временной шаг для обновления частиц
-            particle.update(com.gdx.utils.TimeManager.FIXED_TIMESTEP);
+            particle.update(com.gdx.utils.TimeManager.getFixedStep());
             
             if (particle.shouldRemove()) {
                 ParticlePool.freeFlameParticle(particle);
                 flameParticles.removeIndex(i);
+                com.gdx.utils.ParticleBudget.release(1);
             }
         }
         
@@ -290,6 +295,7 @@ public class EnemyShip extends Enemy implements GameObject.Drawable {
             for (FlameParticle p : flameParticles) {
                 ParticlePool.freeFlameParticle(p);
             }
+            com.gdx.utils.ParticleBudget.release(flameParticles.size);
             flameParticles.clear();
         }
         

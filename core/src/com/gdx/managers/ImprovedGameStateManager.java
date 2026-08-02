@@ -22,6 +22,11 @@ public class ImprovedGameStateManager {
     // Предыдущее состояние для возможности отката
     private GameState previousState = null;
     
+    // Игровое состояние, которое рисуется фоном под модальными экранами
+    // (пауза и настройки, открытые из паузы). Позволяет видеть застывшую игру
+    // за меню паузы даже после SETTINGS -> PAUSED.
+    private GameState underlayState = null;
+    
     // Стек состояний для push/pop операций
     private Array<GameState> stateStack = new Array<>();
     
@@ -158,6 +163,17 @@ public class ImprovedGameStateManager {
         
         // Сохраняем предыдущее состояние
         previousState = oldState;
+
+        // Отслеживаем игровое состояние под модальными экранами.
+        // При входе в паузу из игры фиксируем PLAYING как фон; при переходе
+        // SETTINGS -> PAUSED фон сохраняется, чтобы игра была видна за меню паузы.
+        if (newState == GameState.PLAYING) {
+            underlayState = null;
+        } else if (newState == GameState.MENU) {
+            underlayState = null;
+        } else if (oldState == GameState.PLAYING && newState == GameState.PAUSED) {
+            underlayState = GameState.PLAYING;
+        }
         
         // Устанавливаем новое состояние
         currentState = newState;
@@ -234,15 +250,17 @@ public class ImprovedGameStateManager {
         if (currentState != null) {
             StateHandler handler = stateHandlers.get(currentState);
             if (handler != null) {
-                // Если мы в паузе, сначала рендерим предыдущее состояние (игру)
-                if (currentState == GameState.PAUSED && previousState == GameState.PLAYING) {
-                    StateHandler previousHandler = stateHandlers.get(previousState);
-                    if (previousHandler != null) {
-                        previousHandler.onRender();
+                // Если мы в паузе и под ней лежит игра, сначала рисуем её,
+                // чтобы она была видна за полупрозрачным оверлеем меню паузы.
+                // Настройки рисуются на непрозрачном фоне, под ними игру не рисуем.
+                if (currentState == GameState.PAUSED && underlayState == GameState.PLAYING) {
+                    StateHandler underlayHandler = stateHandlers.get(GameState.PLAYING);
+                    if (underlayHandler != null) {
+                        underlayHandler.onRender();
                     }
                 }
                 
-                // Затем рендерим текущее состояние (пауза)
+                // Затем рендерим текущее состояние (пауза/настройки)
                 handler.onRender();
             }
         }

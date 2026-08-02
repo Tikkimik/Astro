@@ -116,7 +116,12 @@ public class GameObjectManager {
     }
 
     public void addRocketParticle(RocketParticle particle) {
+        // Следы ракет тоже ограничены глобальным лимитом частиц
+        if (!com.gdx.utils.ParticleBudget.canSpawn(1)) {
+            return;
+        }
         rocketParticles.add(particle);
+        com.gdx.utils.ParticleBudget.add(1);
     }
     
     /**
@@ -221,6 +226,7 @@ public class GameObjectManager {
             p.update(dt);
             if (p.shouldRemove()) {
                 rocketParticles.removeIndex(i);
+                com.gdx.utils.ParticleBudget.release(1);
             }
         }
         
@@ -422,6 +428,9 @@ public class GameObjectManager {
         
         totalObjects = 0;
         activeObjects = 0;
+        
+        // Счётчик активных частиц принадлежит миру, сбрасываем вместе с ним
+        com.gdx.utils.ParticleBudget.reset();
         
         GameLogger.info("GameObjectManager cleared");
     }

@@ -26,43 +26,66 @@ public class DisplayManager {
     private static final long DISPLAY_CHANGE_DELAY = 500; // 500ms задержка между изменениями
     
     /**
+     * Выполнить изменение дисплея на следующем кадре, а не синхронно.
+     *
+     * GLFW.setWindowedMode/setFullscreenMode синхронно вызывают framebuffer-callback,
+     * который перерисовывает окно (renderWindow -> render). Если вызвать их прямо из
+     * handleInput, вложенный render снова попадёт в handleInput, где край клавиши ещё
+     * не сброшен (GameKeys.update() не выполнялся) — изменение применится повторно
+     * и бесконечно зациклится до StackOverflowError. Откладываем применение на
+     * следующий кадр, когда состояние клавиш уже обработано.
+     */
+    private static void applyOnNextFrame(Runnable action) {
+        if (Gdx.app == null) return;
+        try {
+            Gdx.app.postRunnable(action);
+        } catch (Exception e) {
+            System.err.println("DisplayManager: не удалось отложить применение: " + e.getMessage());
+            action.run();
+        }
+    }
+
+    /**
      * Применить настройки дисплея
      */
     public static void applyDisplaySettings() {
         int displayMode = GameSettings.getDisplayMode();
-        
+
         // Используем текущие размеры окна
         int width = Gdx.graphics.getWidth();
         int height = Gdx.graphics.getHeight();
-        
+
         // Применяем только режим отображения
         applyDisplayMode(displayMode, width, height);
-        
-        System.out.println("Display settings applied: " + width + "x" + height + 
+
+        System.out.println("Display settings applied: " + width + "x" + height +
                           " Mode: " + getDisplayModeName(displayMode));
     }
-    
+
     /**
-     * Применить режим отображения
+     * Применить режим отображения (отложенно, на следующем кадре)
      */
     public static void applyDisplayMode(int mode, int width, int height) {
         if (Gdx.app == null) return;
-        
+        applyOnNextFrame(() -> applyDisplayModeNow(mode, width, height));
+    }
+
+    private static void applyDisplayModeNow(int mode, int width, int height) {
         // Проверяем задержку между изменениями
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastDisplayChange < DISPLAY_CHANGE_DELAY) {
             return; // Слишком частое изменение
         }
-        
+
         // Проверяем, не пытаемся ли мы установить те же настройки
-        if (currentWidth == width && currentHeight == height && 
-            ((mode == DISPLAY_FULLSCREEN && isFullscreen) || 
+        if (currentWidth == width && currentHeight == height &&
+            ((mode == DISPLAY_FULLSCREEN && isFullscreen) ||
              (mode != DISPLAY_FULLSCREEN && !isFullscreen))) {
             return; // Ничего не меняем
         }
-        
+
         lastDisplayChange = currentTime;
-        
+
         try {
             switch (mode) {
                 case DISPLAY_WINDOWED:
@@ -76,7 +99,7 @@ public class DisplayManager {
                         Gdx.graphics.setWindowedMode(width, height);
                     }
                     break;
-                    
+
                 case DISPLAY_BORDERLESS:
                     if (isFullscreen) {
                         // Сначала выходим из полноэкранного режима
@@ -88,7 +111,7 @@ public class DisplayManager {
                         Gdx.graphics.setWindowedMode(width, height);
                     }
                     break;
-                    
+
                 case DISPLAY_FULLSCREEN:
                     if (!isFullscreen) {
                         // Получаем текущий режим дисплея для полноэкранного режима
@@ -103,11 +126,11 @@ public class DisplayManager {
                     }
                     break;
             }
-            
+
             // Обновляем текущие размеры
             currentWidth = width;
             currentHeight = height;
-            
+
         } catch (Exception e) {
             System.err.println("Error applying display mode: " + e.getMessage());
             // Fallback на безопасный режим
@@ -120,6 +143,27 @@ public class DisplayManager {
                 System.err.println("Critical error: cannot set fallback display mode: " + fallbackError.getMessage());
             }
         }
+    }
+
+    /**
+     * Применить выбранное разрешение (оконный режим заданного размера).
+     * Применяется на следующем кадре; в полноэкранном режиме возвращает в окно.
+     */
+    public static void applyResolution(int resolution) {
+        if (Gdx.app == null) return;
+
+        int[] dims = getResolutionDimensions(resolution);
+        applyOnNextFrame(() -> {
+            try {
+                Gdx.graphics.setWindowedMode(dims[0], dims[1]);
+                currentWidth = dims[0];
+                currentHeight = dims[1];
+                isFullscreen = false;
+                System.out.println("Resolution applied: " + dims[0] + "x" + dims[1]);
+            } catch (Exception e) {
+                System.err.println("Error applying resolution: " + e.getMessage());
+            }
+        });
     }
     
     /**
@@ -227,11 +271,14 @@ public class DisplayManager {
     }
     
     /**
-     * Переключить полноэкранный режим
+     * Переключить полноэкранный режим (отложенно, на следующем кадре)
      */
     public static void toggleFullscreen() {
         if (Gdx.app == null) return;
-        
+        applyOnNextFrame(() -> toggleFullscreenNow());
+    }
+
+    private static void toggleFullscreenNow() {
         try {
             if (isFullscreen) {
                 // Переключаемся в оконный режим
@@ -242,7 +289,7 @@ public class DisplayManager {
                 // Сохраняем текущие размеры окна
                 currentWidth = Gdx.graphics.getWidth();
                 currentHeight = Gdx.graphics.getHeight();
-                
+
                 // Переключаемся в полноэкранный режим
                 Graphics.DisplayMode displayMode = Gdx.graphics.getDisplayMode();
                 if (displayMode != null) {
