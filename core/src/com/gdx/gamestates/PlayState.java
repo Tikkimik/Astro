@@ -712,32 +712,9 @@ public class PlayState extends GameState {
         
         shapeRenderer.end();
         
-        // FPS счетчик если включен
+        // Детальная F3-табличка с полезной информацией (клавиша F)
         if (showFPS) {
-            spriteBatch.begin();
-            
-            font.setColor(1, 1, 0, 1); // Желтый цвет
-            font.draw(spriteBatch, "FPS: " + currentFPS, 10, MyGdxGame.HEIGHT - 110);
-            
-            // Показываем текущий лимит FPS
-            String fpsLimit = MyGdxGame.targetFPS == 0 ? "UNLIMITED" : String.valueOf(MyGdxGame.targetFPS);
-            font.draw(spriteBatch, "Limit: " + fpsLimit + " (` ↑ 1 ↓)", 10, MyGdxGame.HEIGHT - 135);
-            
-            // Показываем выбранные улучшения (справа)
-            font.setColor(0, 1, 0, 1); // Зеленый цвет для улучшений
-            font.getData().setScale(0.8f);
-            font.draw(spriteBatch, "Upgrades:", MyGdxGame.WIDTH - 150, MyGdxGame.HEIGHT - 10);
-            
-            List<ProgressionManager.Upgrade> selectedUpgrades = progressionManager.getSelectedUpgrades();
-            for (int i = 0; i < Math.min(selectedUpgrades.size(), 5); i++) {
-                ProgressionManager.Upgrade upgrade = selectedUpgrades.get(i);
-                font.draw(spriteBatch, "• " + upgrade.getName(), MyGdxGame.WIDTH - 150, MyGdxGame.HEIGHT - 30 - i * 20);
-            }
-            
-            // Сбрасываем размер шрифта
-            font.getData().setScale(1f);
-            
-            spriteBatch.end();
+            drawDebugTable();
         }
         
         // СТАРАЯ СИСТЕМА ПАУЗЫ - ЗАКОММЕНТИРОВАНА
@@ -996,6 +973,80 @@ public class PlayState extends GameState {
             // Отмечаем, что состояние восстановлено из сохранения
             isRestoredFromSave = true;
         }
+    }
+
+    // Детальная F3-табличка (клавиша F) в стиле Minecraft
+    private void drawDebugTable() {
+        spriteBatch.begin();
+        font.getData().setScale(0.8f);
+
+        float x = 10f;
+        float y = MyGdxGame.HEIGHT - 16f;
+        final float lh = 15f; // межстрочный интервал
+
+        // === Производительность ===
+        font.setColor(1, 1, 0, 1); // жёлтая секция
+        font.draw(spriteBatch, "--- Debug menu (F чтобы скрыть) ---", x, y); y -= lh;
+
+        font.setColor(1, 1, 1, 1);
+        String fpsLimit = MyGdxGame.targetFPS == 0 ? "UNLIMITED" : String.valueOf(MyGdxGame.targetFPS);
+        font.draw(spriteBatch, "FPS: " + currentFPS + "  (limit " + fpsLimit + ", ` = 1 вверх, 1 = вниз)", x, y); y -= lh;
+
+        long totalTime = cameraTime + backgroundTime + playerTime + bulletsTime + asteroidsTime
+                + particlesTime + rocketsTime + orkTime + collisionsTime;
+        font.draw(spriteBatch, "Update time: " + (totalTime / 1000) + " us", x, y); y -= lh;
+        font.draw(spriteBatch, "Collisions: " + (collisionsTime / 1000) + " us | Camera: " + (cameraTime / 1000) + " us", x, y); y -= lh;
+
+        // === Игрок ===
+        y -= 4; font.setColor(0, 1, 1, 1); // голубая секция
+        font.draw(spriteBatch, "--- Player ---", x, y); y -= lh;
+
+        font.setColor(1, 1, 1, 1);
+        float speed = (float) Math.sqrt(player.getDx() * player.getDx() + player.getDy() * player.getDy());
+        font.draw(spriteBatch, String.format("Pos: x=%.1f y=%.1f", player.getX(), player.getY()), x, y); y -= lh;
+        font.draw(spriteBatch, String.format("Vel: dx=%.1f dy=%.1f  speed=%.1f", player.getDx(), player.getDy(), speed), x, y); y -= lh;
+
+        // Направление взгляда (как в Minecraft)
+        float deg = (player.getRadians() * MathUtils.radiansToDegrees);
+        float norm = ((deg % 360) + 360) % 360;
+        String[] dirs = {"E", "NE", "N", "NW", "W", "SW", "S", "SE"};
+        String facing = dirs[(((int) norm + 22) / 45) % 8];
+        font.draw(spriteBatch, String.format("Facing: %.1f deg (%s)", norm, facing), x, y); y -= lh;
+        font.draw(spriteBatch, "Zoom: " + camera.getCurrentZoom() + "  (camera: " + (int) camera.getCameraX() + "," + (int) camera.getCameraY() + ")", x, y); y -= lh;
+
+        // --- Мир / объекты ---
+        font.setColor(0, 1, 0, 1); // зелёная секция
+        font.draw(spriteBatch, "--- World / Objects ---", x, y); y -= lh;
+
+        font.setColor(1, 1, 1, 1);
+        font.draw(spriteBatch, "Objects: " + gameObjectManager.getStats(), x, y); y -= lh;
+        font.draw(spriteBatch, "Particles: " + (particles.size + optimizedParticles.size), x, y); y -= lh;
+        font.draw(spriteBatch, worldManager.getWorldInfo(), x, y); y -= lh;
+
+        // --- Прокачка ---
+        font.setColor(1, 0.5f, 0, 1); // оранжевая секция
+        font.draw(spriteBatch, "--- Progression ---", x, y); y -= lh;
+
+        font.setColor(1, 1, 1, 1);
+        font.draw(spriteBatch, "Level: " + progressionManager.getCurrentLevel(), x, y); y -= lh;
+        font.draw(spriteBatch, "XP: " + progressionManager.getCurrentExperience() + "/" + progressionManager.getExperienceToNextLevel(), x, y); y -= lh;
+        font.draw(spriteBatch, "Score: " + score + "   High: " + highScore, x, y); y -= lh;
+
+        // --- Система ---
+        font.setColor(0, 1, 0.5f, 1); // бирюзовая секция
+        font.draw(spriteBatch, "--- System ---", x, y); y -= lh;
+
+        font.setColor(1, 1, 1, 1);
+        Runtime rt = Runtime.getRuntime();
+        long usedMem = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
+        long maxMem = rt.maxMemory() / 1024 / 1024;
+        font.draw(spriteBatch, "Mem: " + usedMem + " MB / " + maxMem + " MB", x, y); y -= lh;
+        font.draw(spriteBatch, "HUD: " + MyGdxGame.WIDTH + "x" + MyGdxGame.HEIGHT, x, y); y -= lh;
+        font.draw(spriteBatch, "GL: " + com.badlogic.gdx.Gdx.graphics.getGLVersion().getDebugVersionString(), x, y);
+
+        // Сбрасываем размер шрифта
+        font.getData().setScale(1f);
+        spriteBatch.end();
     }
 
     @Override
