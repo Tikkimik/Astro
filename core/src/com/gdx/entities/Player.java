@@ -635,4 +635,8 @@ public class Player extends SpaceObject{
     public Array<FlameParticle> getFlameParticles() {
         return flameParticles;
     }
+
+    public Array<ShieldParticle> getShieldParticles() {
+        return shieldParticles;
+    }
 }

@@ -7,6 +7,16 @@ import com.gdx.utils.GameLogger;
 
 public class GameInputProcessor extends InputAdapter {
 
+    // Буфер прокрутки колеса мыши (потребляется экранами с прокруткой).
+    // Положительное значение = прокрутка вверх, отрицательное = вниз.
+    public static float scrollDeltaY = 0f;
+
+    @Override
+    public boolean scrolled(float amountX, float amountY) {
+        scrollDeltaY += amountY;
+        return true;
+    }
+
     public boolean keyDown(int k) {
         GameLogger.input("Key pressed: " + Input.Keys.toString(k));
         

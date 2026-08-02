@@ -252,6 +252,12 @@ public class WorldManager {
         return spatialGrid.getNearbyObjects(x, y, radius);
     }
     
+    // Получить количество загруженных секторов
+    public int getSectorCount() { return loadedSectors.size; }
+
+    // Получить количество ячеек пространственной сетки
+    public int getGridCellCount() { return spatialGrid.getCellCount(); }
+
     // Получить информацию о мире для отладки
     public String getWorldInfo() {
         return String.format("Sectors: %d | Obstacles: %d | Enemies: %d | Grid Cells: %d", 

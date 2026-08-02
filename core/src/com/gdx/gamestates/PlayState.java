@@ -25,10 +25,13 @@ import com.gdx.managers.GameObjectManager;
 import com.gdx.entities.GameObject;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.FPSLogger;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 
 import com.badlogic.gdx.utils.Array;
+import java.util.ArrayList;
 import java.util.List;
 import com.gdx.utils.ObjectPools;
 import com.gdx.utils.PerformanceMonitor;
@@ -65,9 +68,13 @@ public class PlayState extends GameState {
     private FPSLogger fpsLogger;
     private boolean showFPS = false;
     private BitmapFont font;
+    private FreeTypeFontGenerator fontGenerator;
     private SpriteBatch spriteBatch;
     private int currentFPS = 0;
     private float fpsTimer = 0f;
+
+    // Нижняя граница текстового HUD-блока (используется для отступа Debug menu)
+    private float hudBottomY = 0f;
     
     // Система паузы
     private boolean isPaused = false;
@@ -176,7 +183,7 @@ public class PlayState extends GameState {
         
         // Инициализируем FPS счетчик
         fpsLogger = new FPSLogger();
-        font = new BitmapFont();
+        createUiFont();
         spriteBatch = new SpriteBatch();
         
         // Инициализируем Android управление
@@ -622,23 +629,9 @@ public class PlayState extends GameState {
         
         shapeRenderer.end();
         
-        // Отображаем игровую информацию
+        // Отображаем игровую информацию (экранные координаты, не зависят от камеры мира)
         spriteBatch.begin();
-        
-        // Очки и уровень
-        font.setColor(1, 1, 1, 1); // Белый цвет
-        font.draw(spriteBatch, "Score: " + score, 10, MyGdxGame.HEIGHT - 10);
-        font.draw(spriteBatch, "High: " + highScore, 10, MyGdxGame.HEIGHT - 35);
-        
-        // Система прокачки
-        font.setColor(0, 1, 1, 1); // Голубой цвет для уровня
-        font.draw(spriteBatch, "Level: " + progressionManager.getCurrentLevel(), 10, MyGdxGame.HEIGHT - 60);
-        
-        // Прогресс опыта
-        font.setColor(1, 1, 0, 1); // Желтый цвет для опыта
-        String expText = "XP: " + progressionManager.getCurrentExperience() + "/" + progressionManager.getExperienceToNextLevel();
-        font.draw(spriteBatch, expText, 10, MyGdxGame.HEIGHT - 85);
-        
+        drawHudText();
         spriteBatch.end();
         
         // Крутая анимированная полоска прогресса опыта
@@ -713,8 +706,9 @@ public class PlayState extends GameState {
         shapeRenderer.end();
         
         // Детальная F3-табличка с полезной информацией (клавиша F)
+        // Начинаем ниже HUD-блока с безопасным отступом
         if (showFPS) {
-            drawDebugTable();
+            drawDebugTable(hudBottomY - 16f);
         }
         
         // СТАРАЯ СИСТЕМА ПАУЗЫ - ЗАКОММЕНТИРОВАНА
@@ -975,84 +969,202 @@ public class PlayState extends GameState {
         }
     }
 
-    // Детальная F3-табличка (клавиша F) в стиле Minecraft
-    private void drawDebugTable() {
-        spriteBatch.begin();
-        font.getData().setScale(0.8f);
+    // Генерируем шрифт с поддержкой кириллицы через gdx-freetype.
+    // Стандартный BitmapFont содержит только ASCII, поэтому русский текст
+    // превращался в квадраты. DejaVu Sans — свободный шрифт с кириллицей.
+    private void createUiFont() {
+        fontGenerator = new FreeTypeFontGenerator(Gdx.files.internal("fonts/DejaVuSans.ttf"));
+        FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
 
+        // Размер близкий к стандартному BitmapFont (15px), чтобы текст не выглядел иначе
+        param.size = 16;
+        param.characters = buildFontCharacters();
+        // Линейная фильтрация — чёткий текст без размытия
+        param.minFilter = Texture.TextureFilter.Linear;
+        param.magFilter = Texture.TextureFilter.Linear;
+
+        font = fontGenerator.generateFont(param);
+    }
+
+    // Набор глифов: ASCII + кириллица (включая дополнение) + спецсимволы.
+    // Диапазоны формируются программно, чтобы ничего не пропустить.
+    private String buildFontCharacters() {
+        StringBuilder sb = new StringBuilder();
+
+        // Печатные ASCII-символы (код 32–126)
+        for (int i = 32; i <= 126; i++) {
+            sb.append((char) i);
+        }
+
+        // Кириллица U+0400–U+04FF (включая Ё = U+0401 и ё = U+0451)
+        for (int i = 0x0400; i <= 0x04FF; i++) {
+            sb.append((char) i);
+        }
+
+        // Кириллическое дополнение U+0500–U+052F
+        for (int i = 0x0500; i <= 0x052F; i++) {
+            sb.append((char) i);
+        }
+
+        // Спецсимволы, реально используемые в интерфейсе: тире, градус и пр.
+        sb.append("—–…°`•»«±→↓↑×·“”");
+
+        // Служебные символы: перевод строки и табуляция
+        sb.append('\n').append('\t');
+
+        return sb.toString();
+    }
+
+    // Основной HUD (Score/High/Level/XP) рисуется курсором сверху вниз,
+    // позиции строк зависят только от метрик шрифта и не пересекаются.
+    private void drawHudText() {
         float x = 10f;
-        float y = MyGdxGame.HEIGHT - 16f;
-        final float lh = 15f; // межстрочный интервал
+        float lineH = font.getLineHeight(); // высота строки для масштаба 1.0
+        float spacing = 4f; // отступ между строками HUD
+        float y = MyGdxGame.HEIGHT - 8f; // базовая линия первой строки
 
-        // === Производительность ===
-        font.setColor(1, 1, 0, 1); // жёлтая секция
-        font.draw(spriteBatch, "--- Debug menu (F чтобы скрыть) ---", x, y); y -= lh;
+        font.setColor(1, 1, 1, 1); // Белый цвет
+        font.draw(spriteBatch, "Score: " + score, x, y); y -= lineH + spacing;
 
         font.setColor(1, 1, 1, 1);
+        font.draw(spriteBatch, "High: " + highScore, x, y); y -= lineH + spacing;
+
+        font.setColor(0, 1, 1, 1); // Голубой цвет для уровня
+        font.draw(spriteBatch, "Level: " + progressionManager.getCurrentLevel(), x, y); y -= lineH + spacing;
+
+        font.setColor(1, 1, 0, 1); // Желтый цвет для опыта
+        String expText = "XP: " + progressionManager.getCurrentExperience() + "/" + progressionManager.getExperienceToNextLevel();
+        font.draw(spriteBatch, expText, x, y);
+
+        // Нижняя граница HUD-текста (низ последней строки)
+        hudBottomY = y - lineH;
+    }
+
+    // Детальная F3-табличка (клавиша F) в стиле Minecraft.
+    // Все строки раскладываются вертикальным курсором: высота строки берётся из
+    // метрик шрифта, у заголовков секций — увеличенный отступ.
+    // Текст рисуется прямо поверх игрового мира, без панели-подложки.
+    private void drawDebugTable(float startY) {
+        List<DebugEntry> lines = buildDebugEntries();
+
+        font.getData().setScale(0.8f);
+        float scale = font.getData().scaleY;
+        float lineH = font.getLineHeight() * scale; // высота строки для текущего масштаба
+        float spacing = 3f;  // межстрочный отступ
+        float headerGap = 7f; // дополнительный отступ перед заголовком секции
+
+        // Вычисляем шаги строк (высота из метрик шрифта + отступы)
+        float[] advances = new float[lines.size()];
+        for (int i = 0; i < lines.size(); i++) {
+            DebugEntry e = lines.get(i);
+            float adv = lineH + spacing;
+            if (e.header && i > 0) {
+                adv += headerGap;
+            }
+            advances[i] = adv;
+        }
+
+        // Текст поверх игрового мира
+        spriteBatch.begin();
+        float x = 10f;
+        float y = startY;
+        for (int i = 0; i < lines.size(); i++) {
+            DebugEntry e = lines.get(i);
+            font.setColor(e.r, e.g, e.b, 1f);
+            font.draw(spriteBatch, e.text, x, y);
+            y -= advances[i];
+        }
+        spriteBatch.end();
+
+        font.getData().setScale(1f);
+    }
+
+    private List<DebugEntry> buildDebugEntries() {
+        List<DebugEntry> list = new ArrayList<>();
+
+        // === Производительность ===
+        list.add(new DebugEntry("--- Debug menu (F чтобы скрыть) ---", 1f, 1f, 0f, true));
+
         String fpsLimit = MyGdxGame.targetFPS == 0 ? "UNLIMITED" : String.valueOf(MyGdxGame.targetFPS);
-        font.draw(spriteBatch, "FPS: " + currentFPS + "  (limit " + fpsLimit + ", ` = 1 вверх, 1 = вниз)", x, y); y -= lh;
+        list.add(new DebugEntry("FPS: " + currentFPS + "  (limit " + fpsLimit + ", ` = вверх, 1 = вниз)", 1f, 1f, 1f, false));
 
         long totalTime = cameraTime + backgroundTime + playerTime + bulletsTime + asteroidsTime
                 + particlesTime + rocketsTime + orkTime + collisionsTime;
-        font.draw(spriteBatch, "Update time: " + (totalTime / 1000) + " us", x, y); y -= lh;
-        font.draw(spriteBatch, "Collisions: " + (collisionsTime / 1000) + " us | Camera: " + (cameraTime / 1000) + " us", x, y); y -= lh;
+        list.add(new DebugEntry("Update time: " + (totalTime / 1000) + " us", 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Collisions: " + (collisionsTime / 1000) + " us | Camera: " + (cameraTime / 1000) + " us", 1f, 1f, 1f, false));
 
         // === Игрок ===
-        y -= 4; font.setColor(0, 1, 1, 1); // голубая секция
-        font.draw(spriteBatch, "--- Player ---", x, y); y -= lh;
+        list.add(new DebugEntry("--- Player ---", 0f, 1f, 1f, true));
 
-        font.setColor(1, 1, 1, 1);
         float speed = (float) Math.sqrt(player.getDx() * player.getDx() + player.getDy() * player.getDy());
-        font.draw(spriteBatch, String.format("Pos: x=%.1f y=%.1f", player.getX(), player.getY()), x, y); y -= lh;
-        font.draw(spriteBatch, String.format("Vel: dx=%.1f dy=%.1f  speed=%.1f", player.getDx(), player.getDy(), speed), x, y); y -= lh;
+        list.add(new DebugEntry(String.format("Pos: x=%.1f y=%.1f", player.getX(), player.getY()), 1f, 1f, 1f, false));
+        list.add(new DebugEntry(String.format("Vel: dx=%.1f dy=%.1f  speed=%.1f", player.getDx(), player.getDy(), speed), 1f, 1f, 1f, false));
 
         // Направление взгляда (как в Minecraft)
         float deg = (player.getRadians() * MathUtils.radiansToDegrees);
         float norm = ((deg % 360) + 360) % 360;
         String[] dirs = {"E", "NE", "N", "NW", "W", "SW", "S", "SE"};
         String facing = dirs[(((int) norm + 22) / 45) % 8];
-        font.draw(spriteBatch, String.format("Facing: %.1f deg (%s)", norm, facing), x, y); y -= lh;
-        font.draw(spriteBatch, "Zoom: " + camera.getCurrentZoom() + "  (camera: " + (int) camera.getCameraX() + "," + (int) camera.getCameraY() + ")", x, y); y -= lh;
+        list.add(new DebugEntry(String.format("Facing: %.1f deg (%s)", norm, facing), 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Zoom: " + camera.getCurrentZoom() + "  (camera: " + (int) camera.getCameraX() + "," + (int) camera.getCameraY() + ")", 1f, 1f, 1f, false));
 
-        // --- Мир / объекты ---
-        font.setColor(0, 1, 0, 1); // зелёная секция
-        font.draw(spriteBatch, "--- World / Objects ---", x, y); y -= lh;
+        // === Мир / объекты ===
+        // Все показатели читаются из живых коллекций каждый кадр.
+        // activeObjects — объекты, находящиеся сейчас в менеджере;
+        // totalObjects — кумулятивное число созданных за сессию (не убывает).
+        list.add(new DebugEntry("--- World / Objects ---", 0f, 1f, 0f, true));
+        list.add(new DebugEntry("Active objects: " + gameObjectManager.getActiveObjects()
+                + " / Created total: " + gameObjectManager.getTotalObjects(), 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Projectiles: " + gameObjectManager.getProjectileCount(), 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Obstacles: " + gameObjectManager.getObstacleCount(), 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Enemies: " + gameObjectManager.getEnemyCount(), 1f, 1f, 1f, false));
+        // Активные частицы: эффекты PlayState (взрывы/мусор), оптимизированные частицы,
+        // следы ракет, а также пламя двигателей кораблей и щит игрока.
+        int activeParticles = particles.size + optimizedParticles.size + gameObjectManager.getActiveParticleCount();
+        list.add(new DebugEntry("Active particles: " + activeParticles, 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Sectors: " + worldManager.getSectorCount(), 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Grid cells: " + worldManager.getGridCellCount(), 1f, 1f, 1f, false));
 
-        font.setColor(1, 1, 1, 1);
-        font.draw(spriteBatch, "Objects: " + gameObjectManager.getStats(), x, y); y -= lh;
-        font.draw(spriteBatch, "Particles: " + (particles.size + optimizedParticles.size), x, y); y -= lh;
-        font.draw(spriteBatch, worldManager.getWorldInfo(), x, y); y -= lh;
+        // === Прокачка ===
+        list.add(new DebugEntry("--- Progression ---", 1f, 0.5f, 0f, true));
+        list.add(new DebugEntry("Level: " + progressionManager.getCurrentLevel(), 1f, 1f, 1f, false));
+        list.add(new DebugEntry("XP: " + progressionManager.getCurrentExperience() + "/" + progressionManager.getExperienceToNextLevel(), 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Score: " + score + "   High: " + highScore, 1f, 1f, 1f, false));
 
-        // --- Прокачка ---
-        font.setColor(1, 0.5f, 0, 1); // оранжевая секция
-        font.draw(spriteBatch, "--- Progression ---", x, y); y -= lh;
-
-        font.setColor(1, 1, 1, 1);
-        font.draw(spriteBatch, "Level: " + progressionManager.getCurrentLevel(), x, y); y -= lh;
-        font.draw(spriteBatch, "XP: " + progressionManager.getCurrentExperience() + "/" + progressionManager.getExperienceToNextLevel(), x, y); y -= lh;
-        font.draw(spriteBatch, "Score: " + score + "   High: " + highScore, x, y); y -= lh;
-
-        // --- Система ---
-        font.setColor(0, 1, 0.5f, 1); // бирюзовая секция
-        font.draw(spriteBatch, "--- System ---", x, y); y -= lh;
-
-        font.setColor(1, 1, 1, 1);
+        // === Система ===
+        list.add(new DebugEntry("--- System ---", 0f, 1f, 0.5f, true));
         Runtime rt = Runtime.getRuntime();
         long usedMem = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
         long maxMem = rt.maxMemory() / 1024 / 1024;
-        font.draw(spriteBatch, "Mem: " + usedMem + " MB / " + maxMem + " MB", x, y); y -= lh;
-        font.draw(spriteBatch, "HUD: " + MyGdxGame.WIDTH + "x" + MyGdxGame.HEIGHT, x, y); y -= lh;
-        font.draw(spriteBatch, "GL: " + com.badlogic.gdx.Gdx.graphics.getGLVersion().getDebugVersionString(), x, y);
+        list.add(new DebugEntry("Mem: " + usedMem + " MB / " + maxMem + " MB", 1f, 1f, 1f, false));
+        list.add(new DebugEntry("HUD: " + MyGdxGame.WIDTH + "x" + MyGdxGame.HEIGHT, 1f, 1f, 1f, false));
+        list.add(new DebugEntry("GL: " + Gdx.graphics.getGLVersion().getDebugVersionString(), 1f, 1f, 1f, false));
 
-        // Сбрасываем размер шрифта
-        font.getData().setScale(1f);
-        spriteBatch.end();
+        return list;
+    }
+
+    // Строка отладочной таблицы: текст, цвет и флаг заголовка секции
+    private static class DebugEntry {
+        final String text;
+        final float r, g, b;
+        final boolean header;
+
+        DebugEntry(String text, float r, float g, float b, boolean header) {
+            this.text = text;
+            this.r = r;
+            this.g = g;
+            this.b = b;
+            this.header = header;
+        }
     }
 
     @Override
     public void dispose() {
         if (font != null) {
             font.dispose();
+        }
+        if (fontGenerator != null) {
+            fontGenerator.dispose();
         }
         if (spriteBatch != null) {
             spriteBatch.dispose();

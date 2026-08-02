@@ -433,13 +433,36 @@ public class GameObjectManager {
     public int getProjectileCount() { return projectiles.size; }
     public int getObstacleCount() { return obstacles.size; }
     public int getEnemyCount() { return enemies.size; }
-    public int getParticleCount() { return particles.size; }
+    public int getRocketParticleCount() { return rocketParticles.size; }
+    
+    /**
+     * Количество реально активных частиц, принадлежащих менеджеру:
+     * следы ракет (rocketParticles) + пламя двигателей вражеских кораблей
+     * + пламя и щит игрока. Частицы в пулах (ParticlePool) не учитываются.
+     */
+    public int getActiveParticleCount() {
+        int count = rocketParticles.size;
+        for (GameObject obj : enemies) {
+            EnemyShip es = obj.as(EnemyShip.class);
+            if (es != null) {
+                count += es.getFlameParticles().size;
+            }
+        }
+        if (player != null) {
+            Player p = player.as(Player.class);
+            if (p != null) {
+                count += p.getFlameParticles().size;
+                count += p.getShieldParticles().size;
+            }
+        }
+        return count;
+    }
     
     /**
      * Получить статистику
      */
     public String getStats() {
-        return String.format("Objects: %d/%d | Projectiles: %d | Obstacles: %d | Enemies: %d | Particles: %d",
-            activeObjects, totalObjects, getProjectileCount(), getObstacleCount(), getEnemyCount(), getParticleCount());
+        return String.format("Active: %d / Created: %d | Projectiles: %d | Obstacles: %d | Enemies: %d | Particles: %d",
+            activeObjects, totalObjects, getProjectileCount(), getObstacleCount(), getEnemyCount(), getActiveParticleCount());
     }
 }
