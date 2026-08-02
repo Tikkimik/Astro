@@ -4,7 +4,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
 
-public class Particle extends SpaceObject {
+public class Particle extends SpaceObject implements GameObject.Drawable {
 
     private float timer;
     private float time;

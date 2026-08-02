@@ -4,7 +4,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
 
-public class Asteroid extends Enemy {
+public class Asteroid extends Enemy implements GameObject.Drawable {
     private int type;
     public static final int SMALL = 0;
     public static final int MEDIUM = 1;

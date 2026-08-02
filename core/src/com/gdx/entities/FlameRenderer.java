@@ -17,7 +17,12 @@ public class FlameRenderer {
     private FlameShader flameShader;
     private Mesh flameMesh;
     private float time;
-    
+
+    // Переиспользуемые матрицы, чтобы не аллоцировать по 3 объекта на кадр
+    private final Matrix4 projectionMatrix = new Matrix4();
+    private final Matrix4 transformMatrix = new Matrix4();
+    private final Matrix4 combinedMatrix = new Matrix4();
+
     public FlameRenderer() {
         flameShader = new FlameShader();
         createFlameMesh();
@@ -58,40 +63,40 @@ public class FlameRenderer {
         
 
         
-        // Матрица проекции
-        Matrix4 projectionMatrix = new Matrix4();
+        // Матрица проекции (переиспользуемая)
         projectionMatrix.setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         flameShader.setProjectionMatrix(projectionMatrix);
-        
+
         // Включаем блендинг для прозрачности
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-        
+
         // Преобразуем мировые координаты в экранные
         float screenX = camera.worldToScreenX(x);
         float screenY = camera.worldToScreenY(y);
-        
+
         // Смещаем огонь к задней части корабля (сопло)
         float nozzleOffset = 10.0f; // Смещение к соплу
         float nozzleX = screenX - MathUtils.cos(angle) * nozzleOffset;
         float nozzleY = screenY - MathUtils.sin(angle) * nozzleOffset;
-        
-        // Создаем матрицу трансформации
-        Matrix4 transformMatrix = new Matrix4();
+
+        // Матрица трансформации (переиспользуемая)
+        transformMatrix.idt();
         transformMatrix.translate(nozzleX, nozzleY, 0);
-        
+
         // Правильный угол - огонь должен быть направлен точно назад от корабля
         float flameAngle = angle; // Используем угол корабля напрямую
         transformMatrix.rotate(0, 0, 1, flameAngle * MathUtils.radiansToDegrees);
-        
+
         // Размер огня
         float flameWidth = 20 + intensity * 15;
         float flameLength = flameWidth * 2.0f;
         transformMatrix.scale(flameWidth, flameLength, 1);
-        
+
         // Применяем трансформацию
         ShaderProgram shader = flameShader.getShader();
-        shader.setUniformMatrix("u_projTrans", projectionMatrix.cpy().mul(transformMatrix));
+        combinedMatrix.set(projectionMatrix).mul(transformMatrix);
+        shader.setUniformMatrix("u_projTrans", combinedMatrix);
         
         // Рендерим меш
         flameMesh.render(shader, GL20.GL_TRIANGLES);

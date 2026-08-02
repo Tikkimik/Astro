@@ -126,8 +126,8 @@ public class ObjectPools {
     
     public static AutoRocket obtainAutoRocket(float x, float y, float direction, Enemy target) {
         AutoRocket rocket = autoRocketPool.obtain();
-        // AutoRocket не имеет метода init, поэтому создаем новый объект
-        return new AutoRocket(x, y, direction, target);
+        rocket.init(x, y, direction, target);
+        return rocket;
     }
     
     public static OptimizedParticle obtainOptimizedParticle(float x, float y, String type) {

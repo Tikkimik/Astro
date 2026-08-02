@@ -103,7 +103,7 @@ public class SpaceObject {
 
         for(int i = 0, j = shapeX.length - 1; i < shapeX.length; j = i++) {
             if((shapeY[i] > y) != (shapeY[j] > y) &&
-                    (x < (shapeX[j] - shapeX[i]) * (y - shapeY[i]) / (shapeY[j]) + shapeX[i])) {
+                    (x < (shapeX[j] - shapeX[i]) * (y - shapeY[i]) / (shapeY[j] - shapeY[i]) + shapeX[i])) {
                 b = !b;
             }
         }

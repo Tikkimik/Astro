@@ -6,7 +6,7 @@ import com.gdx.managers.Camera;
 import com.gdx.managers.GameObjectManager;
 
 
-public class AutoRocket extends SpaceObject implements GameObject.Updatable {
+public class AutoRocket extends SpaceObject implements GameObject.Updatable, GameObject.Drawable {
     
     private float initialSpeed = 33f;
     private float maxSpeed = 100f;
@@ -39,14 +39,26 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable {
     }
     
     public AutoRocket(float x, float y, float rocketDirection, Enemy target) {
+        init(x, y, rocketDirection, target);
+    }
+
+    public void init(float x, float y, float rocketDirection, Enemy target) {
         this.x = x;
         this.y = y;
         this.target = target;
-        
+        this.manager = null;
+
         this.radians = rocketDirection;
-        this.dx = MathUtils.cos(radians) * initialSpeed;
-        this.dy = MathUtils.sin(radians) * initialSpeed;
-        
+        this.currentSpeed = initialSpeed;
+        this.dx = MathUtils.cos(radians) * currentSpeed;
+        this.dy = MathUtils.sin(radians) * currentSpeed;
+
+        lifeTimer = 0f;
+        launchTimer = 0f;
+        isLaunched = false;
+        remove = false;
+        lostTargetLifeTimer = 0f;
+
         width = height = 3;
     }
     

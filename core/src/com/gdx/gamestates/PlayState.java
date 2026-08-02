@@ -305,7 +305,7 @@ public class PlayState extends GameState {
                 rocketAngle = player.getRadians() - MathUtils.HALF_PI;
             }
             
-            gameObjectManager.addAutoRocket(new AutoRocket(player.getX(), player.getY(), rocketAngle, cachedNearestEnemy));
+            gameObjectManager.addAutoRocket(com.gdx.utils.ObjectPools.obtainAutoRocket(player.getX(), player.getY(), rocketAngle, cachedNearestEnemy));
             
             autoRocketLeftSide = !autoRocketLeftSide;
         }
@@ -591,8 +591,8 @@ public class PlayState extends GameState {
         // Отрисовка заполненных объектов (фон)
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
-        //draw background first
-        background.draw(shapeRenderer);
+//draw background first
+        background.draw(shapeRenderer, camera);
         
         // Отрисовка всех игровых объектов через GameObjectManager
         gameObjectManager.draw(shapeRenderer, camera, spriteBatch);

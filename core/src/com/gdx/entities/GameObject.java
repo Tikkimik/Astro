@@ -97,24 +97,13 @@ public class GameObject {
     }
     
     public void draw(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch) {
-        // Проверяем, есть ли у объекта метод draw
-        try {
-            // Сначала пробуем стандартную сигнатуру (ShapeRenderer, Camera)
-            java.lang.reflect.Method drawMethod = object.getClass().getMethod("draw", ShapeRenderer.class, Camera.class);
-            drawMethod.invoke(object, shapeRenderer, camera);
-        } catch (NoSuchMethodException e) {
-            // Если стандартного метода нет, пробуем Player-специфичный (ShapeRenderer, Camera, SpriteBatch)
-            try {
-                java.lang.reflect.Method playerDrawMethod = object.getClass().getMethod("draw", ShapeRenderer.class, Camera.class, SpriteBatch.class);
-                // Для Player передаем SpriteBatch
-                playerDrawMethod.invoke(object, shapeRenderer, camera, spriteBatch);
-            } catch (Exception e2) {
-                // Если и этого метода нет, ничего не рисуем
-                System.out.println("Warning: Object " + object.getClass().getSimpleName() + " has no compatible draw method");
-            }
-        } catch (Exception e) {
-            // Если произошла другая ошибка, ничего не рисуем
-            System.out.println("Warning: Object " + object.getClass().getSimpleName() + " draw method failed: " + e.getMessage());
+        // Быстрый диспатч без рефлексии (виртуальные вызовы вместо поиска метода в рантайме)
+        if (object instanceof Player) {
+            ((Player) object).draw(shapeRenderer, camera, spriteBatch);
+        } else if (object instanceof Drawable) {
+            ((Drawable) object).draw(shapeRenderer, camera);
+        } else {
+            System.out.println("Warning: Object " + object.getClass().getSimpleName() + " has no compatible draw method");
         }
     }
     

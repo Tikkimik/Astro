@@ -6,7 +6,7 @@ import com.badlogic.gdx.utils.Array;
 import com.gdx.managers.Camera;
 import com.gdx.managers.GameObjectManager;
 
-public class OrkAsteroid extends Enemy {
+public class OrkAsteroid extends Enemy implements GameObject.Drawable {
     
     private int type;
     public static final int SMALL = 0;

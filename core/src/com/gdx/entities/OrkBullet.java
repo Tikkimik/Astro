@@ -4,7 +4,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
 
-public class OrkBullet extends SpaceObject implements GameObject.Updatable {
+public class OrkBullet extends SpaceObject implements GameObject.Updatable, GameObject.Drawable {
     
     private float speed = 250f;
     private float lifeTime = 4f;

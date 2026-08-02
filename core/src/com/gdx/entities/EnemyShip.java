@@ -8,8 +8,9 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import com.gdx.managers.Camera;
 import com.gdx.managers.GameObjectManager;
+import com.gdx.utils.ParticlePool;
 
-public class EnemyShip extends Enemy {
+public class EnemyShip extends Enemy implements GameObject.Drawable {
     
     // Система стрельбы
     private float shootTimer = 0f;
@@ -219,7 +220,9 @@ public class EnemyShip extends Enemy {
             for(int i = 0; i < 6; i++) {
                 float spreadAngle = flameAngle + (MathUtils.random() - 0.5f) * 0.4f;
                 float flameSpeed = 80 + MathUtils.random() * 120;
-                flameParticles.add(new FlameParticle(nozzleX, nozzleY, spreadAngle, flameSpeed));
+                FlameParticle particle = ParticlePool.obtainFlameParticle();
+                particle.init(nozzleX, nozzleY, spreadAngle, flameSpeed);
+                flameParticles.add(particle);
             }
         }
     }
@@ -231,6 +234,7 @@ public class EnemyShip extends Enemy {
             particle.update(com.gdx.utils.TimeManager.FIXED_TIMESTEP);
             
             if (particle.shouldRemove()) {
+                ParticlePool.freeFlameParticle(particle);
                 flameParticles.removeIndex(i);
             }
         }
@@ -283,6 +287,9 @@ public class EnemyShip extends Enemy {
     
     public void dispose() {
         if (flameParticles != null) {
+            for (FlameParticle p : flameParticles) {
+                ParticlePool.freeFlameParticle(p);
+            }
             flameParticles.clear();
         }
         

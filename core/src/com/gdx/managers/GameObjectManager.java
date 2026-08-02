@@ -385,6 +385,11 @@ public class GameObjectManager {
     // === УДАЛЕНИЕ ОБЪЕКТОВ ===
     
     private void removeObject(GameObject obj) {
+        // Возвращаем авто-ракеты в пул при удалении
+        if (obj.getObject() instanceof AutoRocket) {
+            com.gdx.utils.ObjectPools.freeAutoRocket((AutoRocket) obj.getObject());
+        }
+
         allObjects.removeValue(obj, true);
         
         // Удаляем из быстрых списков

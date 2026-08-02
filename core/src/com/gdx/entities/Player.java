@@ -65,6 +65,11 @@ public class Player extends SpaceObject{
     
     private Texture shipTexture;
 
+    // Кэш последней геометрии: пересчитываем фигуру только при сдвиге/повороте
+    private float lastShapeX = Float.NaN;
+    private float lastShapeY = Float.NaN;
+    private float lastShapeRad = Float.NaN;
+
     public Player(Array<Bullet> bullets){
 
         this.bullets = bullets;
@@ -412,8 +417,13 @@ public class Player extends SpaceObject{
         x += dx * dt;
         y += dy * dt;
 
-        //set shape
-        setShape();
+        //set shape (только если изменилась позиция или угол)
+        if (x != lastShapeX || y != lastShapeY || radians != lastShapeRad) {
+            setShape();
+            lastShapeX = x;
+            lastShapeY = y;
+            lastShapeRad = radians;
+        }
 
         //set flame
         if(up){

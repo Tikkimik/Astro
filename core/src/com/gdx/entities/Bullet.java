@@ -4,7 +4,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
 
-public class Bullet extends SpaceObject implements GameObject.Updatable {
+public class Bullet extends SpaceObject implements GameObject.Updatable, GameObject.Drawable {
 
     private float lifeTime;
     private float lifeTimer;
