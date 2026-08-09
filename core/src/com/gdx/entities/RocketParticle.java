@@ -69,4 +69,9 @@ public class RocketParticle extends Particle {
     public boolean shouldRemove() {
         return life <= 0;
     }
+
+    @Override
+    public float getCullRadius() {
+        return size + 1f;
+    }
 }

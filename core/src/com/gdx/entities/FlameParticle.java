@@ -90,4 +90,9 @@ public class FlameParticle extends Particle {
     public boolean shouldRemove() {
         return life <= 0;
     }
+
+    @Override
+    public float getCullRadius() {
+        return maxSize * 0.75f + 1f;
+    }
 }

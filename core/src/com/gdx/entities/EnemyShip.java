@@ -1,5 +1,6 @@
 package com.gdx.entities;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -44,8 +45,11 @@ public class EnemyShip extends Enemy implements GameObject.Drawable {
     
     // Эффекты
     private float engineGlowTimer = 0f;
-    private Array<FlameParticle> flameParticles;
-    private float particleTimer = 0f; // Таймер для создания частиц
+    private Array<EnemyFlameParticle> flameParticles;
+    // Спавн пламени по таймеру: разреженный (~16 частиц/сек), чтобы не забивать
+    // глобальный бюджет частиц. Красоту даёт размер и аддитивное свечение.
+    private float flameSpawnTimer = 0f;
+    private final float flameSpawnInterval = 0.06f;
     
     public EnemyShip(float x, float y, Player target, Array<OrkBullet> enemyBullets) {
         super(x, y, 3); // Здоровье = 3 для вражеского корабля
@@ -60,6 +64,7 @@ public class EnemyShip extends Enemy implements GameObject.Drawable {
         
         // Инициализация частиц
         flameParticles = new Array<>();
+        com.gdx.utils.ParticleBudget.register(flameParticles);
         
         // Загрузка текстуры
         createShipTexture();
@@ -207,44 +212,51 @@ public class EnemyShip extends Enemy implements GameObject.Drawable {
     }
     
     private void createFlameParticles(float dt) {
-        // Создаем частицы огня из сопла (каждый кадр игровой логики)
         float speed = (float) Math.sqrt(dx * dx + dy * dy);
         
         // Создаем частицы только при движении
         if (speed > 10) {
+            flameSpawnTimer += dt;
+            if (flameSpawnTimer < flameSpawnInterval) {
+                return;
+            }
+            flameSpawnTimer = 0f;
+            
             float nozzleX = x - MathUtils.cos(radians) * 8;
             float nozzleY = y - MathUtils.sin(radians) * 8;
             float flameAngle = radians + MathUtils.PI; // Огонь направлен назад
             
-            // Число частиц двигателя берётся из общей настройки
-            // «Частицы двигателя» (частиц за кадр логики), как и у игрока.
-            int particleCount = com.gdx.utils.GameSettings.getShipEngineParticles();
-            
-            for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
-                float spreadAngle = flameAngle + (MathUtils.random() - 0.5f) * 0.4f;
-                float flameSpeed = 80 + MathUtils.random() * 120;
-                FlameParticle particle = ParticlePool.obtainFlameParticle();
-                particle.init(nozzleX, nozzleY, spreadAngle, flameSpeed);
-                flameParticles.add(particle);
-                com.gdx.utils.ParticleBudget.add(1);
+            // Не создаём декоративные частицы, если корабль далеко за пределами
+            // расширенной области спавна: далёкие враги двигаются и участвуют в
+            // логике, но их невидимое пламя не должно генерировать частицы.
+            if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(nozzleX, nozzleY)) {
+                return;
             }
+            if (!com.gdx.utils.ParticleBudget.canSpawn(nozzleX, nozzleY)) {
+                return;
+            }
+            
+            float spreadAngle = flameAngle + (MathUtils.random() - 0.5f) * 0.35f;
+            float flameSpeed = 60 + MathUtils.random() * 120;
+            EnemyFlameParticle particle = ParticlePool.obtainEnemyFlameParticle();
+            particle.init(nozzleX, nozzleY, spreadAngle, flameSpeed);
+            flameParticles.add(particle);
+            com.gdx.utils.ParticleBudget.add(1);
         }
     }
     
     private void updateParticles(float dt) {
         for (int i = flameParticles.size - 1; i >= 0; i--) {
-            FlameParticle particle = flameParticles.get(i);
+            EnemyFlameParticle particle = flameParticles.get(i);
             // Используем фиксированный временной шаг для обновления частиц
             particle.update(com.gdx.utils.TimeManager.getFixedStep());
             
             if (particle.shouldRemove()) {
-                ParticlePool.freeFlameParticle(particle);
+                ParticlePool.freeEnemyFlameParticle(particle);
                 flameParticles.removeIndex(i);
                 com.gdx.utils.ParticleBudget.release(1);
             }
         }
-        
-
     }
     
     @Override
@@ -269,10 +281,15 @@ public class EnemyShip extends Enemy implements GameObject.Drawable {
         shapeRenderer.setColor(0.2f, 0.6f, 1f, 1);
         shapeRenderer.circle(cockpitCX, cockpitCY, 2 * zoom);
         
-        // Частицы огня
-        for (FlameParticle particle : flameParticles) {
-            particle.draw(shapeRenderer, camera);
+        // Частицы огня: только видимые, с аддитивным смешиванием для эффекта
+        // свечения (внеэкранные частицы не тратят draw-вызовы и видимый бюджет)
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+        for (EnemyFlameParticle particle : flameParticles) {
+            if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
+                particle.draw(shapeRenderer, camera);
+            }
         }
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
     }
     
     @Override
@@ -292,10 +309,11 @@ public class EnemyShip extends Enemy implements GameObject.Drawable {
     
     public void dispose() {
         if (flameParticles != null) {
-            for (FlameParticle p : flameParticles) {
-                ParticlePool.freeFlameParticle(p);
+            for (EnemyFlameParticle p : flameParticles) {
+                ParticlePool.freeEnemyFlameParticle(p);
             }
             com.gdx.utils.ParticleBudget.release(flameParticles.size);
+            com.gdx.utils.ParticleBudget.unregister(flameParticles);
             flameParticles.clear();
         }
         
@@ -304,7 +322,7 @@ public class EnemyShip extends Enemy implements GameObject.Drawable {
         }
     }
     
-    public Array<FlameParticle> getFlameParticles() {
+    public Array<EnemyFlameParticle> getFlameParticles() {
         return flameParticles;
     }
 }

@@ -33,6 +33,13 @@ public class Particle extends SpaceObject implements GameObject.Drawable {
         return remove;
     }
 
+    /**
+     * Радиус для проверки видимости при culling (в мировых координатах).
+     */
+    public float getCullRadius() {
+        return Math.max(2f, width / 2f);
+    }
+
     public void update(float dt){
         x += dx * dt;
         y += dy * dt;

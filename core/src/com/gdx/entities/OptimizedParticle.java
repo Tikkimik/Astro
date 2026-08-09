@@ -100,4 +100,11 @@ public class OptimizedParticle extends SpaceObject {
     public String getParticleType() {
         return particleType;
     }
+
+    /**
+     * Радиус для проверки видимости при culling (в мировых координатах).
+     */
+    public float getCullRadius() {
+        return size * 0.6f + 1f;
+    }
 }

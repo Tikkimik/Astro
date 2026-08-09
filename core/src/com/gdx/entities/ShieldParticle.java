@@ -77,4 +77,9 @@ public class ShieldParticle extends Particle {
     public boolean shouldRemove() {
         return life <= 0;
     }
+
+    @Override
+    public float getCullRadius() {
+        return 3f;
+    }
 }

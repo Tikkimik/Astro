@@ -47,6 +47,11 @@ public class ExplosionParticle extends Particle {
         return remove;
     }
 
+    @Override
+    public float getCullRadius() {
+        return Math.max(2f, size + 1f);
+    }
+
     public void update(float dt) {
         x += dx * dt;
         y += dy * dt;

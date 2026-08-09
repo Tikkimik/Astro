@@ -21,6 +21,17 @@ public class Camera {
     // Границы мира (больше чем экран)
     private float worldWidth;
     private float worldHeight;
+
+    // Видимая область камеры в мировых координатах (пересчитывается в update).
+    // renderBounds — расширенная область отрисовки (culling): объект, центр которого
+    // внутри неё, гарантированно виден или вот-вот появится на экране (margin 20%).
+    // spawnBounds — ещё более широкая область появления декоративных частиц (margin 40%):
+    // эмиттер внутри неё успевает просуществовать до появления объекта на экране.
+    private float renderLeft, renderRight, renderBottom, renderTop;
+    private float spawnLeft, spawnRight, spawnBottom, spawnTop;
+
+    private static final float RENDER_MARGIN = 0.2f; // 10% от полной ширины экрана в каждую сторону
+    private static final float SPAWN_MARGIN = 0.8f;  // 40% от полной ширины экрана в каждую сторону
     
     public Camera() {
         camera = new OrthographicCamera(MyGdxGame.WIDTH, MyGdxGame.HEIGHT);
@@ -32,8 +43,9 @@ public class Camera {
         // Размер мира в 4 раза больше экрана
         worldWidth = MyGdxGame.WIDTH * 4;
         worldHeight = MyGdxGame.HEIGHT * 4;
-        
+
         updateCamera();
+        computeBounds();
     }
     
     public void followTarget(float targetX, float targetY) {
@@ -51,14 +63,36 @@ public class Camera {
         
         // Убираем ограничения камеры для бесконечного мира
         // Камера может следовать за игроком в любом направлении
-        
+
         updateCamera();
+        computeBounds();
     }
     
     private void updateCamera() {
         camera.position.set(cameraX, cameraY, 0);
         camera.zoom = currentZoom;
         camera.update();
+    }
+
+    private void computeBounds() {
+        // Фактическая видимая область: worldToScreenX = (wx - cameraX) * zoom + WIDTH/2,
+        // поэтому на экране помещается (WIDTH/2)/zoom мировых единиц от центра камеры.
+        float halfWidth = (MyGdxGame.WIDTH * 0.5f) / currentZoom;
+        float halfHeight = (MyGdxGame.HEIGHT * 0.5f) / currentZoom;
+
+        float renderExtX = halfWidth * (1f + RENDER_MARGIN);
+        float renderExtY = halfHeight * (1f + RENDER_MARGIN);
+        renderLeft = cameraX - renderExtX;
+        renderRight = cameraX + renderExtX;
+        renderBottom = cameraY - renderExtY;
+        renderTop = cameraY + renderExtY;
+
+        float spawnExtX = halfWidth * (1f + SPAWN_MARGIN);
+        float spawnExtY = halfHeight * (1f + SPAWN_MARGIN);
+        spawnLeft = cameraX - spawnExtX;
+        spawnRight = cameraX + spawnExtX;
+        spawnBottom = cameraY - spawnExtY;
+        spawnTop = cameraY + spawnExtY;
     }
     
     public OrthographicCamera getCamera() {
@@ -126,4 +160,38 @@ public class Camera {
                screenY + scaledRadius >= 0 && 
                screenY - scaledRadius <= MyGdxGame.HEIGHT;
     }
+
+    // === Границы камеры для culling ===
+
+    /**
+     * Пересекает ли круг с центром (x, y) и радиусом radius расширенную
+     * область отрисовки камеры (render bounds). Центр может быть за границей,
+     * но сама фигура — всё ещё видима: проверяется по полуосям, без аллокаций.
+     */
+    public boolean isInRenderBounds(float x, float y, float radius) {
+        return x + radius >= renderLeft && x - radius <= renderRight
+            && y + radius >= renderBottom && y - radius <= renderTop;
+    }
+
+    public boolean isInRenderBounds(float x, float y) {
+        return isInRenderBounds(x, y, 0f);
+    }
+
+    /**
+     * Находится ли точка внутри расширенной области появления частиц (spawn bounds).
+     */
+    public boolean isInSpawnBounds(float x, float y) {
+        return x >= spawnLeft && x <= spawnRight
+            && y >= spawnBottom && y <= spawnTop;
+    }
+
+    public float getRenderLeft() { return renderLeft; }
+    public float getRenderRight() { return renderRight; }
+    public float getRenderBottom() { return renderBottom; }
+    public float getRenderTop() { return renderTop; }
+
+    public float getSpawnLeft() { return spawnLeft; }
+    public float getSpawnRight() { return spawnRight; }
+    public float getSpawnBottom() { return spawnBottom; }
+    public float getSpawnTop() { return spawnTop; }
 }

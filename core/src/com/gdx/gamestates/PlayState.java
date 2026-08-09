@@ -13,7 +13,9 @@ import com.gdx.entities.Particle;
 import com.gdx.entities.Player;
 import com.gdx.entities.EnemyShip;
 import com.gdx.entities.ExplosionParticle;
+import com.gdx.entities.FlameParticle;
 import com.gdx.entities.OptimizedParticle;
+import com.gdx.entities.ShieldParticle;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 import com.gdx.managers.GameKeys;
@@ -38,6 +40,8 @@ import com.gdx.utils.PerformanceMetrics;
 import com.gdx.utils.PerformanceMonitor;
 import com.gdx.utils.TimeManager;
 import com.gdx.utils.GameSettings;
+import com.gdx.utils.RenderStats;
+import com.gdx.utils.CameraBounds;
 
 public class PlayState extends GameState {
 
@@ -57,6 +61,10 @@ public class PlayState extends GameState {
     private int numAsteroidsLeft;
     private int score;
     private int highScore;
+
+    // Счётчики рендера (culling) и копия границ камеры для ParticleBudget
+    private final RenderStats renderStats = new RenderStats();
+    private final CameraBounds cameraBounds = new CameraBounds();
     
     // Таймер для автоматических ракет
     private float autoRocketTimer = 0f;
@@ -155,6 +163,8 @@ public class PlayState extends GameState {
         // Инициализируем только частицы (они обрабатываются по-другому)
         if (particles == null) particles = new Array<Particle>();
         if (optimizedParticles == null) optimizedParticles = new Array<OptimizedParticle>();
+        com.gdx.utils.ParticleBudget.register(particles);
+        com.gdx.utils.ParticleBudget.register(optimizedParticles);
 
         // Инициализируем игровые параметры по умолчанию (только если они еще не инициализированы)
         if (level == 0) level = 1;
@@ -224,14 +234,17 @@ public class PlayState extends GameState {
     }
 
     private void createParticles(float x, float y) {
-        for(int i = 0; i < 6 && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
+        // Взрыв за пределами расширенной области спавна не создаём: эффект не будет виден
+        if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
+        for(int i = 0; i < 6 && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
             particles.add(new Particle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
     
     private void createExplosion(float x, float y, int particleCount) {
-        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
+        if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
+        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
             particles.add(new ExplosionParticle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
@@ -239,12 +252,12 @@ public class PlayState extends GameState {
     
     private void createShipExplosion(float x, float y) {
         // Создаем много частиц для эффектного взрыва корабля
-        for(int i = 0; i < 15 && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
+        for(int i = 0; i < 15 && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
             particles.add(new ExplosionParticle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
         // Добавляем несколько обычных частиц
-        for(int i = 0; i < 8 && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
+        for(int i = 0; i < 8 && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
             particles.add(new Particle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
@@ -252,21 +265,24 @@ public class PlayState extends GameState {
     
     // Методы для создания оптимизированных частиц
     private void createOptimizedExplosion(float x, float y, int particleCount) {
-        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
+        if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
+        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
             optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "explosion"));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
     
     private void createOptimizedFlameParticles(float x, float y, int particleCount) {
-        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
+        if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
+        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
             optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "flame"));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
     
     private void createOptimizedSmokeParticles(float x, float y, int particleCount) {
-        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
+        if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
+        for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
             optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "smoke"));
             com.gdx.utils.ParticleBudget.add(1);
         }
@@ -436,6 +452,11 @@ public class PlayState extends GameState {
         camera.followTarget(player.getX(), player.getY());
         camera.update(dt);
         cameraTime = System.nanoTime() - cameraStart;
+
+        // Копия границ камеры для ParticleBudget (решения о спавне частиц)
+        cameraBounds.set(camera.getRenderLeft(), camera.getRenderRight(), camera.getRenderBottom(), camera.getRenderTop(),
+                camera.getSpawnLeft(), camera.getSpawnRight(), camera.getSpawnBottom(), camera.getSpawnTop());
+        com.gdx.utils.ParticleBudget.updateBounds(cameraBounds);
 
         //update background
         long backgroundStart = System.nanoTime();
@@ -607,40 +628,107 @@ public class PlayState extends GameState {
 //        System.out.println("PLAY STATE DRAWING");
         long drawStart = System.nanoTime();
 
+        // Сброс счётчиков рендера на начало кадра
+        renderStats.beginFrame();
+
         // Отрисовка заполненных объектов (фон)
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
 //draw background first
         background.draw(shapeRenderer, camera);
         
-        // Отрисовка всех игровых объектов через GameObjectManager
-        gameObjectManager.draw(shapeRenderer, camera, spriteBatch);
+        // Отрисовка всех игровых объектов через GameObjectManager (с culling:
+        // снаряды, препятствия, враги и следы ракет за камерой в renderer не идут)
+        gameObjectManager.draw(shapeRenderer, camera, spriteBatch, renderStats);
         
         shapeRenderer.end();
         
-        // Отрисовка линий (корабль)
+        // Отрисовка линий (корабль). Игрок рисуется здесь один раз за кадр —
+        // раньше он попадал в рендер и из allObjects менеджера, и этим вызовом,
+        // из-за чего корабль, пламя и щит рисовались дважды.
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         
-        //draw player
-        player.draw(shapeRenderer, camera, spriteBatch);
+        float playerRadius = Math.max(1f, player.getWidth() / 2f);
+        int flameCount = player.getFlameParticles().size;
+        int shieldCount = player.getShieldParticles().size;
+        boolean playerInView = camera.isInRenderBounds(player.getX(), player.getY(), playerRadius);
+        renderStats.particlesActive += flameCount + shieldCount;
+        if (playerInView) {
+            player.draw(shapeRenderer, camera, spriteBatch);
+        }
+        // Пламя и щит игрока считаем поштучно (с culling): внеэкранные частицы
+        // не должны расходовать видимый бюджет и забирать слоты у эффектов на экране
+        if (playerInView) {
+            for (FlameParticle fp : player.getFlameParticles()) {
+                if (camera.isInRenderBounds(fp.getX(), fp.getY(), fp.getCullRadius())) {
+                    renderStats.particlesVisible++;
+                    renderStats.particlesDrawn++;
+                } else {
+                    renderStats.particlesCulled++;
+                }
+            }
+            for (ShieldParticle sp : player.getShieldParticles()) {
+                if (camera.isInRenderBounds(sp.getX(), sp.getY(), sp.getCullRadius())) {
+                    renderStats.particlesVisible++;
+                    renderStats.particlesDrawn++;
+                } else {
+                    renderStats.particlesCulled++;
+                }
+            }
+        } else {
+            renderStats.particlesCulled += flameCount + shieldCount;
+        }
 
         shapeRenderer.end();
         
-        // Отрисовка заполненных объектов (частицы взрывов)
+        // Отрисовка заполненных объектов (частицы взрывов) — с culling
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
         //draw particles
         for(int i = 0; i < particles.size; i++) {
-            particles.get(i).draw(shapeRenderer, camera);
-        }
-        
-        //draw optimized particles
-        for(int i = 0; i < optimizedParticles.size; i++) {
-            optimizedParticles.get(i).draw(spriteBatch, camera);
+            Particle p = particles.get(i);
+            renderStats.particlesActive++;
+            if (camera.isInRenderBounds(p.getX(), p.getY(), p.getCullRadius())) {
+                renderStats.particlesVisible++;
+                p.draw(shapeRenderer, camera);
+                renderStats.particlesDrawn++;
+            } else {
+                renderStats.particlesCulled++;
+            }
         }
         
         shapeRenderer.end();
         
+        // Оптимизированные частицы рисуются через SpriteBatch (текстуры).
+        // begin()/end() вынесены сюда: раньше batch.draw вызывался без begin().
+        if (optimizedParticles.size > 0) {
+            spriteBatch.begin();
+            //draw optimized particles
+            for(int i = 0; i < optimizedParticles.size; i++) {
+                OptimizedParticle p = optimizedParticles.get(i);
+                renderStats.particlesActive++;
+                if (camera.isInRenderBounds(p.getX(), p.getY(), p.getCullRadius())) {
+                    renderStats.particlesVisible++;
+                    p.draw(spriteBatch, camera);
+                    renderStats.particlesDrawn++;
+                } else {
+                    renderStats.particlesCulled++;
+                }
+            }
+            spriteBatch.end();
+        }
+        
+        // Итоговая категория «Objects»: все мировые объекты, включая игрока
+        renderStats.objectsActive = gameObjectManager.getActiveObjects();
+        renderStats.objectsVisible = renderStats.projectilesVisible + renderStats.obstaclesVisible
+                + renderStats.enemiesVisible + (playerInView ? 1 : 0);
+        renderStats.objectsDrawn = renderStats.projectilesDrawn + renderStats.obstaclesDrawn
+                + renderStats.enemiesDrawn + (playerInView ? 1 : 0);
+        renderStats.objectsCulled = renderStats.objectsActive - renderStats.objectsVisible;
+
+        // Видимый счётчик частиц для ParticleBudget — по итогам реального render-кадра
+        com.gdx.utils.ParticleBudget.setVisible(renderStats.particlesVisible);
+
         // Отображаем игровую информацию (экранные координаты, не зависят от камеры мира)
         spriteBatch.begin();
         drawHudText();
@@ -1143,12 +1231,24 @@ public class PlayState extends GameState {
         list.add(new DebugEntry("Projectiles: " + gameObjectManager.getProjectileCount(), 1f, 1f, 1f, false));
         list.add(new DebugEntry("Obstacles: " + gameObjectManager.getObstacleCount(), 1f, 1f, 1f, false));
         list.add(new DebugEntry("Enemies: " + gameObjectManager.getEnemyCount(), 1f, 1f, 1f, false));
-        // Активные частицы: эффекты PlayState (взрывы/мусор), оптимизированные частицы,
-        // следы ракет, а также пламя двигателей кораблей и щит игрока.
-        int activeParticles = particles.size + optimizedParticles.size + gameObjectManager.getActiveParticleCount();
-        list.add(new DebugEntry("Active particles: " + activeParticles, 1f, 1f, 1f, false));
         list.add(new DebugEntry("Sectors: " + worldManager.getSectorCount(), 1f, 1f, 1f, false));
         list.add(new DebugEntry("Grid cells: " + worldManager.getGridCellCount(), 1f, 1f, 1f, false));
+
+        // === Отсечение (Rendering / Culling) ===
+        // active — живые объекты/частицы в коллекциях; visible — пересекающие расширенную
+        // область камеры; drawn — реально отправленные в renderer в этом кадре;
+        // culled — активные, но пропущенные из-за нахождения вне камеры.
+        list.add(new DebugEntry("--- Rendering / Culling ---", 1f, 1f, 0.5f, true));
+        list.add(new DebugEntry(cullingLine("Objects", renderStats.objectsActive, renderStats.objectsVisible,
+                renderStats.objectsDrawn, renderStats.objectsCulled), 1f, 1f, 1f, false));
+        list.add(new DebugEntry(cullingLine("Projectiles", renderStats.projectilesActive, renderStats.projectilesVisible,
+                renderStats.projectilesDrawn, renderStats.projectilesCulled), 1f, 1f, 1f, false));
+        list.add(new DebugEntry(cullingLine("Obstacles", renderStats.obstaclesActive, renderStats.obstaclesVisible,
+                renderStats.obstaclesDrawn, renderStats.obstaclesCulled), 1f, 1f, 1f, false));
+        list.add(new DebugEntry(cullingLine("Enemies", renderStats.enemiesActive, renderStats.enemiesVisible,
+                renderStats.enemiesDrawn, renderStats.enemiesCulled), 1f, 1f, 1f, false));
+        list.add(new DebugEntry(cullingLine("Particles", renderStats.particlesActive, renderStats.particlesVisible,
+                renderStats.particlesDrawn, renderStats.particlesCulled), 1f, 1f, 1f, false));
 
         // === Прокачка ===
         list.add(new DebugEntry("--- Progression ---", 1f, 0.5f, 0f, true));
@@ -1166,6 +1266,11 @@ public class PlayState extends GameState {
         list.add(new DebugEntry("GL: " + Gdx.graphics.getGLVersion().getDebugVersionString(), 1f, 1f, 1f, false));
 
         return list;
+    }
+
+    // Компактная строка категории: "Name: active A | visible V | drawn D | culled C"
+    private String cullingLine(String name, int active, int visible, int drawn, int culled) {
+        return name + ": active " + active + " | visible " + visible + " | drawn " + drawn + " | culled " + culled;
     }
 
     // Строка отладочной таблицы: текст, цвет и флаг заголовка секции

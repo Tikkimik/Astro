@@ -6,6 +6,7 @@ import com.badlogic.gdx.utils.Array;
 import com.gdx.entities.*;
 import com.gdx.managers.Camera;
 import com.gdx.utils.GameLogger;
+import com.gdx.utils.RenderStats;
 
 /**
  * GameObjectManager - единый менеджер всех игровых объектов
@@ -42,6 +43,7 @@ public class GameObjectManager {
     
     public GameObjectManager() {
         GameLogger.info("GameObjectManager initialized");
+        com.gdx.utils.ParticleBudget.register(rocketParticles);
     }
     
     // === ДОБАВЛЕНИЕ ОБЪЕКТОВ ===
@@ -116,8 +118,12 @@ public class GameObjectManager {
     }
 
     public void addRocketParticle(RocketParticle particle) {
-        // Следы ракет тоже ограничены глобальным лимитом частиц
-        if (!com.gdx.utils.ParticleBudget.canSpawn(1)) {
+        // След ракеты — чисто декоративный эффект: не создаём частицы, если ракета
+        // далеко за пределами расширенной области спавна (след всё равно не виден).
+        if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(particle.getX(), particle.getY())) {
+            return;
+        }
+        if (!com.gdx.utils.ParticleBudget.canSpawn(particle.getX(), particle.getY())) {
             return;
         }
         rocketParticles.add(particle);
@@ -235,22 +241,103 @@ public class GameObjectManager {
     // === ОТРИСОВКА ===
     
     /**
-     * Отрисовать все объекты
+     * Отрисовать все объекты с отсечением (culling) по расширенной области камеры.
+     * Объекты за пределами камеры в renderer не отправляются. Счётчики статистики
+     * заполняются непосредственно перед фактическим вызовом draw.
      */
-    public void draw(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch) {
-        for (GameObject obj : allObjects) {
-            if (obj.isActive()) {
+    public void draw(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch, RenderStats stats) {
+        drawProjectiles(shapeRenderer, camera, spriteBatch, stats);
+        drawObstacles(shapeRenderer, camera, spriteBatch, stats);
+        drawEnemies(shapeRenderer, camera, spriteBatch, stats);
+        drawRocketParticles(shapeRenderer, camera, stats);
+    }
+
+    private void drawProjectiles(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch, RenderStats stats) {
+        for (GameObject obj : projectiles) {
+            if (!obj.isActive()) continue;
+            stats.projectilesActive++;
+            float radius = Math.max(1f, obj.getWidth() / 2f);
+            if (camera.isInRenderBounds(obj.getX(), obj.getY(), radius)) {
+                stats.projectilesVisible++;
                 obj.draw(shapeRenderer, camera, spriteBatch);
+                stats.projectilesDrawn++;
+            } else {
+                stats.projectilesCulled++;
             }
         }
-        for (RocketParticle p : rocketParticles) {
-            p.draw(shapeRenderer, camera);
+    }
+
+    private void drawObstacles(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch, RenderStats stats) {
+        for (GameObject obj : obstacles) {
+            if (!obj.isActive()) continue;
+            stats.obstaclesActive++;
+            float radius = Math.max(1f, obj.getWidth() / 2f);
+            if (camera.isInRenderBounds(obj.getX(), obj.getY(), radius)) {
+                stats.obstaclesVisible++;
+                obj.draw(shapeRenderer, camera, spriteBatch);
+                stats.obstaclesDrawn++;
+            } else {
+                stats.obstaclesCulled++;
+            }
         }
+    }
+
+    private void drawEnemies(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch, RenderStats stats) {
+        for (GameObject obj : enemies) {
+            if (!obj.isActive()) continue;
+            stats.enemiesActive++;
+            float radius = Math.max(1f, obj.getWidth() / 2f);
+            boolean shipInView = camera.isInRenderBounds(obj.getX(), obj.getY(), radius);
+            if (shipInView) {
+                stats.enemiesVisible++;
+                obj.draw(shapeRenderer, camera, spriteBatch);
+                stats.enemiesDrawn++;
+            } else {
+                stats.enemiesCulled++;
+            }
+            // Пламя двигателя считаем поштучно: внеэкранные частицы не должны
+            // расходовать видимый бюджет и забирать слоты у эффектов на экране.
+            countEnemyFlameParticles(obj, camera, stats, shipInView);
+        }
+    }
+
+    private void countEnemyFlameParticles(GameObject obj, Camera camera, RenderStats stats, boolean shipInView) {
+        EnemyShip es = obj.as(EnemyShip.class);
+        if (es == null) return;
+        for (EnemyFlameParticle fp : es.getFlameParticles()) {
+            stats.particlesActive++;
+            if (camera.isInRenderBounds(fp.getX(), fp.getY(), fp.getCullRadius())) {
+                stats.particlesVisible++;
+                if (shipInView) {
+                    stats.particlesDrawn++;
+                }
+            } else {
+                stats.particlesCulled++;
+            }
+        }
+    }
+
+    private void drawRocketParticles(ShapeRenderer shapeRenderer, Camera camera, RenderStats stats) {
+        for (RocketParticle p : rocketParticles) {
+            stats.particlesActive++;
+            if (camera.isInRenderBounds(p.getX(), p.getY(), p.getCullRadius())) {
+                stats.particlesVisible++;
+                p.draw(shapeRenderer, camera);
+                stats.particlesDrawn++;
+            } else {
+                stats.particlesCulled++;
+            }
+        }
+    }
+
+    // Перегрузка для обратной совместимости
+    public void draw(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch) {
+        draw(shapeRenderer, camera, spriteBatch, new RenderStats());
     }
     
     // Перегрузка для обратной совместимости
     public void draw(ShapeRenderer shapeRenderer, Camera camera) {
-        draw(shapeRenderer, camera, null);
+        draw(shapeRenderer, camera, null, new RenderStats());
     }
     
     // === КОЛЛИЗИИ ===
@@ -264,6 +351,9 @@ public class GameObjectManager {
         
         // Коллизии снарядов с врагами
         checkProjectileEnemyCollisions();
+        
+        // Коллизии вражеских снарядов с игроком
+        checkProjectilePlayerCollisions();
         
         // Коллизии игрока с препятствиями
         checkPlayerObstacleCollisions();
@@ -290,12 +380,35 @@ public class GameObjectManager {
         for (GameObject projectile : projectiles) {
             if (!projectile.isActive()) continue;
             
+            // Пули врагов не задевают вражеские корабли (без дружественного огня):
+            // иначе корабль убивает сам себя, т.к. OrkBullet спавнится в его центре
+            if (projectile.isOrkBullet()) continue;
+            
             for (GameObject enemy : enemies) {
                 if (!enemy.isActive()) continue;
                 
                 if (projectile.intersects(enemy)) {
                     handleProjectileEnemyCollision(projectile, enemy);
                 }
+            }
+        }
+    }
+    
+    private void checkProjectilePlayerCollisions() {
+        if (player == null || !player.isActive()) return;
+        
+        Player p = player.as(Player.class);
+        if (p == null) return;
+        
+        for (GameObject projectile : projectiles) {
+            if (!projectile.isActive()) continue;
+            
+            // Игрока задевают только вражеские пули
+            if (!projectile.isOrkBullet()) continue;
+            
+            if (projectile.intersects(player)) {
+                projectile.markForRemoval();
+                p.hit();
             }
         }
     }
@@ -394,6 +507,12 @@ public class GameObjectManager {
         // Возвращаем авто-ракеты в пул при удалении
         if (obj.getObject() instanceof AutoRocket) {
             com.gdx.utils.ObjectPools.freeAutoRocket((AutoRocket) obj.getObject());
+        }
+
+        // Освобождаем оставшиеся частицы пламени вражеского корабля и их слоты
+        // бюджета: без этого счётчик активных частиц «протекал» при гибели врагов.
+        if (obj.getObject() instanceof EnemyShip) {
+            ((EnemyShip) obj.getObject()).dispose();
         }
 
         allObjects.removeValue(obj, true);

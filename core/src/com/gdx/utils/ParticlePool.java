@@ -5,6 +5,7 @@ import com.gdx.entities.FlameParticle;
 import com.gdx.entities.ShieldParticle;
 import com.gdx.entities.ExplosionParticle;
 import com.gdx.entities.RocketParticle;
+import com.gdx.entities.EnemyFlameParticle;
 import com.gdx.game.MyGdxGame;
 
 /**
@@ -17,12 +18,14 @@ public class ParticlePool {
     private static final int SHIELD_POOL_SIZE = 100;
     private static final int EXPLOSION_POOL_SIZE = 150;
     private static final int ROCKET_POOL_SIZE = 50;
+    private static final int ENEMY_FLAME_POOL_SIZE = 150;
     
     // Пул для частиц огня
     private static final Array<FlameParticle> flamePool = new Array<>(FLAME_POOL_SIZE);
     private static final Array<ShieldParticle> shieldPool = new Array<>(SHIELD_POOL_SIZE);
     private static final Array<ExplosionParticle> explosionPool = new Array<>(EXPLOSION_POOL_SIZE);
     private static final Array<RocketParticle> rocketPool = new Array<>(ROCKET_POOL_SIZE);
+    private static final Array<EnemyFlameParticle> enemyFlamePool = new Array<>(ENEMY_FLAME_POOL_SIZE);
     
     // Инициализируем пулы при первом использовании
     private static boolean poolsInitialized = false;
@@ -55,6 +58,11 @@ public class ParticlePool {
         // Заполняем пул частиц ракет
         for (int i = 0; i < ROCKET_POOL_SIZE; i++) {
             rocketPool.add(new RocketParticle(0, 0, 0));
+        }
+        
+        // Заполняем пул частиц пламени вражеских кораблей
+        for (int i = 0; i < ENEMY_FLAME_POOL_SIZE; i++) {
+            enemyFlamePool.add(new EnemyFlameParticle(0, 0, 0, 0));
         }
         
         poolsInitialized = true;
@@ -107,6 +115,16 @@ public class ParticlePool {
     }
     
     /**
+     * Получить частицу пламени вражеского корабля из пула
+     */
+    public static EnemyFlameParticle obtainEnemyFlameParticle() {
+        if (enemyFlamePool.size > 0) {
+            return enemyFlamePool.pop();
+        }
+        return new EnemyFlameParticle(0, 0, 0, 0);
+    }
+    
+    /**
      * Вернуть частицу огня в пул
      */
     public static void freeFlameParticle(FlameParticle particle) {
@@ -147,14 +165,25 @@ public class ParticlePool {
     }
     
     /**
+     * Вернуть частицу пламени вражеского корабля в пул
+     */
+    public static void freeEnemyFlameParticle(EnemyFlameParticle particle) {
+        if (particle != null && enemyFlamePool.size < ENEMY_FLAME_POOL_SIZE) {
+            particle.init(0, 0, 0, 0);
+            enemyFlamePool.add(particle);
+        }
+    }
+    
+    /**
      * Получить статистику пулов
      */
     public static String getPoolStats() {
-        return String.format("Flame: %d/%d | Shield: %d/%d | Explosion: %d/%d | Rocket: %d/%d",
+        return String.format("Flame: %d/%d | Shield: %d/%d | Explosion: %d/%d | Rocket: %d/%d | EnemyFlame: %d/%d",
             flamePool.size, FLAME_POOL_SIZE,
             shieldPool.size, SHIELD_POOL_SIZE,
             explosionPool.size, EXPLOSION_POOL_SIZE,
-            rocketPool.size, ROCKET_POOL_SIZE);
+            rocketPool.size, ROCKET_POOL_SIZE,
+            enemyFlamePool.size, ENEMY_FLAME_POOL_SIZE);
     }
     
     /**
@@ -165,6 +194,7 @@ public class ParticlePool {
         shieldPool.clear();
         explosionPool.clear();
         rocketPool.clear();
+        enemyFlamePool.clear();
         poolsInitialized = false;
     }
 }

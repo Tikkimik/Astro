@@ -109,6 +109,8 @@ public class Player extends SpaceObject{
         // Инициализируем списки частиц
         flameParticles = new Array<>();
         shieldParticles = new Array<>();
+        com.gdx.utils.ParticleBudget.register(flameParticles);
+        com.gdx.utils.ParticleBudget.register(shieldParticles);
         
         // Активируем неуязвимость при создании корабля
         startInvulnerability();
@@ -469,7 +471,7 @@ public class Player extends SpaceObject{
         }
         
         // Создаем синие частицы щита только во время неуязвимости
-        if (isInvulnerable && MathUtils.random() < 0.5f && com.gdx.utils.ParticleBudget.canSpawn(1)) { // 50% шанс создания частицы каждый кадр
+        if (isInvulnerable && MathUtils.random() < 0.5f && com.gdx.utils.ParticleBudget.canSpawn(x, y)) { // 50% шанс создания частицы каждый кадр
             float angle = MathUtils.random() * MathUtils.PI2;
             float radius = 20 + MathUtils.random() * 10; // Радиус от 20 до 30
             
@@ -505,11 +507,17 @@ public class Player extends SpaceObject{
             float nozzleY = y - MathUtils.sin(radians) * 8 - 2; // Смещаем немного ниже
             float flameAngle = radians + MathUtils.PI; // Огонь направлен назад
             
+            // Не создаём декоративные частицы, если эмиттер далеко за пределами
+            // расширенной области спавна (камера далеко — огонь всё равно не виден).
+            if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(nozzleX, nozzleY)) {
+                return;
+            }
+            
             // Используем настройку количества частиц (частиц за кадр логики)
             int particleCount = com.gdx.utils.GameSettings.getShipEngineParticles();
             
             // Создаем частицы согласно настройке (с учётом глобального лимита)
-            for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(1); i++) {
+            for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(nozzleX, nozzleY); i++) {
                 float spreadAngle = flameAngle + (MathUtils.random() - 0.5f) * 0.4f; // Больший разброс
                 float flameSpeed = 150 + MathUtils.random() * 150; // Случайная скорость
                 
@@ -602,18 +610,23 @@ public class Player extends SpaceObject{
         // Здесь только отрисовка
         
         // Рисуем частицы огня (заполненные круги)
+        // Только видимые: внеэкранные частицы не должны тратить draw-вызовы
         shapeRenderer.end(); // Заканчиваем рендеринг линий
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
         for(int i = flameParticles.size - 1; i >= 0; i--) {
             FlameParticle particle = flameParticles.get(i);
-            particle.draw(shapeRenderer, camera);
+            if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
+                particle.draw(shapeRenderer, camera);
+            }
         }
         
-        // Рисуем синие частицы щита
+        // Рисуем синие частицы щита (только видимые)
         for(int i = shieldParticles.size - 1; i >= 0; i--) {
             ShieldParticle particle = shieldParticles.get(i);
-            particle.draw(shapeRenderer, camera);
+            if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
+                particle.draw(shapeRenderer, camera);
+            }
         }
         
         shapeRenderer.end(); // Заканчиваем рендеринг заполненных объектов
@@ -635,12 +648,14 @@ public class Player extends SpaceObject{
         // Очищаем частицы огня
         if (flameParticles != null) {
             com.gdx.utils.ParticleBudget.release(flameParticles.size);
+            com.gdx.utils.ParticleBudget.unregister(flameParticles);
             flameParticles.clear();
         }
         
         // Очищаем синие частицы щита
         if (shieldParticles != null) {
             com.gdx.utils.ParticleBudget.release(shieldParticles.size);
+            com.gdx.utils.ParticleBudget.unregister(shieldParticles);
             shieldParticles.clear();
         }
         
