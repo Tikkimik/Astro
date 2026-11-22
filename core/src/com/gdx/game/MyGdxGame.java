@@ -122,6 +122,13 @@ public class MyGdxGame extends ApplicationAdapter {
 		// Получаем deltaTime через TimeManager для независимости от FPS
 		float deltaTime = TimeManager.getDeltaTime();
 
+		// Виртуальные элементы управления сначала обновляют GameKeys, после чего
+		// активный экран один раз фиксирует ввод для всех fixed ticks этого кадра.
+		if (androidInputManager != null) {
+			androidInputManager.update();
+		}
+		gameStateManager.handleInput();
+
 		int ticksThisFrame = 0;
 		if (ScenarioRuntime.isActive() && ScenarioRuntime.isLogicMode()) {
 			while (ScenarioRuntime.runner() != null
@@ -137,9 +144,6 @@ public class MyGdxGame extends ApplicationAdapter {
 			}
 		}
 
-		// Обработка ввода
-		gameStateManager.handleInput();
-
 		// Отрисовка происходит каждый кадр (не зависит от временного шага)
 		gameStateManager.render();
 		TimeManager.incrementRenderCount();
@@ -147,13 +151,6 @@ public class MyGdxGame extends ApplicationAdapter {
 		// Честные метрики: реально отрисованный кадр и реально выполненные тики
 		// игровой логики (только в состоянии PLAYING — во время паузы логика не идёт).
 		PerformanceMetrics.onRenderFrame(gameStateManager.isPlaying() ? ticksThisFrame : 0);
-
-		// Обновляем Android управление
-		if (androidInputManager != null) {
-			androidInputManager.update();
-		}
-
-		GameKeys.update();
 
 		if (ScenarioRuntime.isActive()) {
 			String capturePath;
@@ -165,12 +162,12 @@ public class MyGdxGame extends ApplicationAdapter {
 		}
 
 		// Обработка переключения полноэкранного режима
-		if (GameKeys.isDown(GameKeys.TOGGLE_FULLSCREEN)) {
+		if (GameKeys.isPressed(GameKeys.TOGGLE_FULLSCREEN)) {
 			GameLogger.input("F11 pressed - toggling fullscreen");
 			toggleFullscreen();
-			// Сбрасываем состояние клавиши, чтобы избежать повторного срабатывания
-			GameKeys.setKey(GameKeys.TOGGLE_FULLSCREEN, false);
 		}
+
+		GameKeys.update();
 
 		// Мониторинг FPS и фреймтайма с детальной статистикой
 		if (Gdx.graphics.getFrameId() % 120 == 0) { // Каждые 2 секунды

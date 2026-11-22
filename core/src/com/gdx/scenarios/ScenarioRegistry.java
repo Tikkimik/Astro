@@ -5,6 +5,7 @@ import com.gdx.entities.Asteroid;
 import com.gdx.entities.AutoRocket;
 import com.gdx.entities.EnemyShip;
 import com.gdx.entities.OrkAsteroid;
+import com.gdx.managers.GameKeys;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -57,6 +58,19 @@ public final class ScenarioRegistry {
     }
 
     private static void registerEngineScenarios() {
+        register(scenario("frame-input-persists-across-fixed-ticks")
+                .tags("player", "input", "fixed-timestep", "logic")
+                .duration(0.15f)
+                .setup(context -> {
+                    context.disablePlayerShield();
+                    context.setPlayerAngle(MathUtils.HALF_PI);
+                    context.rememberPosition("start", "player");
+                    GameKeys.setKey(GameKeys.UP, true);
+                })
+                .checkAt(0.1f, "frame input reaches every fixed tick",
+                        context -> context.expectMovedAtLeast("player", "start", 0.01f))
+                .build());
+
         register(engineScenario("straight", 3.2f, 3f,
                 (context, elapsed, dt) -> {
                     context.setPlayerAngle(MathUtils.HALF_PI);

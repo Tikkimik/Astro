@@ -112,6 +112,13 @@ public class PlayState extends GameState {
     // Android управление
     private AndroidInputManager androidInputManager;
 
+    // Снимок непрерывного управления фиксируется один раз на render frame и
+    // одинаково применяется ко всем fixed ticks, выполненным в этом кадре.
+    private boolean inputLeft;
+    private boolean inputRight;
+    private boolean inputUp;
+    private boolean inputFire;
+
     // Управление бесконечным миром
     private WorldManager worldManager;
 
@@ -463,8 +470,7 @@ public class PlayState extends GameState {
         background.update(dt);
         backgroundTime = System.nanoTime() - backgroundStart;
 
-        //get user input
-        handleInput();
+        applyPlayerInput();
 
         // Обновляем бесконечный мир
         if (!ScenarioRuntime.isActive()) {
@@ -958,7 +964,6 @@ public class PlayState extends GameState {
     public void handleInput() {
         if (ScenarioRuntime.isActive()) {
             camera.setTargetZoom(2f);
-            return;
         }
 
         // Отладка клавиш
@@ -966,12 +971,10 @@ public class PlayState extends GameState {
             System.out.println("ESCAPE нажата!");
         }
 
-        player.setLeft(GameKeys.isDown(GameKeys.LEFT));
-        player.setRight(GameKeys.isDown(GameKeys.RIGHT));
-        player.setUp(GameKeys.isDown(GameKeys.UP));
-        if (GameKeys.isDown(GameKeys.SPACE)) {
-            player.shoot();
-        }
+        inputLeft = GameKeys.isDown(GameKeys.LEFT);
+        inputRight = GameKeys.isDown(GameKeys.RIGHT);
+        inputUp = GameKeys.isDown(GameKeys.UP);
+        inputFire = GameKeys.isDown(GameKeys.SPACE);
 
         // Управление зумом - используем isDown для непрерывного действия
         if (GameKeys.isDown(GameKeys.ZOOM_IN)) {
@@ -1029,6 +1032,15 @@ public class PlayState extends GameState {
         // Тестовая кнопка для получения опыта (для тестирования)
         if (GameKeys.isPressed(GameKeys.TEST)) {
             progressionManager.addExperience(50);
+        }
+    }
+
+    private void applyPlayerInput() {
+        player.setLeft(inputLeft);
+        player.setRight(inputRight);
+        player.setUp(inputUp);
+        if (inputFire) {
+            player.shoot();
         }
     }
 
