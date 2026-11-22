@@ -60,6 +60,10 @@ public class SpaceObject {
         return radians;
     }
 
+    public void setRadians(float radians) {
+        this.radians = radians;
+    }
+
     public float getSpeed() {
         return speed;
     }

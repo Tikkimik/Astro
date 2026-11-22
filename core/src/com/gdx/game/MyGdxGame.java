@@ -7,7 +7,6 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.PixmapIO;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.gdx.managers.GameInputProcessor;
 import com.gdx.managers.GameKeys;
@@ -25,6 +24,7 @@ import com.gdx.managers.RealPlayStateHandler;
 import com.gdx.managers.PausedStateHandler;
 import com.gdx.managers.SettingsStateHandler;
 import com.gdx.managers.UpgradeSelectionStateHandler;
+import com.gdx.scenarios.ScenarioRuntime;
 
 public class MyGdxGame extends ApplicationAdapter {
 	SpriteBatch batch;
@@ -53,18 +53,12 @@ public class MyGdxGame extends ApplicationAdapter {
 	private static boolean isFullscreen = false;
 	private static int windowedWidth = 1280;
 	private static int windowedHeight = 720;
-	private float visualTestElapsed;
-	private boolean visualCaptureDone;
-
 	/**
 	 * метод инициализации
 	 */
 	@Override
 	public void create () {  //метод инициализации по сути
-		if (!System.getProperty("astro.visualTest", "").isEmpty()) {
-			// Одинаковый мир и одинаковые частицы для повторяемых visual-тестов.
-			MathUtils.random.setSeed(0x415354524fL);
-		}
+		ScenarioRuntime.prepareFromProperties();
 
 		// Принудительно отключаем V-Sync для максимальной производительности
 		Gdx.graphics.setVSync(false);
@@ -128,14 +122,19 @@ public class MyGdxGame extends ApplicationAdapter {
 		// Получаем deltaTime через TimeManager для независимости от FPS
 		float deltaTime = TimeManager.getDeltaTime();
 
-		// Обновляем аккумулятор времени
-		TimeManager.updateAccumulator(deltaTime);
-
-		// Обновляем игровую логику с фиксированным временным шагом
 		int ticksThisFrame = 0;
-		while (TimeManager.shouldUpdate()) {
-			gameStateManager.update(TimeManager.getFixedTimestep());
-			ticksThisFrame++;
+		if (ScenarioRuntime.isActive() && ScenarioRuntime.isLogicMode()) {
+			while (ScenarioRuntime.runner() != null
+					&& !ScenarioRuntime.runner().isComplete() && ticksThisFrame < 10_000) {
+				gameStateManager.update(TimeManager.getFixedStep());
+				ticksThisFrame++;
+			}
+		} else {
+			TimeManager.updateAccumulator(deltaTime);
+			while (TimeManager.shouldUpdate()) {
+				gameStateManager.update(TimeManager.getFixedTimestep());
+				ticksThisFrame++;
+			}
 		}
 
 		// Обработка ввода
@@ -156,18 +155,13 @@ public class MyGdxGame extends ApplicationAdapter {
 
 		GameKeys.update();
 
-		// Тестовый процесс сам закрывается: после каждого снимка не остаётся
-		// висящего окна или дочернего Java-процесса.
-		if (!System.getProperty("astro.visualTest", "").isEmpty()) {
-			visualTestElapsed += deltaTime;
-			float captureTime = Float.parseFloat(System.getProperty("astro.visualCaptureTime", "3.0"));
-			if (!visualCaptureDone && visualTestElapsed >= captureTime) {
-				captureVisualTestFrame();
-				visualCaptureDone = true;
+		if (ScenarioRuntime.isActive()) {
+			String capturePath;
+			while ((capturePath = ScenarioRuntime.pollCapturePath()) != null) {
+				captureScenarioFrame(capturePath);
+				ScenarioRuntime.captureCompleted(capturePath);
 			}
-			if (visualTestElapsed >= 5f) {
-				Gdx.app.exit();
-			}
+			if (ScenarioRuntime.shouldFinalize()) ScenarioRuntime.finalizeAndExit();
 		}
 
 		// Обработка переключения полноэкранного режима
@@ -193,10 +187,7 @@ public class MyGdxGame extends ApplicationAdapter {
 		}
 	}
 
-	private void captureVisualTestFrame() {
-		String output = System.getProperty("astro.visualOutput", "");
-		if (output.isEmpty()) return;
-
+	private void captureScenarioFrame(String output) {
 		int width = Gdx.graphics.getBackBufferWidth();
 		int height = Gdx.graphics.getBackBufferHeight();
 		byte[] pixels = ScreenUtils.getFrameBufferPixels(0, 0, width, height, true);
@@ -207,7 +198,7 @@ public class MyGdxGame extends ApplicationAdapter {
 		Gdx.files.absolute(output).parent().mkdirs();
 		PixmapIO.writePNG(Gdx.files.absolute(output), pixmap);
 		pixmap.dispose();
-		GameLogger.info("Visual-test screenshot: " + output);
+		GameLogger.info("Scenario screenshot: " + output);
 	}
 
 	@Override
@@ -269,9 +260,7 @@ public class MyGdxGame extends ApplicationAdapter {
 			GameLogger.info("🔄 ПЕРЕХОД: " + fromDesc + " → " + toDesc);
 		});
 
-		// Визуальный тест запускается напрямую в игре; обычный запуск по-прежнему
-		// начинается с меню.
-		if (System.getProperty("astro.visualTest", "").isEmpty()) {
+		if (!ScenarioRuntime.isActive()) {
 			gameStateManager.setState(ImprovedGameStateManager.GameState.MENU);
 		} else {
 			gameStateManager.setState(ImprovedGameStateManager.GameState.PLAYING);

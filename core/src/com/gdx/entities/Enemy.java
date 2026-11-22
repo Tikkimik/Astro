@@ -33,6 +33,13 @@ public abstract class Enemy extends SpaceObject implements GameObject.Updatable 
     public int getMaxHealth() {
         return maxHealth;
     }
+
+    public void setHealth(int health) {
+        if (health <= 0) throw new IllegalArgumentException("Health must be positive");
+        this.health = health;
+        this.maxHealth = Math.max(maxHealth, health);
+        this.remove = false;
+    }
     
     /**
      * Нанести урон врагу

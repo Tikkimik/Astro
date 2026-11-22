@@ -22,7 +22,7 @@ Game logic lives under `core/src/com/gdx/`; platform launchers under `com.mygdx.
 - **macOS desktop**: requires `-XstartOnFirstThread` JVM flag (already handled in `desktop/build.gradle`).
 - **GWT/html**: GWT compiler needs 1G+ heap; run with `./gradlew html:superDev` (serves at `localhost:8080`).
 - Core sets `sourceCompatibility = 21` and `targetCompatibility = 21`.
-- No CI, no linter, no formatter, no tests defined.
+- No CI, linter, formatter, or unit-test suite. Deterministic gameplay scenarios are available through the desktop module.
 
 ## Architecture
 
@@ -47,7 +47,9 @@ After implementing a change, verify the result in proportion to the type and ris
 
 - After changing Java code, run at least `./gradlew core:compileJava` or a more specific relevant build/test command.
 - Changes that affect graphics, UI, camera behavior, animation, particles, shaders, object placement, or any other visible runtime behavior require visual verification.
-- For visual verification, choose the closest existing scenario and run `./gradlew desktop:run -PvisualTest=<scenario>`. Existing scenarios include `straight`, `diagonal`, `side`, `turnleft`, `turnright`, and `coast`.
+- For visual verification, choose the closest existing scenario and run `./gradlew desktop:runScenario -Pscenario=<name>`. The legacy `./gradlew desktop:run -PvisualTest=<name>` form exists only for compatibility.
+- Run mechanics scenarios without real-time rendering using `./gradlew desktop:runScenario -Pscenario=<name> -PscenarioMode=logic`.
+- Run a selected suite with `./gradlew desktop:scenarioSuite -PscenarioTags=<comma-separated-tags>`; add `-PscenarioMode=logic` for fast mechanics-only execution.
 - Capture a screenshot at a representative moment, open the resulting image, and inspect the actual rendered result. Merely launching the game or creating a screenshot is not sufficient verification.
 - If visual inspection reveals a defect, fix it and repeat the scenario and screenshot inspection before finishing.
 - Changes to gameplay mechanics require an automated scenario and assertions or a state/metrics dump when practical; screenshots alone are not sufficient for non-visual behavior.
@@ -56,3 +58,14 @@ After implementing a change, verify the result in proportion to the type and ris
 - If no suitable scenario exists, add the smallest practical verification scenario or explicitly report why verification could not be completed.
 - In the final response, list the checks performed and provide the screenshot path for visual changes.
 - Never update a visual baseline merely to make a comparison pass. Baseline changes require a justified intended visual change and user confirmation.
+
+## Gameplay scenarios
+
+The scenario architecture and extension rules are documented in `SCENARIO_TESTING_PLAN.md`. Follow that document when adding new scenarios.
+
+- When a feature adds or changes observable gameplay behavior, find the closest existing scenario and update it, or add a focused scenario when the behavior is distinct.
+- Reuse the shared scenario builder, context, actions, assertions, reports, and tags. Do not add new scenario-selection `if` chains or duplicate game setup.
+- Mechanics scenarios require state assertions; screenshots alone are insufficient. Add visual checkpoints only for behavior whose rendered result matters.
+- Keep scenarios deterministic with a fixed seed and fixed ticks. Do not rely on real-time sleeps, uncontrolled random state, or incidental world objects.
+- Scenario reports and screenshots are written to `build/scenarios/<scenario>/`.
+- Internal refactors with no behavior change do not require a new scenario, but the relevant existing scenarios must still pass.

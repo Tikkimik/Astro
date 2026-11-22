@@ -43,6 +43,8 @@ import com.gdx.utils.TimeManager;
 import com.gdx.utils.GameSettings;
 import com.gdx.utils.RenderStats;
 import com.gdx.utils.CameraBounds;
+import com.gdx.scenarios.ScenarioRunner;
+import com.gdx.scenarios.ScenarioRuntime;
 
 public class PlayState extends GameState {
 
@@ -126,6 +128,7 @@ public class PlayState extends GameState {
     private boolean isInitialized = false;
     private boolean isRestoredFromSave = false;
     private boolean autoRocketLeftSide = true; // Флаг для чередования сторон авторакет
+    private ScenarioRunner scenarioRunner;
 
     public PlayState(GameStateManager gameStateManager) {
         super(gameStateManager);
@@ -157,7 +160,12 @@ public class PlayState extends GameState {
             gameObjectManager = new GameObjectManager();
             gameObjectManager.setAsteroidDestroyedListener((asteroid, x, y) -> {
                 createParticles(x, y);
-                numAsteroidsLeft--;
+                if (numAsteroidsLeft > 0) numAsteroidsLeft--;
+                addScore(5);
+            });
+            gameObjectManager.setEnemyDestroyedListener((enemy, x, y) -> {
+                createOptimizedExplosion(x, y, 8);
+                addScore(25);
             });
         }
 
@@ -186,7 +194,6 @@ public class PlayState extends GameState {
         // Инициализируем WorldManager для бесконечного мира (после создания игрока)
         // Передаем ссылки на GameObjectManager вместо отдельных списков
         worldManager = new WorldManager(gameObjectManager, player);
-        setupVisualTestObjects();
 
         // Начальные объекты создаются в WorldManager
 
@@ -195,6 +202,8 @@ public class PlayState extends GameState {
             progressionManager = new ProgressionManager();
             progressionManager.setGameStateManager(gameStateManager);
         }
+
+        scenarioRunner = ScenarioRuntime.attach(this);
 
         // Инициализируем FPS счетчик
         fpsLogger = new FPSLogger();
@@ -206,19 +215,6 @@ public class PlayState extends GameState {
 
         // Отмечаем, что инициализация завершена
         isInitialized = true;
-    }
-
-    private void setupVisualTestObjects() {
-        String scenario = System.getProperty("astro.visualTest", "");
-        if ("rocket".equals(scenario)) {
-            Asteroid target = new Asteroid(player.getX() + 260f, player.getY() + 120f, Asteroid.MEDIUM);
-            gameObjectManager.addAsteroid(target);
-            gameObjectManager.addAutoRocket(ObjectPools.obtainAutoRocket(
-                    player.getX(), player.getY(), MathUtils.HALF_PI, target));
-        } else if ("enemy-smoke".equals(scenario)) {
-            gameObjectManager.addEnemyShip(new EnemyShip(
-                    player.getX() + 180f, player.getY() + 70f, player, null));
-        }
     }
 
     private void spawnInitialObjects() {
@@ -482,7 +478,7 @@ public class PlayState extends GameState {
         handleInput();
 
         // Обновляем бесконечный мир
-        if (System.getProperty("astro.visualTest", "").isEmpty()) {
+        if (!ScenarioRuntime.isActive()) {
             worldManager.update(dt, isRestoredFromSave);
         }
 
@@ -495,6 +491,7 @@ public class PlayState extends GameState {
 
         //update player
         long playerStart = System.nanoTime();
+        if (scenarioRunner != null) scenarioRunner.beforeUpdate(dt);
         if (player != null) {
             player.update(dt);
             if (player.isDead()) {
@@ -591,7 +588,7 @@ public class PlayState extends GameState {
         }
 
         //create auto rocket every second
-        if (System.getProperty("astro.visualTest", "").isEmpty()) {
+        if (!ScenarioRuntime.isActive()) {
             autoRocketTimer += dt;
             if(autoRocketTimer >= AUTO_ROCKET_INTERVAL) {
                 createAutoRocket();
@@ -603,6 +600,7 @@ public class PlayState extends GameState {
         long collisionsStart = System.nanoTime();
         checkCollisions();
         gameObjectManager.checkCollisions();
+        if (scenarioRunner != null) scenarioRunner.afterUpdate(dt);
         collisionsTime = System.nanoTime() - collisionsStart;
 
         // Обновляем FPS счетчик - подсчет кадров
@@ -956,7 +954,7 @@ public class PlayState extends GameState {
 
     @Override
     public void handleInput() {
-        if (!System.getProperty("astro.visualTest", "").isEmpty()) {
+        if (ScenarioRuntime.isActive()) {
             camera.setTargetZoom(2f);
             return;
         }
@@ -1035,6 +1033,18 @@ public class PlayState extends GameState {
     // Геттеры для применения улучшений
     public Player getPlayer() {
         return player;
+    }
+
+    public GameObjectManager getGameObjectManager() {
+        return gameObjectManager;
+    }
+
+    public ProgressionManager getProgressionManager() {
+        return progressionManager;
+    }
+
+    public int getScore() {
+        return score;
     }
 
     public Array<AutoRocket> getAutoRockets() {

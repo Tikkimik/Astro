@@ -71,9 +71,6 @@ public class Player extends SpaceObject{
     private float plumeBend;
     // Инерция тяги: шейдерный факел не исчезает одним кадром после отпускания.
     private float plumeThrottle;
-    private float visualTestTimer;
-    private boolean visualTestInitialized;
-
     // Система неуязвимости (i-frames)
     private float invulnerabilityTimer;
     private final float invulnerabilityTime = 3.0f; // 3 секунды неуязвимости
@@ -361,6 +358,11 @@ public class Player extends SpaceObject{
         return isInvulnerable;
     }
 
+    public void cancelInvulnerability() {
+        isInvulnerable = false;
+        invulnerabilityTimer = 0f;
+    }
+
     // Метод для пересоздания текстуры, если она потерялась
     public void recreateTextureIfNeeded() {
         // Всегда пересоздаем текстуру после восстановления состояния
@@ -416,46 +418,6 @@ public class Player extends SpaceObject{
         // Читается каждый кадр логики, поэтому изменение применяется сразу,
         // без пересоздания игрока (проверяется в Debug-меню по факту скорости).
         maxSpeed = com.gdx.utils.GameSettings.getPlayerSpeed();
-
-        // Автоматический полёт только для локальных визуальных снимков.
-        String visualTest = System.getProperty("astro.visualTest", "");
-        if (!visualTest.isEmpty()) {
-            if (!visualTestInitialized) {
-                dx = 0f;
-                dy = 0f;
-                // Щит относится к отдельному эффекту и только мешает честно
-                // оценивать двигатель на автоматических снимках.
-                isInvulnerable = false;
-                visualTestInitialized = true;
-            }
-            visualTestTimer += dt;
-            boolean coastTest = "coast".equals(visualTest);
-            boolean stationaryTest = "rocket".equals(visualTest) || "enemy-smoke".equals(visualTest);
-            up = !stationaryTest && (!coastTest || visualTestTimer < 1.25f);
-            if ("straight".equals(visualTest) || coastTest) {
-                radians = MathUtils.HALF_PI;
-                left = false;
-            } else if (stationaryTest) {
-                radians = 0f;
-                left = false;
-            } else if ("diagonal".equals(visualTest)) {
-                radians = MathUtils.PI / 4f;
-                left = false;
-            } else if ("side".equals(visualTest)) {
-                radians = 0f;
-                left = false;
-            } else if ("turnleft".equals(visualTest)) {
-                left = true;
-            } else if ("turnright".equals(visualTest)) {
-                left = false;
-                right = true;
-            } else {
-                left = visualTestTimer > 0.55f && visualTestTimer < 1.35f;
-            }
-            if (!"turnright".equals(visualTest)) {
-                right = false;
-            }
-        }
 
         //hit check
         if(hit) {

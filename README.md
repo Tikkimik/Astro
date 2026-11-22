@@ -150,6 +150,26 @@ Times (μs): Camera=5 Background=1 Player=10 Bullets=0
 
 ## 🔧 Разработка
 
+### Проверка игровых сценариев
+
+Сценарии используют фиксированные тики и общий конструктор, поэтому проверяют настоящую игровую логику без копирования setup-кода.
+
+```bash
+# Один сценарий с визуальной контрольной точкой
+./gradlew desktop:runScenario -Pscenario=rocket-hits-enemy
+
+# Быстрая проверка механики без ожидания отрисовки
+./gradlew desktop:runScenario -Pscenario=bullet-hits-asteroid -PscenarioMode=logic
+
+# Набор сценариев по тегам
+./gradlew desktop:scenarioSuite -PscenarioTags=logic -PscenarioMode=logic
+
+# Все зарегистрированные сценарии
+./gradlew desktop:scenarioSuite
+```
+
+Отчёты `result.txt`, `result.json` и PNG контрольных точек сохраняются в `build/scenarios/<scenario>/`. Подробности и правила расширения находятся в [SCENARIO_TESTING_PLAN.md](SCENARIO_TESTING_PLAN.md).
+
 ### Добавление новых объектов
 ```java
 public class NewGameObject {
@@ -171,6 +191,7 @@ float[] interpolatedPos = InterpolationManager.interpolatePosition(
 
 ## 📚 Документация
 
+- [SCENARIO_TESTING_PLAN.md](SCENARIO_TESTING_PLAN.md) - Конструктор детерминированных игровых сценариев
 - [FIXED_TIMESTEP_GUIDE.md](FIXED_TIMESTEP_GUIDE.md) - Подробное описание системы фиксированного временного шага
 - [PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) - Руководство по оптимизации производительности
 - [SETTINGS_GUIDE.md](SETTINGS_GUIDE.md) - Руководство по использованию настроек

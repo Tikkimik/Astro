@@ -34,8 +34,17 @@ public class GameObjectManager {
     }
     private AsteroidDestroyedListener asteroidDestroyedListener;
 
+    public interface EnemyDestroyedListener {
+        void onEnemyDestroyed(Enemy enemy, float x, float y);
+    }
+    private EnemyDestroyedListener enemyDestroyedListener;
+
     public void setAsteroidDestroyedListener(AsteroidDestroyedListener listener) {
         this.asteroidDestroyedListener = listener;
+    }
+
+    public void setEnemyDestroyedListener(EnemyDestroyedListener listener) {
+        this.enemyDestroyedListener = listener;
     }
 
     // Статистика
@@ -522,9 +531,14 @@ public class GameObjectManager {
         if (enemy.isEnemyShip()) {
             EnemyShip enemyShip = enemy.as(EnemyShip.class);
             if (enemyShip != null) {
+                boolean wasAlive = !enemyShip.shouldRemove();
                 enemyShip.takeDamage(1);
-                if (enemyShip.shouldRemove()) {
+                if (wasAlive && enemyShip.shouldRemove()) {
                     enemy.markForRemoval();
+                    if (enemyDestroyedListener != null) {
+                        enemyDestroyedListener.onEnemyDestroyed(enemyShip,
+                                enemyShip.getX(), enemyShip.getY());
+                    }
                 }
             }
         }

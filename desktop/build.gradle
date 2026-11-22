@@ -21,11 +21,70 @@ task run(dependsOn: classes, type: JavaExec) {
                 new File(rootProject.buildDir, "visual-tests/${project.property('visualTest')}.png").absolutePath
         systemProperty "astro.visualOutput", visualOutput
         systemProperty "astro.visualCaptureTime", project.findProperty("visualCaptureTime") ?: "3.0"
+        systemProperty "astro.scenarioOutputDir", new File(rootProject.buildDir, "scenarios").absolutePath
     }
 
     if (OperatingSystem.current() == OperatingSystem.MAC_OS) {
         // Required to run on macOS
         jvmArgs += "-XstartOnFirstThread"
+    }
+}
+
+task runScenario(dependsOn: classes, type: JavaExec) {
+    mainClass = project.mainClassName
+    classpath = sourceSets.main.runtimeClasspath
+    standardInput = System.in
+    workingDir = project.assetsDir
+    ignoreExitValue = false
+
+    doFirst {
+        def scenarioName = project.findProperty("scenario")
+        if (!scenarioName) {
+            throw new GradleException("Specify a scenario with -Pscenario=<name>")
+        }
+        systemProperty "astro.scenario", scenarioName
+        systemProperty "astro.scenarioOutputDir", new File(rootProject.buildDir, "scenarios").absolutePath
+        if (project.hasProperty("scenarioMode")) {
+            systemProperty "astro.scenarioMode", project.property("scenarioMode")
+        }
+    }
+
+    if (OperatingSystem.current() == OperatingSystem.MAC_OS) {
+        jvmArgs += "-XstartOnFirstThread"
+    }
+}
+
+task scenarioSuite(dependsOn: classes) {
+    doLast {
+        def catalogOutput = new ByteArrayOutputStream()
+        javaexec {
+            mainClass = "com.gdx.scenarios.ScenarioCatalogMain"
+            classpath = sourceSets.main.runtimeClasspath
+            standardOutput = catalogOutput
+            args(project.findProperty("scenarioTags") ?: "")
+        }
+
+        def scenarioNames = catalogOutput.toString("UTF-8").readLines().findAll { !it.isBlank() }
+        if (scenarioNames.isEmpty()) {
+            throw new GradleException("No scenarios match tags: ${project.findProperty('scenarioTags') ?: '<all>'}")
+        }
+
+        scenarioNames.each { scenarioName ->
+            logger.lifecycle("Running scenario: ${scenarioName}")
+            javaexec {
+                mainClass = project.mainClassName
+                classpath = sourceSets.main.runtimeClasspath
+                workingDir = project.assetsDir
+                systemProperty "astro.scenario", scenarioName
+                systemProperty "astro.scenarioOutputDir", new File(rootProject.buildDir, "scenarios").absolutePath
+                if (project.hasProperty("scenarioMode")) {
+                    systemProperty "astro.scenarioMode", project.property("scenarioMode")
+                }
+                if (OperatingSystem.current() == OperatingSystem.MAC_OS) {
+                    jvmArgs += "-XstartOnFirstThread"
+                }
+            }
+        }
     }
 }
 
