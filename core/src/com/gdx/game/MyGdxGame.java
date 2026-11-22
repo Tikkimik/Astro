@@ -18,7 +18,10 @@ import com.gdx.utils.DisplayManager;
 import com.gdx.utils.GameLogger;
 import com.gdx.utils.GameSettings;
 import com.gdx.utils.ParticlePool;
+import com.gdx.utils.ParticleTextures;
 import com.gdx.utils.PerformanceMetrics;
+import com.gdx.utils.Fonts;
+import com.gdx.shaders.FlameShader;
 import com.gdx.managers.MenuStateHandler;
 import com.gdx.managers.RealPlayStateHandler;
 import com.gdx.managers.PausedStateHandler;
@@ -274,16 +277,21 @@ public class MyGdxGame extends ApplicationAdapter {
 	 */
 	@Override
 	public void dispose () {
-		batch.dispose();
+		if (batch != null) {
+			batch.dispose();
+			batch = null;
+		}
 		// img.dispose(); // Убираем освобождение ресурсов логотипа
-
-		// Очищаем пулы частиц
-		ParticlePool.clearAllPools();
 
 		// Очищаем систему состояний
 		if (gameStateManager != null) {
 			gameStateManager.dispose();
 		}
+
+		ParticlePool.clearAllPools();
+		ParticleTextures.disposeInstance();
+		FlameShader.disposeCache();
+		Fonts.dispose();
 	}
 
 	// Методы для управления FPS

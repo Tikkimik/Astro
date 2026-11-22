@@ -302,6 +302,20 @@ public class PausedStateHandler implements ImprovedGameStateManager.StateHandler
         GameLogger.info("Экран паузы деактивирован");
     }
 
+    @Override
+    public void onDispose() {
+        if (spriteBatch != null) {
+            spriteBatch.dispose();
+            spriteBatch = null;
+        }
+        if (shapeRenderer != null) {
+            shapeRenderer.dispose();
+            shapeRenderer = null;
+        }
+        helpLines.clear();
+        isInitialized = false;
+    }
+
     // === МЕНЮ ПАУЗЫ ===
 
     private void renderMenu() {

@@ -28,6 +28,12 @@ public class ParticleTextures implements Disposable {
         return instance;
     }
 
+    public static void disposeInstance() {
+        if (instance != null) {
+            instance.dispose();
+        }
+    }
+
     private void generateParticleTextures() {
         // Генерируем простую частицу (белый круг)
         generateSimpleParticle();
@@ -200,5 +206,6 @@ public class ParticleTextures implements Disposable {
             texture.dispose();
         }
         textureCache.clear();
+        instance = null;
     }
 }

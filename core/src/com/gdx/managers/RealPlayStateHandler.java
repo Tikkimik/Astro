@@ -91,15 +91,17 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
     @Override
     public void onExit() {
         GameLogger.info("=== ВЫХОД ИЗ НАСТОЯЩЕГО ИГРОВОГО СОСТОЯНИЯ ===");
-
-        if (playState != null) {
-            // Сохраняем состояние игры перед выходом
-            saveGameState();
-
-            GameLogger.info("Состояние игры сохранено");
-        }
-
         GameLogger.info("Настоящая игра деактивирована");
+    }
+
+    @Override
+    public void onDispose() {
+        if (playState != null) {
+            saveGameState();
+            playState.dispose();
+            playState = null;
+        }
+        isInitialized = false;
     }
 
     /**

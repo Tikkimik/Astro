@@ -329,6 +329,20 @@ public class SettingsStateHandler implements ImprovedGameStateManager.StateHandl
         GameLogger.info("Настройки деактивированы");
     }
 
+    @Override
+    public void onDispose() {
+        if (spriteBatch != null) {
+            spriteBatch.dispose();
+            spriteBatch = null;
+        }
+        if (shapeRenderer != null) {
+            shapeRenderer.dispose();
+            shapeRenderer = null;
+        }
+        isInitialized = false;
+        initFailed = false;
+    }
+
     // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
 
     private String[] getItems() {

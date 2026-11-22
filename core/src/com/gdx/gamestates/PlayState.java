@@ -1358,17 +1358,45 @@ public class PlayState extends GameState {
 
     @Override
     public void dispose() {
+        if (optimizedParticles != null) {
+            for (OptimizedParticle particle : optimizedParticles) {
+                ObjectPools.freeOptimizedParticle(particle);
+            }
+            com.gdx.utils.ParticleBudget.release(optimizedParticles.size);
+            com.gdx.utils.ParticleBudget.unregister(optimizedParticles);
+            optimizedParticles.clear();
+        }
+        if (particles != null) {
+            com.gdx.utils.ParticleBudget.release(particles.size);
+            com.gdx.utils.ParticleBudget.unregister(particles);
+            particles.clear();
+        }
+        if (rocketExplosionEffects != null) {
+            rocketExplosionEffects.clear();
+        }
+        if (gameObjectManager != null) {
+            gameObjectManager.clear();
+        }
         if (font != null) {
             font.dispose();
+            font = null;
         }
         if (fontGenerator != null) {
             fontGenerator.dispose();
+            fontGenerator = null;
         }
         if (spriteBatch != null) {
             spriteBatch.dispose();
+            spriteBatch = null;
+        }
+        if (shapeRenderer != null) {
+            shapeRenderer.dispose();
+            shapeRenderer = null;
         }
         if (player != null) {
             player.dispose();
+            player = null;
         }
+        isInitialized = false;
     }
 }

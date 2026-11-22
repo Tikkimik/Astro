@@ -3,7 +3,9 @@ package com.gdx.managers;
 import com.badlogic.gdx.utils.Array;
 import com.gdx.utils.GameLogger;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Улучшенная система управления состояниями 
@@ -27,14 +29,12 @@ public class ImprovedGameStateManager {
     // за меню паузы даже после SETTINGS -> PAUSED.
     private GameState underlayState = null;
     
-    // Стек состояний для push/pop операций
-    private Array<GameState> stateStack = new Array<>();
-    
     // Регистрированные обработчики состояний
     private Map<GameState, StateHandler> stateHandlers = new HashMap<>();
     
     // Обработчики событий изменения состояния
     private Array<StateChangeListener> stateChangeListeners = new Array<>();
+    private boolean disposed;
     
     /**
      * Enum для всех возможных состояний игры
@@ -68,6 +68,8 @@ public class ImprovedGameStateManager {
         void onRender();
         void onHandleInput();
         void onExit();
+        default void onDispose() {
+        }
     }
     
     /**
@@ -199,28 +201,6 @@ public class ImprovedGameStateManager {
     }
     
     /**
-     * Push состояние (сохраняем текущее в стек)
-     */
-    public void pushState(GameState newState) {
-        if (currentState != null) {
-            stateStack.add(currentState);
-        }
-        setState(newState);
-    }
-    
-    /**
-     * Pop состояние (возвращаемся к предыдущему из стека)
-     */
-    public void popState() {
-        if (!stateStack.isEmpty()) {
-            GameState previousState = stateStack.pop();
-            setState(previousState);
-        } else {
-            GameLogger.warn("Попытка pop состояния из пустого стека");
-        }
-    }
-    
-    /**
      * Возвращаемся к предыдущему состоянию
      */
     public void goBack() {
@@ -335,10 +315,6 @@ public class ImprovedGameStateManager {
             info.append("\nПредыдущее состояние: ").append(previousState.getDescription());
         }
         
-        if (!stateStack.isEmpty()) {
-            info.append("\nРазмер стека состояний: ").append(stateStack.size);
-        }
-        
         info.append("\nЗарегистрированных обработчиков: ").append(stateHandlers.size());
         info.append("\nСлушателей изменений: ").append(stateChangeListeners.size);
         
@@ -349,6 +325,11 @@ public class ImprovedGameStateManager {
      * Очистка ресурсов
      */
     public void dispose() {
+        if (disposed) {
+            return;
+        }
+        disposed = true;
+
         // Выходим из текущего состояния
         if (currentState != null) {
             StateHandler handler = stateHandlers.get(currentState);
@@ -356,12 +337,20 @@ public class ImprovedGameStateManager {
                 handler.onExit();
             }
         }
+
+        // onExit только деактивирует экран. GPU-ресурсы освобождаются один раз
+        // при завершении менеджера, в том числе у неактивных экранов.
+        Set<StateHandler> uniqueHandlers = new HashSet<>(stateHandlers.values());
+        for (StateHandler handler : uniqueHandlers) {
+            handler.onDispose();
+        }
         
         // Очищаем все
+        currentState = null;
+        previousState = null;
+        underlayState = null;
         stateHandlers.clear();
         stateChangeListeners.clear();
-        stateStack.clear();
-        
         GameLogger.info("ImprovedGameStateManager очищен");
     }
 }

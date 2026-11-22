@@ -156,6 +156,23 @@ public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
         GameLogger.info("Главное меню деактивировано");
     }
 
+    @Override
+    public void onDispose() {
+        if (spriteBatch != null) {
+            spriteBatch.dispose();
+            spriteBatch = null;
+        }
+        if (shapeRenderer != null) {
+            shapeRenderer.dispose();
+            shapeRenderer = null;
+        }
+        if (particles != null) {
+            particles.clear();
+            particles = null;
+        }
+        isInitialized = false;
+    }
+
     private void initializeMenu() {
         spriteBatch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
