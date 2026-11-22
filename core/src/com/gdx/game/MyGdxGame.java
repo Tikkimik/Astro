@@ -3,8 +3,11 @@ package com.gdx.game;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.PixmapIO;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.gdx.managers.GameInputProcessor;
 import com.gdx.managers.GameKeys;
@@ -34,38 +37,45 @@ public class MyGdxGame extends ApplicationAdapter {
 
 	public ImprovedGameStateManager gameStateManager;
 	public AndroidInputManager androidInputManager;
-	
+
 	// Настройки FPS
 	public static int targetFPS = 60;  // Целевой FPS
 	public static final int[] FPS_PRESETS = {30, 60, 120, 240, 0}; // 0 = без ограничений
 	public static int currentFPSIndex = 1; // Начинаем с 60 FPS
-	
+
 	// Рекорд
 	public static int highScore = 0;
-	
+
 	// Режим отладки для оптимизации логирования
 	public static final boolean DEBUG_MODE = GameSettings.isDebugMode();
-	
+
 	// Переменные для полноэкранного режима
 	private static boolean isFullscreen = false;
 	private static int windowedWidth = 1280;
 	private static int windowedHeight = 720;
+	private float visualTestElapsed;
+	private boolean visualCaptureDone;
 
 	/**
 	 * метод инициализации
 	 */
 	@Override
 	public void create () {  //метод инициализации по сути
+		if (!System.getProperty("astro.visualTest", "").isEmpty()) {
+			// Одинаковый мир и одинаковые частицы для повторяемых visual-тестов.
+			MathUtils.random.setSeed(0x415354524fL);
+		}
+
 		// Принудительно отключаем V-Sync для максимальной производительности
 		Gdx.graphics.setVSync(false);
-		
+
 		// Включаем встроенные инструменты профилирования LibGDX
 		Gdx.app.setLogLevel(com.badlogic.gdx.Application.LOG_DEBUG);
-		
+
 		// Инициализируем GameLogger с настройками из GameSettings
 		GameLogger.setLogLevel(GameSettings.getLogLevel());
 		GameLogger.setDebugMode(GameSettings.isDebugMode());
-		
+
 		// Диагностика системы
 		GameLogger.info("=== SYSTEM DIAGNOSTICS ===");
 		GameLogger.info("Java version: " + System.getProperty("java.version"));
@@ -77,7 +87,7 @@ public class MyGdxGame extends ApplicationAdapter {
 		GameLogger.info("Log Level: " + GameLogger.getCurrentLogLevelName());
 		GameLogger.info("Debug Mode: " + (GameSettings.isDebugMode() ? "ON" : "OFF"));
 		GameLogger.info("==========================");
-		
+
 		WIDTH = Gdx.graphics.getWidth();
 		HEIGHT = Gdx.graphics.getHeight();
 
@@ -87,7 +97,7 @@ public class MyGdxGame extends ApplicationAdapter {
 
 		// Инициализируем Android управление
 		androidInputManager = new AndroidInputManager();
-		
+
 		// Устанавливаем обработчик ввода (Android или Desktop)
 		if (androidInputManager.isAndroid()) {
 			Gdx.input.setInputProcessor(androidInputManager);
@@ -96,10 +106,10 @@ public class MyGdxGame extends ApplicationAdapter {
 		}
 
 		gameStateManager = new ImprovedGameStateManager();
-		
+
 		// Инициализируем новую систему состояний
 		initializeStateSystem();
-		
+
 		// Вернули обычную игру для профилирования
 		// gameStateManager.push(new com.gdx.gamestates.FPSTestState(gameStateManager));
 
@@ -110,27 +120,27 @@ public class MyGdxGame extends ApplicationAdapter {
 	/**
 	 * тут происходить вся игра
 	 * нужно все делить все на разные составляющие чтобы тут небыло хаоса
-	 */	
+	 */
 	@Override
 	public void render () {
 		ScreenUtils.clear(0, 0, 0, 1); //black
 
 		// Получаем deltaTime через TimeManager для независимости от FPS
 		float deltaTime = TimeManager.getDeltaTime();
-		
+
 		// Обновляем аккумулятор времени
 		TimeManager.updateAccumulator(deltaTime);
-		
+
 		// Обновляем игровую логику с фиксированным временным шагом
 		int ticksThisFrame = 0;
 		while (TimeManager.shouldUpdate()) {
 			gameStateManager.update(TimeManager.getFixedTimestep());
 			ticksThisFrame++;
 		}
-		
+
 		// Обработка ввода
 		gameStateManager.handleInput();
-		
+
 		// Отрисовка происходит каждый кадр (не зависит от временного шага)
 		gameStateManager.render();
 		TimeManager.incrementRenderCount();
@@ -143,9 +153,23 @@ public class MyGdxGame extends ApplicationAdapter {
 		if (androidInputManager != null) {
 			androidInputManager.update();
 		}
-		
+
 		GameKeys.update();
-		
+
+		// Тестовый процесс сам закрывается: после каждого снимка не остаётся
+		// висящего окна или дочернего Java-процесса.
+		if (!System.getProperty("astro.visualTest", "").isEmpty()) {
+			visualTestElapsed += deltaTime;
+			float captureTime = Float.parseFloat(System.getProperty("astro.visualCaptureTime", "3.0"));
+			if (!visualCaptureDone && visualTestElapsed >= captureTime) {
+				captureVisualTestFrame();
+				visualCaptureDone = true;
+			}
+			if (visualTestElapsed >= 5f) {
+				Gdx.app.exit();
+			}
+		}
+
 		// Обработка переключения полноэкранного режима
 		if (GameKeys.isDown(GameKeys.TOGGLE_FULLSCREEN)) {
 			GameLogger.input("F11 pressed - toggling fullscreen");
@@ -153,7 +177,7 @@ public class MyGdxGame extends ApplicationAdapter {
 			// Сбрасываем состояние клавиши, чтобы избежать повторного срабатывания
 			GameKeys.setKey(GameKeys.TOGGLE_FULLSCREEN, false);
 		}
-		
+
 		// Мониторинг FPS и фреймтайма с детальной статистикой
 		if (Gdx.graphics.getFrameId() % 120 == 0) { // Каждые 2 секунды
 			float fps = 1.0f / deltaTime;
@@ -169,18 +193,35 @@ public class MyGdxGame extends ApplicationAdapter {
 		}
 	}
 
+	private void captureVisualTestFrame() {
+		String output = System.getProperty("astro.visualOutput", "");
+		if (output.isEmpty()) return;
+
+		int width = Gdx.graphics.getBackBufferWidth();
+		int height = Gdx.graphics.getBackBufferHeight();
+		byte[] pixels = ScreenUtils.getFrameBufferPixels(0, 0, width, height, true);
+		Pixmap pixmap = new Pixmap(width, height, Pixmap.Format.RGBA8888);
+		pixmap.getPixels().clear();
+		pixmap.getPixels().put(pixels);
+		pixmap.getPixels().position(0);
+		Gdx.files.absolute(output).parent().mkdirs();
+		PixmapIO.writePNG(Gdx.files.absolute(output), pixmap);
+		pixmap.dispose();
+		GameLogger.info("Visual-test screenshot: " + output);
+	}
+
 	@Override
 	public void resize (int width, int height) {
 		WIDTH = width;
 		HEIGHT = height;
-		
+
 		// Обновляем камеру при изменении размера окна
 		if (camera != null) {
 			camera.viewportWidth = width;
 			camera.viewportHeight = height;
 			camera.update();
 		}
-		
+
 		// Обновляем Android управление при изменении размера экрана
 		if (androidInputManager != null) {
 			androidInputManager.resize(width, height);
@@ -202,41 +243,46 @@ public class MyGdxGame extends ApplicationAdapter {
 	 */
 	private void initializeStateSystem() {
 		GameLogger.info("=== ИНИЦИАЛИЗАЦИЯ НОВОЙ СИСТЕМЫ СОСТОЯНИЙ ===");
-		
+
 		// Регистрируем обработчики для всех состояний
 		MenuStateHandler menuHandler = new MenuStateHandler();
 		menuHandler.setStateManager(gameStateManager);
 		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.MENU, menuHandler);
-		
+
 		RealPlayStateHandler playHandler = new RealPlayStateHandler();
 		playHandler.setStateManager(gameStateManager);
 		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.PLAYING, playHandler);
-		
+
 		PausedStateHandler pauseHandler = new PausedStateHandler();
 		pauseHandler.setStateManager(gameStateManager);
 		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.PAUSED, pauseHandler);
-		
+
 		SettingsStateHandler settingsHandler = new SettingsStateHandler();
 		settingsHandler.setStateManager(gameStateManager);
 		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.SETTINGS, settingsHandler);
 		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.UPGRADE_SELECTION, new UpgradeSelectionStateHandler());
-		
+
 		// Добавляем слушателя для логирования изменений состояния
 		gameStateManager.addStateChangeListener((from, to) -> {
 			String fromDesc = from != null ? from.getDescription() : "null";
 			String toDesc = to != null ? to.getDescription() : "null";
 			GameLogger.info("🔄 ПЕРЕХОД: " + fromDesc + " → " + toDesc);
 		});
-		
-		// Устанавливаем начальное состояние - меню
-		gameStateManager.setState(ImprovedGameStateManager.GameState.MENU);
-		
+
+		// Визуальный тест запускается напрямую в игре; обычный запуск по-прежнему
+		// начинается с меню.
+		if (System.getProperty("astro.visualTest", "").isEmpty()) {
+			gameStateManager.setState(ImprovedGameStateManager.GameState.MENU);
+		} else {
+			gameStateManager.setState(ImprovedGameStateManager.GameState.PLAYING);
+		}
+
 		// Принудительно вызываем onEnter для начального состояния
 		GameLogger.info("Принудительно вызываем onEnter для начального состояния...");
-		
+
 		GameLogger.info("Система состояний инициализирована");
 	}
-	
+
 	/**
 	 * заключительый метод
 	 */
@@ -244,16 +290,16 @@ public class MyGdxGame extends ApplicationAdapter {
 	public void dispose () {
 		batch.dispose();
 		// img.dispose(); // Убираем освобождение ресурсов логотипа
-		
+
 		// Очищаем пулы частиц
 		ParticlePool.clearAllPools();
-		
+
 		// Очищаем систему состояний
 		if (gameStateManager != null) {
 			gameStateManager.dispose();
 		}
 	}
-	
+
 	// Методы для управления FPS
 	public static void increaseFPS() {
 		if (currentFPSIndex < FPS_PRESETS.length - 1) {
@@ -263,7 +309,7 @@ public class MyGdxGame extends ApplicationAdapter {
 			System.out.println("FPS limit set to: " + (targetFPS == 0 ? "UNLIMITED" : targetFPS));
 		}
 	}
-	
+
 	public static void decreaseFPS() {
 		if (currentFPSIndex > 0) {
 			currentFPSIndex--;
@@ -272,7 +318,7 @@ public class MyGdxGame extends ApplicationAdapter {
 			System.out.println("FPS limit set to: " + (targetFPS == 0 ? "UNLIMITED" : targetFPS));
 		}
 	}
-	
+
 	private static void updateFPSSettings() {
 		if (Gdx.app != null) {
 			if (targetFPS == 0) {
@@ -282,7 +328,7 @@ public class MyGdxGame extends ApplicationAdapter {
 			}
 		}
 	}
-	
+
 	// Метод для переключения полноэкранного режима
 	private static void toggleFullscreen() {
 		DisplayManager.toggleFullscreen();

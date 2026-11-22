@@ -6,71 +6,81 @@ import com.gdx.entities.ShieldParticle;
 import com.gdx.entities.ExplosionParticle;
 import com.gdx.entities.RocketParticle;
 import com.gdx.entities.EnemyFlameParticle;
+import com.gdx.entities.SparkParticle;
 import com.gdx.game.MyGdxGame;
 
 /**
  * Пул для переиспользования частиц и избежания создания новых объектов
  */
 public class ParticlePool {
-    
+
     // Размеры пулов для разных типов частиц
-    private static final int FLAME_POOL_SIZE = 200;
+    // Flame: струя + пламя игрока. При максимальной плотности (density=4)
+    // одновременно активно ~390 частиц, поэтому 500 — с запасом, без аллокаций.
+    private static final int FLAME_POOL_SIZE = 500;
     private static final int SHIELD_POOL_SIZE = 100;
     private static final int EXPLOSION_POOL_SIZE = 150;
     private static final int ROCKET_POOL_SIZE = 50;
     private static final int ENEMY_FLAME_POOL_SIZE = 150;
-    
+    private static final int SPARK_POOL_SIZE = 80;
+
     // Пул для частиц огня
     private static final Array<FlameParticle> flamePool = new Array<>(FLAME_POOL_SIZE);
     private static final Array<ShieldParticle> shieldPool = new Array<>(SHIELD_POOL_SIZE);
     private static final Array<ExplosionParticle> explosionPool = new Array<>(EXPLOSION_POOL_SIZE);
     private static final Array<RocketParticle> rocketPool = new Array<>(ROCKET_POOL_SIZE);
     private static final Array<EnemyFlameParticle> enemyFlamePool = new Array<>(ENEMY_FLAME_POOL_SIZE);
-    
+    private static final Array<SparkParticle> sparkPool = new Array<>(SPARK_POOL_SIZE);
+
     // Инициализируем пулы при первом использовании
     private static boolean poolsInitialized = false;
-    
+
     static {
         initializePools();
     }
-    
+
     /**
      * Инициализируем пулы частицами
      */
     private static void initializePools() {
         if (poolsInitialized) return;
-        
+
         // Заполняем пул частиц огня
         for (int i = 0; i < FLAME_POOL_SIZE; i++) {
             flamePool.add(new FlameParticle(0, 0, 0, 0));
         }
-        
+
         // Заполняем пул частиц щита
         for (int i = 0; i < SHIELD_POOL_SIZE; i++) {
             shieldPool.add(new ShieldParticle(0, 0, 0, 0));
         }
-        
+
         // Заполняем пул частиц взрыва
         for (int i = 0; i < EXPLOSION_POOL_SIZE; i++) {
             explosionPool.add(new ExplosionParticle(0, 0));
         }
-        
+
         // Заполняем пул частиц ракет
         for (int i = 0; i < ROCKET_POOL_SIZE; i++) {
             rocketPool.add(new RocketParticle(0, 0, 0));
         }
-        
+
         // Заполняем пул частиц пламени вражеских кораблей
         for (int i = 0; i < ENEMY_FLAME_POOL_SIZE; i++) {
             enemyFlamePool.add(new EnemyFlameParticle(0, 0, 0, 0));
         }
-        
+
+        // Заполняем пул искр
+        for (int i = 0; i < SPARK_POOL_SIZE; i++) {
+            sparkPool.add(new SparkParticle(0, 0, 0, 0));
+        }
+
         poolsInitialized = true;
         if (MyGdxGame.DEBUG_MODE) {
             System.out.println("ParticlePool: Пул частиц инициализирован");
         }
     }
-    
+
     /**
      * Получить частицу огня из пула
      */
@@ -83,7 +93,7 @@ public class ParticlePool {
         PerformanceMonitor.incrementParticlesCreated();
         return new FlameParticle(0, 0, 0, 0);
     }
-    
+
     /**
      * Получить частицу щита из пула
      */
@@ -93,7 +103,7 @@ public class ParticlePool {
         }
         return new ShieldParticle(0, 0, 0, 0);
     }
-    
+
     /**
      * Получить частицу взрыва из пула
      */
@@ -103,7 +113,7 @@ public class ParticlePool {
         }
         return new ExplosionParticle(0, 0);
     }
-    
+
     /**
      * Получить частицу ракеты из пула
      */
@@ -113,7 +123,7 @@ public class ParticlePool {
         }
         return new RocketParticle(0, 0, 0);
     }
-    
+
     /**
      * Получить частицу пламени вражеского корабля из пула
      */
@@ -123,7 +133,17 @@ public class ParticlePool {
         }
         return new EnemyFlameParticle(0, 0, 0, 0);
     }
-    
+
+    /**
+     * Получить искру из пула
+     */
+    public static SparkParticle obtainSparkParticle() {
+        if (sparkPool.size > 0) {
+            return sparkPool.pop();
+        }
+        return new SparkParticle(0, 0, 0, 0);
+    }
+
     /**
      * Вернуть частицу огня в пул
      */
@@ -133,7 +153,7 @@ public class ParticlePool {
             flamePool.add(particle);
         }
     }
-    
+
     /**
      * Вернуть частицу щита в пул
      */
@@ -143,7 +163,7 @@ public class ParticlePool {
             shieldPool.add(particle);
         }
     }
-    
+
     /**
      * Вернуть частицу взрыва в пул
      */
@@ -153,7 +173,7 @@ public class ParticlePool {
             explosionPool.add(particle);
         }
     }
-    
+
     /**
      * Вернуть частицу ракеты в пул
      */
@@ -163,7 +183,7 @@ public class ParticlePool {
             rocketPool.add(particle);
         }
     }
-    
+
     /**
      * Вернуть частицу пламени вражеского корабля в пул
      */
@@ -173,19 +193,30 @@ public class ParticlePool {
             enemyFlamePool.add(particle);
         }
     }
-    
+
+    /**
+     * Вернуть искру в пул
+     */
+    public static void freeSparkParticle(SparkParticle particle) {
+        if (particle != null && sparkPool.size < SPARK_POOL_SIZE) {
+            particle.init(0, 0, 0, 0);
+            sparkPool.add(particle);
+        }
+    }
+
     /**
      * Получить статистику пулов
      */
     public static String getPoolStats() {
-        return String.format("Flame: %d/%d | Shield: %d/%d | Explosion: %d/%d | Rocket: %d/%d | EnemyFlame: %d/%d",
+        return String.format("Flame: %d/%d | Shield: %d/%d | Explosion: %d/%d | Rocket: %d/%d | EnemyFlame: %d/%d | Spark: %d/%d",
             flamePool.size, FLAME_POOL_SIZE,
             shieldPool.size, SHIELD_POOL_SIZE,
             explosionPool.size, EXPLOSION_POOL_SIZE,
             rocketPool.size, ROCKET_POOL_SIZE,
-            enemyFlamePool.size, ENEMY_FLAME_POOL_SIZE);
+            enemyFlamePool.size, ENEMY_FLAME_POOL_SIZE,
+            sparkPool.size, SPARK_POOL_SIZE);
     }
-    
+
     /**
      * Очистить все пулы (вызывать только при завершении игры)
      */
@@ -195,6 +226,7 @@ public class ParticlePool {
         explosionPool.clear();
         rocketPool.clear();
         enemyFlamePool.clear();
+        sparkPool.clear();
         poolsInitialized = false;
     }
 }

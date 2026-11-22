@@ -22,7 +22,7 @@ public class Player extends SpaceObject{
 
     private final float[] flameX;
     private final float[] flameY;
-    
+
     // Детали корабля для красивого рендеринга
     private final float[] engineX;
     private final float[] engineY;
@@ -48,7 +48,32 @@ public class Player extends SpaceObject{
     private float particleTimer = 0f; // Таймер для создания частиц с фиксированной частотой
     private Array<FlameParticle> flameParticles; // Частицы огня
     private Array<ShieldParticle> shieldParticles; // Синие частицы щита
-    
+    private Array<SparkParticle> sparkParticles; // Редкие искры из сопел
+
+    // === Эмиссия двигателя ===
+    // Отдельные накопители и интервалы для левого/правого сопла: эмиссия не
+    // синхронна, интервалы сбрасываются со случайным разбросом (±18%), поэтому
+    // не образуется парный пунктир.
+    private static final float STREAM_RATE = 75f;  // плотный непрерывный шлейф
+    private static final float FLAME_RATE = 25f;   // уплотнение возле сопла
+    private static final float SPARK_RATE = 3.5f;
+    private static final float INTERVAL_JITTER = 0.15f;
+    private float streamTimerLeft, streamTimerRight;
+    private float flameTimerLeft, flameTimerRight;
+    private float streamNextLeft, streamNextRight;
+    private float flameNextLeft, flameNextRight;
+    // Позиции сопел в начале шага — для интерполяции стартовых позиций частиц
+    // между предыдущим и текущим положением сопла (несколько спавнов за шаг).
+    private float lastLeftX, lastLeftY, lastRightX, lastRightY;
+    // Плотность эффекта из настроек (0-4), пересчитывается в update.
+    private float engineDensity = 1f;
+    // Сглаженный изгиб газового факела от текущей траектории корабля.
+    private float plumeBend;
+    // Инерция тяги: шейдерный факел не исчезает одним кадром после отпускания.
+    private float plumeThrottle;
+    private float visualTestTimer;
+    private boolean visualTestInitialized;
+
     // Система неуязвимости (i-frames)
     private float invulnerabilityTimer;
     private final float invulnerabilityTime = 3.0f; // 3 секунды неуязвимости
@@ -62,8 +87,10 @@ public class Player extends SpaceObject{
 
     private Line2D.Float[] hitLines;
     private Point2D.Float[] hitLinesVector;
-    
+
     private Texture shipTexture;
+    private FlameRenderer enginePlumeRenderer;
+    private ExhaustTrailRenderer exhaustTrailRenderer;
 
     // Кэш последней геометрии: пересчитываем фигуру только при сдвиге/повороте
     private float lastShapeX = Float.NaN;
@@ -86,7 +113,7 @@ public class Player extends SpaceObject{
         shapeY = new float[4];
         flameX = new float[3];
         flameY = new float[3];
-        
+
         // Инициализируем массивы для деталей корабля
         engineX = new float[4];
         engineY = new float[4];
@@ -105,18 +132,28 @@ public class Player extends SpaceObject{
         hit = false;
         hitTimer = 0;
         hitTime = 2;
-        
+
         // Инициализируем списки частиц
         flameParticles = new Array<>();
         shieldParticles = new Array<>();
+        sparkParticles = new Array<>();
         com.gdx.utils.ParticleBudget.register(flameParticles);
         com.gdx.utils.ParticleBudget.register(shieldParticles);
-        
+        com.gdx.utils.ParticleBudget.register(sparkParticles);
+
+        // Стартовые интервалы эмиссии и позиции сопел
+        streamNextLeft = streamNextRight = jitteredInterval(STREAM_RATE);
+        flameNextLeft = flameNextRight = jitteredInterval(FLAME_RATE);
+        lastLeftX = lastRightX = x;
+        lastLeftY = lastRightY = y;
+
         // Активируем неуязвимость при создании корабля
         startInvulnerability();
-        
+
         // Создаем текстуру корабля
         createShipTexture();
+        enginePlumeRenderer = new FlameRenderer();
+        exhaustTrailRenderer = new ExhaustTrailRenderer();
     }
 
     private void setShape(){
@@ -132,7 +169,7 @@ public class Player extends SpaceObject{
 
         shapeX[3] = x + MathUtils.cos(radians + 4 * MathUtils.PI / 5) * 8;
         shapeY[3] = y + MathUtils.sin(radians + 4 * MathUtils.PI / 5) * 8;
-        
+
         // Обновляем детали корабля
         setEngineDetails();
         setCockpitDetails();
@@ -140,79 +177,87 @@ public class Player extends SpaceObject{
         setWeaponDetails();
         setAntennaDetails();
     }
-    
+
     private void setEngineDetails() {
-        // Двигатели по бокам
-        engineX[0] = x + MathUtils.cos(radians - 3 * MathUtils.PI / 4) * 6;
-        engineY[0] = y + MathUtils.sin(radians - 3 * MathUtils.PI / 4) * 6;
-        
-        engineX[1] = x + MathUtils.cos(radians - 3 * MathUtils.PI / 4) * 4;
-        engineY[1] = y + MathUtils.sin(radians - 3 * MathUtils.PI / 4) * 4;
-        
-        engineX[2] = x + MathUtils.cos(radians + 3 * MathUtils.PI / 4) * 6;
-        engineY[2] = y + MathUtils.sin(radians + 3 * MathUtils.PI / 4) * 6;
-        
-        engineX[3] = x + MathUtils.cos(radians + 3 * MathUtils.PI / 4) * 4;
-        engineY[3] = y + MathUtils.sin(radians + 3 * MathUtils.PI / 4) * 4;
+        // Сопла двигателей по краям корабля: в локальной системе корабля они
+        // находятся на (±6, -8) от центра — точно в местах сопел на текстуре
+        // ship.png (пиксели 10-24 и 22-24 при размере текстуры 32).
+        // Право = (sin(radians), -cos(radians)), вперёд = (cos(radians), sin(radians)).
+        float cos = MathUtils.cos(radians);
+        float sin = MathUtils.sin(radians);
+
+        // Левое сопло (side = -6)
+        engineX[0] = x - sin * 6 - cos * 8;
+        engineY[0] = y + cos * 6 - sin * 8;
+        // Внутренняя точка левого сопла (side = -3)
+        engineX[1] = x - sin * 3 - cos * 8;
+        engineY[1] = y + cos * 3 - sin * 8;
+
+        // Правое сопло (side = +6)
+        engineX[2] = x + sin * 6 - cos * 8;
+        engineY[2] = y - cos * 6 - sin * 8;
+        // Внутренняя точка правого сопла (side = +3)
+        engineX[3] = x + sin * 3 - cos * 8;
+        engineY[3] = y - cos * 3 - sin * 8;
     }
-    
+
     private void setCockpitDetails() {
         // Кабина пилота
         cockpitX[0] = x + MathUtils.cos(radians) * 3;
         cockpitY[0] = y + MathUtils.sin(radians) * 3;
-        
+
         cockpitX[1] = x + MathUtils.cos(radians - MathUtils.PI / 6) * 2;
         cockpitY[1] = y + MathUtils.sin(radians - MathUtils.PI / 6) * 2;
-        
+
         cockpitX[2] = x + MathUtils.cos(radians + MathUtils.PI / 6) * 2;
         cockpitY[2] = y + MathUtils.sin(radians + MathUtils.PI / 6) * 2;
     }
-    
+
     private void setWingDetails() {
         // Крылья корабля
         wingX[0] = x + MathUtils.cos(radians - 2 * MathUtils.PI / 3) * 12;
         wingY[0] = y + MathUtils.sin(radians - 2 * MathUtils.PI / 3) * 12;
-        
+
         wingX[1] = x + MathUtils.cos(radians - 2 * MathUtils.PI / 3) * 8;
         wingY[1] = y + MathUtils.sin(radians - 2 * MathUtils.PI / 3) * 8;
-        
+
         wingX[2] = x + MathUtils.cos(radians - MathUtils.PI / 2) * 10;
         wingY[2] = y + MathUtils.sin(radians - MathUtils.PI / 2) * 10;
-        
+
         wingX[3] = x + MathUtils.cos(radians + 2 * MathUtils.PI / 3) * 12;
         wingY[3] = y + MathUtils.sin(radians + 2 * MathUtils.PI / 3) * 12;
-        
+
         wingX[4] = x + MathUtils.cos(radians + 2 * MathUtils.PI / 3) * 8;
         wingY[4] = y + MathUtils.sin(radians + 2 * MathUtils.PI / 3) * 8;
-        
+
         wingX[5] = x + MathUtils.cos(radians + MathUtils.PI / 2) * 10;
         wingY[5] = y + MathUtils.sin(radians + MathUtils.PI / 2) * 10;
     }
-    
+
     private void setWeaponDetails() {
         // Орудия по бокам
         weaponX[0] = x + MathUtils.cos(radians - MathUtils.PI / 3) * 9;
         weaponY[0] = y + MathUtils.sin(radians - MathUtils.PI / 3) * 9;
-        
+
         weaponX[1] = x + MathUtils.cos(radians - MathUtils.PI / 3) * 7;
         weaponY[1] = y + MathUtils.sin(radians - MathUtils.PI / 3) * 7;
-        
+
         weaponX[2] = x + MathUtils.cos(radians + MathUtils.PI / 3) * 9;
         weaponY[2] = y + MathUtils.sin(radians + MathUtils.PI / 3) * 9;
-        
+
         weaponX[3] = x + MathUtils.cos(radians + MathUtils.PI / 3) * 7;
         weaponY[3] = y + MathUtils.sin(radians + MathUtils.PI / 3) * 7;
     }
-    
+
     private void setAntennaDetails() {
         // Антенны на носу корабля
         antennaX[0] = x + MathUtils.cos(radians) * 12;
         antennaY[0] = y + MathUtils.sin(radians) * 12;
-        
+
         antennaX[1] = x + MathUtils.cos(radians) * 14;
         antennaY[1] = y + MathUtils.sin(radians) * 14;
     }
-    
+
     private void createShipTexture() {
         // Загружаем текстуру корабля из файла
         // try {
@@ -245,27 +290,27 @@ public class Player extends SpaceObject{
     public void setUp(boolean b){
         up = b;
     }
-    
+
     // Методы для применения улучшений
     public void setSpeed(float speed) {
         this.maxSpeed = speed;
     }
-    
+
     public void setFireRate(float fireRate) {
         // Здесь можно добавить логику для изменения скорости стрельбы
         // Пока что просто сохраняем значение
     }
-    
+
     public void setMaxHealth(int maxHealth) {
         // Здесь можно добавить логику для изменения максимального здоровья
         // Пока что просто сохраняем значение
     }
-    
+
     public void setHealthRegen(float healthRegen) {
         // Здесь можно добавить логику для регенерации здоровья
         // Пока что просто сохраняем значение
     }
-    
+
     public void setGameObjectManager(GameObjectManager gameObjectManager) {
         this.gameObjectManager = gameObjectManager;
     }
@@ -306,16 +351,16 @@ public class Player extends SpaceObject{
         // Активируем неуязвимость при воскрешении
         startInvulnerability();
     }
-    
+
     private void startInvulnerability() {
         isInvulnerable = true;
         invulnerabilityTimer = invulnerabilityTime;
     }
-    
+
     public boolean isInvulnerable() {
         return isInvulnerable;
     }
-    
+
     // Метод для пересоздания текстуры, если она потерялась
     public void recreateTextureIfNeeded() {
         // Всегда пересоздаем текстуру после восстановления состояния
@@ -371,6 +416,46 @@ public class Player extends SpaceObject{
         // Читается каждый кадр логики, поэтому изменение применяется сразу,
         // без пересоздания игрока (проверяется в Debug-меню по факту скорости).
         maxSpeed = com.gdx.utils.GameSettings.getPlayerSpeed();
+
+        // Автоматический полёт только для локальных визуальных снимков.
+        String visualTest = System.getProperty("astro.visualTest", "");
+        if (!visualTest.isEmpty()) {
+            if (!visualTestInitialized) {
+                dx = 0f;
+                dy = 0f;
+                // Щит относится к отдельному эффекту и только мешает честно
+                // оценивать двигатель на автоматических снимках.
+                isInvulnerable = false;
+                visualTestInitialized = true;
+            }
+            visualTestTimer += dt;
+            boolean coastTest = "coast".equals(visualTest);
+            boolean stationaryTest = "rocket".equals(visualTest) || "enemy-smoke".equals(visualTest);
+            up = !stationaryTest && (!coastTest || visualTestTimer < 1.25f);
+            if ("straight".equals(visualTest) || coastTest) {
+                radians = MathUtils.HALF_PI;
+                left = false;
+            } else if (stationaryTest) {
+                radians = 0f;
+                left = false;
+            } else if ("diagonal".equals(visualTest)) {
+                radians = MathUtils.PI / 4f;
+                left = false;
+            } else if ("side".equals(visualTest)) {
+                radians = 0f;
+                left = false;
+            } else if ("turnleft".equals(visualTest)) {
+                left = true;
+            } else if ("turnright".equals(visualTest)) {
+                left = false;
+                right = true;
+            } else {
+                left = visualTestTimer > 0.55f && visualTestTimer < 1.35f;
+            }
+            if (!"turnright".equals(visualTest)) {
+                right = false;
+            }
+        }
 
         //hit check
         if(hit) {
@@ -436,22 +521,41 @@ public class Player extends SpaceObject{
         if(up){
             setFlame();
         }
-        
+
         // Обновляем эффекты двигателей
         engineGlowTimer += dt * 3f;
         if (engineGlowTimer > MathUtils.PI2) {
             engineGlowTimer -= MathUtils.PI2;
         }
-        
-        // Создаем частицы огня при движении (фиксированная частота)
-        createFlameParticles(dt);
-        
+        // Боковое скольжение и поворот смещают только дальнюю часть струи.
+        // Вектор вправо в локальной системе корабля: (sin, -cos).
+        float lateralSpeed = dx * MathUtils.sin(radians) - dy * MathUtils.cos(radians);
+        float driftBend = maxSpeed > 0f ? lateralSpeed / maxSpeed * 0.42f : 0f;
+        float turnBend = left ? 0.24f : (right ? -0.24f : 0f);
+        float targetBend = MathUtils.clamp(driftBend + turnBend, -0.45f, 0.45f);
+        plumeBend += (targetBend - plumeBend) * Math.min(1f, dt * 7f);
+
+        // Плотность эффекта из настроек (используется и в эмиссии, и в отрисовке
+        // привязанных факелов, чтобы настройка «0» полностью отключала двигатель)
+        engineDensity = engineDensityFromSetting(com.gdx.utils.GameSettings.getShipEngineParticles());
+
+        float throttleTarget = up && engineDensity > 0f ? 1f : 0f;
+        float throttleResponse = throttleTarget > plumeThrottle ? 14f : 4.5f;
+        plumeThrottle += (throttleTarget - plumeThrottle) * Math.min(1f, dt * throttleResponse);
+
+        // Непрерывная мировая лента хранит инерционную историю обоих сопел.
+        if (exhaustTrailRenderer != null) {
+            exhaustTrailRenderer.update(dt, plumeThrottle > 0.08f && engineDensity > 0f,
+                    engineX[0], engineY[0], engineX[2], engineY[2],
+                    dx, dy, radians);
+        }
+
         // Обновляем частицы огня
         for(int i = flameParticles.size - 1; i >= 0; i--) {
             FlameParticle particle = flameParticles.get(i);
             // Используем фиксированный временной шаг для обновления частиц
             particle.update(com.gdx.utils.TimeManager.getFixedStep());
-            
+
             if(particle.shouldRemove()) {
                 // Возвращаем частицу в пул
                 ParticlePool.freeFlameParticle(particle);
@@ -459,9 +563,22 @@ public class Player extends SpaceObject{
                 com.gdx.utils.ParticleBudget.release(1);
             }
         }
-        
 
-        
+        // Обновляем искры
+        for(int i = sparkParticles.size - 1; i >= 0; i--) {
+            SparkParticle particle = sparkParticles.get(i);
+            particle.update(com.gdx.utils.TimeManager.getFixedStep());
+
+            if(particle.shouldRemove()) {
+                // Возвращаем частицу в пул
+                ParticlePool.freeSparkParticle(particle);
+                sparkParticles.removeIndex(i);
+                com.gdx.utils.ParticleBudget.release(1);
+            }
+        }
+
+
+
         // Обновляем таймер неуязвимости
         if(isInvulnerable) {
             invulnerabilityTimer -= dt;
@@ -469,25 +586,25 @@ public class Player extends SpaceObject{
                 isInvulnerable = false;
             }
         }
-        
+
         // Создаем синие частицы щита только во время неуязвимости
         if (isInvulnerable && MathUtils.random() < 0.5f && com.gdx.utils.ParticleBudget.canSpawn(x, y)) { // 50% шанс создания частицы каждый кадр
             float angle = MathUtils.random() * MathUtils.PI2;
             float radius = 20 + MathUtils.random() * 10; // Радиус от 20 до 30
-            
+
             // Получаем частицу из пула
             ShieldParticle particle = ParticlePool.obtainShieldParticle();
             particle.init(x, y, angle, radius);
             shieldParticles.add(particle);
             com.gdx.utils.ParticleBudget.add(1);
         }
-        
+
         // Обновляем синие частицы
         for(int i = shieldParticles.size - 1; i >= 0; i--) {
             ShieldParticle particle = shieldParticles.get(i);
             // Используем фиксированный временной шаг для обновления частиц
             particle.update(com.gdx.utils.TimeManager.getFixedStep());
-            
+
             if(particle.shouldRemove()) {
                 // Возвращаем частицу в пул
                 ParticlePool.freeShieldParticle(particle);
@@ -499,35 +616,169 @@ public class Player extends SpaceObject{
         //screen warp
         wrap();
     }
-    
+
+    /**
+     * Интервал между эмиссиями со случайным разбросом ±INTERVAL_JITTER вокруг
+     * среднего значения 1/rate. Средняя частота сохраняется, синхронность нет.
+     */
+    private float jitteredInterval(float rate) {
+        return (1f / rate) * (1f - INTERVAL_JITTER + MathUtils.random() * 2f * INTERVAL_JITTER);
+    }
+
+    /**
+     * Настройка 0-100: 8 остаётся нормальной плотностью 1x, а значения выше
+     * продолжают плавно усиливать эффект вплоть до 4x на максимуме.
+     */
+    private float engineDensityFromSetting(int setting) {
+        if (setting <= 8) return setting / 8f;
+        return 1f + (setting - 8f) * (3f / 92f);
+    }
+
     private void createFlameParticles(float dt) {
-        // Создаем частицы огня из сопла (каждый кадр игровой логики)
-        if(up) {
-            float nozzleX = x - MathUtils.cos(radians) * 8;
-            float nozzleY = y - MathUtils.sin(radians) * 8 - 2; // Смещаем немного ниже
-            float flameAngle = radians + MathUtils.PI; // Огонь направлен назад
-            
-            // Не создаём декоративные частицы, если эмиттер далеко за пределами
-            // расширенной области спавна (камера далеко — огонь всё равно не виден).
-            if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(nozzleX, nozzleY)) {
-                return;
-            }
-            
-            // Используем настройку количества частиц (частиц за кадр логики)
-            int particleCount = com.gdx.utils.GameSettings.getShipEngineParticles();
-            
-            // Создаем частицы согласно настройке (с учётом глобального лимита)
-            for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(nozzleX, nozzleY); i++) {
-                float spreadAngle = flameAngle + (MathUtils.random() - 0.5f) * 0.4f; // Больший разброс
-                float flameSpeed = 150 + MathUtils.random() * 150; // Случайная скорость
-                
-                // Получаем частицу из пула
-                FlameParticle particle = ParticlePool.obtainFlameParticle();
-                particle.init(nozzleX, nozzleY, spreadAngle, flameSpeed);
-                flameParticles.add(particle);
-                com.gdx.utils.ParticleBudget.add(1);
-            }
+        if (!up) {
+            return;
         }
+
+        // Настройка «Ship Engine Particles» — плотность эффекта (8 = норма).
+        // Значение кэшируется в engineDensity в update().
+        float density = engineDensity;
+        if (density <= 0f) {
+            return;
+        }
+
+        // Точки эмиссии — два сопла из существующей геометрии корабля.
+        // engineX/Y пересчитываются в setShape() при каждом сдвиге/повороте,
+        // поэтому сопла корректно двигаются и поворачиваются вместе с кораблём.
+        float leftX = engineX[0];
+        float leftY = engineY[0];
+        float rightX = engineX[2];
+        float rightY = engineY[2];
+        float backAngle = radians + MathUtils.PI; // назад от носа корабля
+
+        // === Основная струя: отдельные накопители + интерполяция стартовых ===
+        streamTimerLeft += dt * density;
+        int nLeft = 0;
+        while (streamTimerLeft >= streamNextLeft) {
+            streamTimerLeft -= streamNextLeft;
+            streamNextLeft = jitteredInterval(STREAM_RATE);
+            nLeft++;
+        }
+        for (int k = 1; k <= nLeft; k++) {
+            float f = nLeft > 1 ? k / (float)(nLeft + 1) : 1f;
+            spawnStreamParticle(lastLeftX + (leftX - lastLeftX) * f,
+                    lastLeftY + (leftY - lastLeftY) * f, backAngle, true);
+        }
+
+        streamTimerRight += dt * density;
+        int nRight = 0;
+        while (streamTimerRight >= streamNextRight) {
+            streamTimerRight -= streamNextRight;
+            streamNextRight = jitteredInterval(STREAM_RATE);
+            nRight++;
+        }
+        for (int k = 1; k <= nRight; k++) {
+            float f = nRight > 1 ? k / (float)(nRight + 1) : 1f;
+            spawnStreamParticle(lastRightX + (rightX - lastRightX) * f,
+                    lastRightY + (rightY - lastRightY) * f, backAngle, false);
+        }
+
+        // === Пламя у сопел: 25 частиц/сек на сопло при нормальной плотности ===
+        flameTimerLeft += dt * density;
+        int nFlameL = 0;
+        while (flameTimerLeft >= flameNextLeft) {
+            flameTimerLeft -= flameNextLeft;
+            flameNextLeft = jitteredInterval(FLAME_RATE);
+            nFlameL++;
+        }
+        for (int k = 1; k <= nFlameL; k++) {
+            float f = nFlameL > 1 ? k / (float)(nFlameL + 1) : 1f;
+            spawnFlameParticle(lastLeftX + (leftX - lastLeftX) * f,
+                    lastLeftY + (leftY - lastLeftY) * f, backAngle);
+        }
+
+        flameTimerRight += dt * density;
+        int nFlameR = 0;
+        while (flameTimerRight >= flameNextRight) {
+            flameTimerRight -= flameNextRight;
+            flameNextRight = jitteredInterval(FLAME_RATE);
+            nFlameR++;
+        }
+        for (int k = 1; k <= nFlameR; k++) {
+            float f = nFlameR > 1 ? k / (float)(nFlameR + 1) : 1f;
+            spawnFlameParticle(lastRightX + (rightX - lastRightX) * f,
+                    lastRightY + (rightY - lastRightY) * f, backAngle);
+        }
+
+        // === Редкие искры (суммарно ~3-4/сек, случайно, без жёсткого ритма) ===
+        if (MathUtils.random() < SPARK_RATE * dt * density) {
+            boolean fromLeft = MathUtils.randomBoolean();
+            spawnSparkParticle(fromLeft ? leftX : rightX, fromLeft ? leftY : rightY, backAngle);
+        }
+
+        // Позиции сопел на начало следующего шага
+        lastLeftX = leftX; lastLeftY = leftY;
+        lastRightX = rightX; lastRightY = rightY;
+    }
+
+    private void spawnStreamParticle(float nozzleX, float nozzleY, float backAngle, boolean fromLeft) {
+        if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(nozzleX, nozzleY)) {
+            return;
+        }
+        if (!com.gdx.utils.ParticleBudget.canSpawn(nozzleX, nozzleY)) {
+            return;
+        }
+        // Частица наследует скорость корабля. Без этого визуальная скорость
+        // отрыва была равна скорости корабля + скорости струи и давала длинные
+        // жёлтые штрихи далеко позади сопел.
+        // Те же разброс и скорость, что у RocketParticle.
+        float spreadAngle = backAngle + (MathUtils.random() - 0.5f) * 0.35f;
+        float flameSpeed = 55 + MathUtils.random() * 30;
+        // Боковая сходимость к центральной оси 20-35 ед./сек: левое сопло
+        // сдвигается вправо, правое — влево. Через 20-40 px после корабля два
+        // потока частично перекрываются, образуя общий объём шириной ~10-16 px,
+        // но возле сопел два отдельных факела остаются читаемыми.
+        // Право в локальной системе = (sin(radians), -cos(radians)).
+        float lateral = 22f;
+        float lx = (fromLeft ? 1f : -1f) * MathUtils.sin(radians);
+        float ly = (fromLeft ? -1f : 1f) * MathUtils.cos(radians);
+        FlameParticle particle = ParticlePool.obtainFlameParticle();
+        particle.initWithVelocity(nozzleX, nozzleY,
+                dx + MathUtils.cos(spreadAngle) * flameSpeed + lx * lateral,
+                dy + MathUtils.sin(spreadAngle) * flameSpeed + ly * lateral);
+        flameParticles.add(particle);
+        com.gdx.utils.ParticleBudget.add(1);
+    }
+
+    private void spawnFlameParticle(float nozzleX, float nozzleY, float backAngle) {
+        if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(nozzleX, nozzleY)) {
+            return;
+        }
+        if (!com.gdx.utils.ParticleBudget.canSpawn(nozzleX, nozzleY)) {
+            return;
+        }
+        float spreadAngle = backAngle + (MathUtils.random() - 0.5f) * 0.22f;
+        float flameSpeed = 35 + MathUtils.random() * 20;
+        FlameParticle particle = ParticlePool.obtainFlameParticle();
+        particle.initFlameWithVelocity(nozzleX, nozzleY,
+                dx + MathUtils.cos(spreadAngle) * flameSpeed,
+                dy + MathUtils.sin(spreadAngle) * flameSpeed);
+        flameParticles.add(particle);
+        com.gdx.utils.ParticleBudget.add(1);
+    }
+
+    private void spawnSparkParticle(float nozzleX, float nozzleY, float backAngle) {
+        if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(nozzleX, nozzleY)) {
+            return;
+        }
+        if (!com.gdx.utils.ParticleBudget.canSpawn(nozzleX, nozzleY)) {
+            return;
+        }
+        float spreadAngle = backAngle + (MathUtils.random() - 0.5f) * 0.44f; // ±12.6°
+        float sparkSpeed = 100 + MathUtils.random() * 80; // 100-180 ед./сек
+        SparkParticle particle = ParticlePool.obtainSparkParticle();
+        particle.init(nozzleX, nozzleY, spreadAngle, sparkSpeed);
+        sparkParticles.add(particle);
+        com.gdx.utils.ParticleBudget.add(1);
     }
 
     public void draw(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch){
@@ -551,9 +802,9 @@ public class Player extends SpaceObject{
             float screenX = camera.worldToScreenX(x);
             float screenY = camera.worldToScreenY(y);
             float textureSize = 32 * camera.getCurrentZoom(); // Масштабируем с зумом
-            
+
             spriteBatch.begin();
-            
+
             // Основная текстура корабля
             if(isInvulnerable) {
                 // Мерцание во время неуязвимости
@@ -563,9 +814,9 @@ public class Player extends SpaceObject{
                 spriteBatch.setColor(1, 1, 1, 1);
             }
             spriteBatch.draw(
-                shipTexture, 
-                screenX - textureSize/2, 
-                screenY - textureSize/2, 
+                shipTexture,
+                screenX - textureSize/2,
+                screenY - textureSize/2,
                 textureSize/2, textureSize/2, // Точка вращения
                 textureSize, textureSize, // Размер
                 1, 1, // Масштаб
@@ -574,21 +825,21 @@ public class Player extends SpaceObject{
                 shipTexture.getWidth(), shipTexture.getHeight(), // Размер области
                 false, false
             ); // Переворот
-            
+
             // Эффект свечения поверх основной текстуры (если двигатель включен)
             if(up) {
                 // Аддитивное смешивание для эффекта свечения
                 spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
-                
+
                 float flameIntensity = 0.3f + MathUtils.sin(engineGlowTimer * 6f) * 0.1f; // Мерцание
                 spriteBatch.setColor(1.0f, 0.4f, 0.1f, flameIntensity); // Оранжевое свечение
-                
+
                 // Рисуем свечение немного больше основной текстуры
                 float glowSize = textureSize * 1.2f;
                 spriteBatch.draw(
-                    shipTexture, 
-                    screenX - glowSize/2, 
-                    screenY - glowSize/2, 
+                    shipTexture,
+                    screenX - glowSize/2,
+                    screenY - glowSize/2,
                     glowSize/2, glowSize/2, // Точка вращения
                     glowSize, glowSize, // Размер
                     1, 1, // Масштаб
@@ -597,79 +848,154 @@ public class Player extends SpaceObject{
                     shipTexture.getWidth(), shipTexture.getHeight(), // Размер области
                     false, false
                 );
-                
+
                 // Возвращаем обычное смешивание
                 spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
             }
-            
+
             spriteBatch.setColor(1, 1, 1, 1);
             spriteBatch.end();
         }
 
         // Частицы огня двигателей (создаются в update с фиксированной частотой)
         // Здесь только отрисовка
-        
-        // Рисуем частицы огня (заполненные круги)
-        // Только видимые: внеэкранные частицы не должны тратить draw-вызовы
+
+        // Пламя — мягкие аддитивные текстуры через SpriteBatch (одна частица
+        // вместо трёх жёстких кругов). Только видимые частицы.
         shapeRenderer.end(); // Заканчиваем рендеринг линий
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        
-        for(int i = flameParticles.size - 1; i >= 0; i--) {
-            FlameParticle particle = flameParticles.get(i);
-            if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
-                particle.draw(shapeRenderer, camera);
-            }
+
+        // Сначала остаточный мировой шлейф, затем горячий факел у сопел.
+        if (exhaustTrailRenderer != null) {
+            exhaustTrailRenderer.render(camera);
         }
-        
-        // Рисуем синие частицы щита (только видимые)
+
+        // Единый длинный ракетный факел: оба сопла визуально сходятся в одну
+        // плотную струю, как на референсах атмосферных ракетопланов.
+        boolean engineOn = plumeThrottle > 0.015f && engineDensity > 0f;
+        if (engineOn && enginePlumeRenderer != null) {
+            enginePlumeRenderer.advanceTime();
+            float intensity = MathUtils.clamp(0.72f + engineDensity * 0.28f,
+                    0.72f, 1.2f) * plumeThrottle;
+            float length = 54f * (0.62f + 0.38f * plumeThrottle);
+            float centerX = (engineX[0] + engineX[2]) * 0.5f;
+            float centerY = (engineY[0] + engineY[2]) * 0.5f;
+            // Широкая слабая оболочка создаёт атмосферное оранжевое свечение,
+            // поверх неё рисуется плотное бело-жёлтое ядро.
+            enginePlumeRenderer.renderFlame(centerX, centerY, radians,
+                    intensity * 0.06f, 74f, length * 1.02f, plumeBend, camera);
+            enginePlumeRenderer.renderFlame(centerX, centerY, radians,
+                    intensity * 0.24f, 50f, length * 1.05f, plumeBend, camera);
+            enginePlumeRenderer.renderFlame(centerX, centerY, radians,
+                    intensity, 32f, length, plumeBend, camera);
+        }
+
+        // Привязанные факелы рисуются, даже если все частицы уже угасли
+        // (например, в первый кадр после включения тяги), а частицы — в том же
+        // аддитивном проходе поверх факелов.
+        if (flameParticles.size > 0 || sparkParticles.size > 0) {
+            spriteBatch.begin();
+            spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
+            for(int i = flameParticles.size - 1; i >= 0; i--) {
+                FlameParticle particle = flameParticles.get(i);
+                if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
+                    particle.draw(spriteBatch, camera);
+                }
+            }
+            // Только редкие искры остаются аддитивными.
+            spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+            for(int i = sparkParticles.size - 1; i >= 0; i--) {
+                SparkParticle particle = sparkParticles.get(i);
+                if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
+                    particle.draw(spriteBatch, camera);
+                }
+            }
+            spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            spriteBatch.end();
+        }
+
+        // Щит — синие частицы (мелкие, остаются на ShapeRenderer)
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         for(int i = shieldParticles.size - 1; i >= 0; i--) {
             ShieldParticle particle = shieldParticles.get(i);
             if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
                 particle.draw(shapeRenderer, camera);
             }
         }
-        
+
         shapeRenderer.end(); // Заканчиваем рендеринг заполненных объектов
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line); // Возвращаемся к линиям
     }
-    
+
     public int getWidth() {
         return 16; // Примерный размер корабля
     }
-    
+
     /**
      * Текущая максимальная скорость корабля (из настройки «Скорость игрока»).
      */
     public float getMaxSpeed() {
         return maxSpeed;
     }
-    
+
     public void dispose() {
         // Очищаем частицы огня
         if (flameParticles != null) {
+            for (FlameParticle particle : flameParticles) {
+                ParticlePool.freeFlameParticle(particle);
+            }
             com.gdx.utils.ParticleBudget.release(flameParticles.size);
             com.gdx.utils.ParticleBudget.unregister(flameParticles);
             flameParticles.clear();
         }
-        
+
         // Очищаем синие частицы щита
         if (shieldParticles != null) {
+            for (ShieldParticle particle : shieldParticles) {
+                ParticlePool.freeShieldParticle(particle);
+            }
             com.gdx.utils.ParticleBudget.release(shieldParticles.size);
             com.gdx.utils.ParticleBudget.unregister(shieldParticles);
             shieldParticles.clear();
         }
-        
+
+        // Очищаем искры
+        if (sparkParticles != null) {
+            for (SparkParticle particle : sparkParticles) {
+                ParticlePool.freeSparkParticle(particle);
+            }
+            com.gdx.utils.ParticleBudget.release(sparkParticles.size);
+            com.gdx.utils.ParticleBudget.unregister(sparkParticles);
+            sparkParticles.clear();
+        }
+
         // Освобождаем текстуру
         if (shipTexture != null) {
             shipTexture.dispose();
         }
+        if (enginePlumeRenderer != null) {
+            enginePlumeRenderer.dispose();
+            enginePlumeRenderer = null;
+        }
+        if (exhaustTrailRenderer != null) {
+            exhaustTrailRenderer.dispose();
+            exhaustTrailRenderer = null;
+        }
     }
-    
+
     public Array<FlameParticle> getFlameParticles() {
         return flameParticles;
     }
 
     public Array<ShieldParticle> getShieldParticles() {
         return shieldParticles;
+    }
+
+    public Array<SparkParticle> getSparkParticles() {
+        return sparkParticles;
+    }
+
+    public int getExhaustTrailSampleCount() {
+        return exhaustTrailRenderer != null ? exhaustTrailRenderer.getSampleCount() : 0;
     }
 }

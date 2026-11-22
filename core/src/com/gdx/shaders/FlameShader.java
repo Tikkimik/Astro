@@ -8,17 +8,17 @@ import com.gdx.game.MyGdxGame;
 import com.gdx.utils.PerformanceMonitor;
 
 public class FlameShader {
-    
+
     // Статический кэш шейдеров для всех экземпляров
     private static ShaderProgram cachedShader;
     private static boolean shaderInitialized = false;
     private static final Object shaderLock = new Object();
-    
+
     private ShaderProgram shader;
     private float time;
     private Vector2 flameDirection;
     private float flameIntensity;
-    
+
     public FlameShader() {
         // Используем кэшированный шейдер
         synchronized (shaderLock) {
@@ -27,13 +27,13 @@ public class FlameShader {
                     // Загружаем шейдеры только один раз
                     String vertexShader = Gdx.files.internal("shaders/flame.vert").readString();
                     String fragmentShader = Gdx.files.internal("shaders/flame.frag").readString();
-                    
+
                     cachedShader = new ShaderProgram(vertexShader, fragmentShader);
-                    
+
                     if (!cachedShader.isCompiled()) {
                         throw new RuntimeException("Shader compilation failed: " + cachedShader.getLog());
                     }
-                    
+
                     shaderInitialized = true;
                     PerformanceMonitor.incrementShadersCreated();
                     if (MyGdxGame.DEBUG_MODE) {
@@ -47,45 +47,49 @@ public class FlameShader {
                 PerformanceMonitor.incrementShadersReused();
             }
         }
-        
+
         this.shader = cachedShader;
         flameDirection = new Vector2(0, -1);
         flameIntensity = 1.0f;
     }
-    
+
     public void begin() {
         shader.begin();
     }
-    
+
     public void end() {
         shader.end();
     }
-    
+
     public void setProjectionMatrix(Matrix4 matrix) {
         shader.setUniformMatrix("u_projTrans", matrix);
     }
-    
+
     public void setTime(float time) {
         this.time = time;
         shader.setUniformf("u_time", time);
     }
-    
 
-    
+
+
     public void setFlameIntensity(float intensity) {
         this.flameIntensity = intensity;
         shader.setUniformf("u_flameIntensity", intensity);
     }
-    
+
+    public void setBend(float bend) {
+        shader.setUniformf("u_bend", bend);
+    }
+
     public ShaderProgram getShader() {
         return shader;
     }
-    
+
     public void dispose() {
         // Не удаляем кэшированный шейдер, так как он используется другими экземплярами
         // shader = null;
     }
-    
+
     // Статический метод для очистки кэша шейдера (вызывать только при завершении игры)
     public static void disposeCache() {
         synchronized (shaderLock) {
@@ -97,4 +101,3 @@ public class FlameShader {
         }
     }
 }
-

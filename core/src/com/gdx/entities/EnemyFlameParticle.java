@@ -9,7 +9,7 @@ import com.gdx.managers.Camera;
  *
  * Сознательно разрежено (спавн по таймеру, ~16 частиц/сек вместо 480),
  * чтобы не забивать глобальный бюджет частиц, но выглядит эффектно за счёт
- * крупного размера и аддитивного смешивания (свечение) — включается в
+ * мягкого аддитивного смешивания (свечение) — включается в
  * EnemyShip.draw перед отрисовкой пламени.
  */
 public class EnemyFlameParticle extends Particle {
@@ -32,9 +32,9 @@ public class EnemyFlameParticle extends Particle {
         this.y = y;
         this.angle = angle;
         this.speed = speed;
-        this.maxLife = 0.7f + MathUtils.random() * 0.5f; // 0.7-1.2 секунды
+        this.maxLife = 0.35f + MathUtils.random() * 0.25f; // 0.35-0.6 секунды
         this.life = maxLife;
-        this.maxSize = 10f + MathUtils.random() * 10f; // 10-20 пикселей
+        this.maxSize = 3f + MathUtils.random() * 3f; // 3-6 мировых единиц
         this.size = maxSize;
 
         // Начальная скорость частицы
@@ -70,15 +70,20 @@ public class EnemyFlameParticle extends Particle {
         // Масштабируем размер частицы в зависимости от зума камеры
         float scaledSize = size * camera.getCurrentZoom();
 
-        // Аддитивное свечение: внешняя мягкая оболочка, пламя и яркое ядро
-        shapeRenderer.setColor(0.9f, 0.3f, 0.05f, lifeRatio * 0.35f);
-        shapeRenderer.circle(screenX, screenY, scaledSize);
+        // Вытянутые слои вместо отдельных окружностей: след читается как поток,
+        // а не как цепочка бусин.
+        float streakLength = scaledSize * 2.2f;
+        float tailX = screenX - MathUtils.cos(angle) * streakLength;
+        float tailY = screenY - MathUtils.sin(angle) * streakLength;
 
-        shapeRenderer.setColor(1.0f, 0.55f, 0.1f, lifeRatio * 0.6f);
-        shapeRenderer.circle(screenX, screenY, scaledSize * 0.7f);
+        shapeRenderer.setColor(0.9f, 0.25f, 0.03f, lifeRatio * 0.22f);
+        shapeRenderer.rectLine(screenX, screenY, tailX, tailY, scaledSize * 1.1f);
+
+        shapeRenderer.setColor(1.0f, 0.5f, 0.08f, lifeRatio * 0.5f);
+        shapeRenderer.rectLine(screenX, screenY, tailX, tailY, scaledSize * 0.65f);
 
         shapeRenderer.setColor(1.0f, 0.9f, 0.4f, lifeRatio * 0.8f);
-        shapeRenderer.circle(screenX, screenY, scaledSize * 0.4f);
+        shapeRenderer.rectLine(screenX, screenY, tailX, tailY, scaledSize * 0.25f);
     }
 
     @Override

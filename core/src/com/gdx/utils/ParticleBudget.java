@@ -8,6 +8,8 @@ import com.gdx.entities.SpaceObject;
 import com.gdx.entities.OptimizedParticle;
 import com.gdx.entities.ExplosionParticle;
 import com.gdx.entities.EnemyFlameParticle;
+import com.gdx.entities.SmokeParticle;
+import com.gdx.entities.SparkParticle;
 import com.gdx.entities.Particle;
 
 /**
@@ -223,7 +225,7 @@ public final class ParticleBudget {
      */
     private static boolean isDecorative(SpaceObject p) {
         if (p instanceof FlameParticle || p instanceof ShieldParticle || p instanceof RocketParticle
-                || p instanceof EnemyFlameParticle) {
+                || p instanceof EnemyFlameParticle || p instanceof SmokeParticle || p instanceof SparkParticle) {
             return true;
         }
         if (p instanceof OptimizedParticle) {
@@ -251,6 +253,10 @@ public final class ParticleBudget {
             ParticlePool.freeRocketParticle((RocketParticle) p);
         } else if (p instanceof EnemyFlameParticle) {
             ParticlePool.freeEnemyFlameParticle((EnemyFlameParticle) p);
+        } else if (p instanceof SparkParticle) {
+            ParticlePool.freeSparkParticle((SparkParticle) p);
+        } else if (p instanceof SmokeParticle) {
+            ObjectPools.freeSmokeParticle((SmokeParticle) p);
         } else if (p instanceof OptimizedParticle) {
             ObjectPools.freeOptimizedParticle((OptimizedParticle) p);
         } else if (p instanceof ExplosionParticle) {

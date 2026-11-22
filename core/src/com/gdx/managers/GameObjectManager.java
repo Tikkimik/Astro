@@ -1,5 +1,6 @@
 package com.gdx.managers;
 
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.Array;
@@ -13,48 +14,48 @@ import com.gdx.utils.RenderStats;
  * Заменяет множественные списки в PlayState
  */
 public class GameObjectManager {
-    
+
     // Единый список всех активных объектов
     private Array<GameObject> allObjects = new Array<>();
-    
+
     // Быстрые списки по типам (для оптимизации)
     private Array<GameObject> projectiles = new Array<>();
     private Array<GameObject> obstacles = new Array<>();
     private Array<GameObject> enemies = new Array<>();
     private Array<GameObject> particles = new Array<>();
     private Array<RocketParticle> rocketParticles = new Array<>();
-    
+
     // Специальные объекты
     private GameObject player;
-    
+
     // Listener для событий уничтожения астероидов
     public interface AsteroidDestroyedListener {
         void onAsteroidDestroyed(Asteroid asteroid, float x, float y);
     }
     private AsteroidDestroyedListener asteroidDestroyedListener;
-    
+
     public void setAsteroidDestroyedListener(AsteroidDestroyedListener listener) {
         this.asteroidDestroyedListener = listener;
     }
-    
+
     // Статистика
     private int totalObjects = 0;
     private int activeObjects = 0;
-    
+
     public GameObjectManager() {
         GameLogger.info("GameObjectManager initialized");
         com.gdx.utils.ParticleBudget.register(rocketParticles);
     }
-    
+
     // === ДОБАВЛЕНИЕ ОБЪЕКТОВ ===
-    
+
     /**
      * Добавить объект в менеджер
      */
     public void addObject(SpaceObject object, GameObject.Type type) {
         GameObject gameObject = new GameObject(object, type);
         allObjects.add(gameObject);
-        
+
         // Добавляем в соответствующий быстрый список
         switch (type) {
             case PROJECTILE:
@@ -73,27 +74,27 @@ public class GameObjectManager {
                 player = gameObject;
                 break;
         }
-        
+
         totalObjects++;
         activeObjects++;
-        
+
         GameLogger.debug("Added " + type + " object, total: " + totalObjects);
     }
-    
+
     /**
      * Добавить пулю
      */
     public void addBullet(Bullet bullet) {
         addObject(bullet, GameObject.Type.PROJECTILE);
     }
-    
+
     /**
      * Добавить астероид
      */
     public void addAsteroid(Asteroid asteroid) {
         addObject(asteroid, GameObject.Type.OBSTACLE);
     }
-    
+
     /**
      * Добавить орк-астероид
      */
@@ -101,14 +102,14 @@ public class GameObjectManager {
         orkAsteroid.setGameObjectManager(this);
         addObject(orkAsteroid, GameObject.Type.OBSTACLE);
     }
-    
+
     /**
      * Добавить орк-пулю
      */
     public void addOrkBullet(OrkBullet orkBullet) {
         addObject(orkBullet, GameObject.Type.PROJECTILE);
     }
-    
+
     /**
      * Добавить автоматическую ракету
      */
@@ -121,15 +122,17 @@ public class GameObjectManager {
         // След ракеты — чисто декоративный эффект: не создаём частицы, если ракета
         // далеко за пределами расширенной области спавна (след всё равно не виден).
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(particle.getX(), particle.getY())) {
+            com.gdx.utils.ParticlePool.freeRocketParticle(particle);
             return;
         }
         if (!com.gdx.utils.ParticleBudget.canSpawn(particle.getX(), particle.getY())) {
+            com.gdx.utils.ParticlePool.freeRocketParticle(particle);
             return;
         }
         rocketParticles.add(particle);
         com.gdx.utils.ParticleBudget.add(1);
     }
-    
+
     /**
      * Добавить вражеский корабль
      */
@@ -137,14 +140,14 @@ public class GameObjectManager {
         enemyShip.setGameObjectManager(this);
         addObject(enemyShip, GameObject.Type.ENEMY);
     }
-    
+
     /**
      * Добавить частицу
      */
     public void addParticle(Particle particle) {
         addObject(particle, GameObject.Type.PARTICLE);
     }
-    
+
     /**
      * Установить игрока
      */
@@ -154,60 +157,60 @@ public class GameObjectManager {
         totalObjects++;
         activeObjects++;
     }
-    
+
     // === ПОЛУЧЕНИЕ ОБЪЕКТОВ ===
-    
+
     /**
      * Получить все объекты
      */
     public Array<GameObject> getAllObjects() {
         return allObjects;
     }
-    
+
     /**
      * Получить все снаряды
      */
     public Array<GameObject> getProjectiles() {
         return projectiles;
     }
-    
+
     /**
      * Получить все препятствия
      */
     public Array<GameObject> getObstacles() {
         return obstacles;
     }
-    
+
     /**
      * Получить всех врагов
      */
     public Array<GameObject> getEnemies() {
         return enemies;
     }
-    
+
     /**
      * Получить все частицы
      */
     public Array<GameObject> getParticles() {
         return particles;
     }
-    
+
     /**
      * Получить игрока
      */
     public GameObject getPlayer() {
         return player;
     }
-    
+
     /**
      * Получить игрока как Player
      */
     public Player getPlayerObject() {
         return player != null ? player.as(Player.class) : null;
     }
-    
+
     // === ОБНОВЛЕНИЕ ===
-    
+
     /**
      * Обновить все объекты
      */
@@ -215,31 +218,32 @@ public class GameObjectManager {
         // Обновляем все объекты
         for (int i = allObjects.size - 1; i >= 0; i--) {
             GameObject obj = allObjects.get(i);
-            
+
             if (obj.shouldRemove()) {
                 removeObject(obj);
                 continue;
             }
-            
+
             if (obj.isActive()) {
                 obj.update(dt);
             }
         }
-        
+
         // Обновляем независимые частицы ракет
         for (int i = rocketParticles.size - 1; i >= 0; i--) {
             RocketParticle p = rocketParticles.get(i);
             p.update(dt);
             if (p.shouldRemove()) {
                 rocketParticles.removeIndex(i);
+                com.gdx.utils.ParticlePool.freeRocketParticle(p);
                 com.gdx.utils.ParticleBudget.release(1);
             }
         }
-        
+
     }
-    
+
     // === ОТРИСОВКА ===
-    
+
     /**
      * Отрисовать все объекты с отсечением (culling) по расширенной области камеры.
      * Объекты за пределами камеры в renderer не отправляются. Счётчики статистики
@@ -249,7 +253,8 @@ public class GameObjectManager {
         drawProjectiles(shapeRenderer, camera, spriteBatch, stats);
         drawObstacles(shapeRenderer, camera, spriteBatch, stats);
         drawEnemies(shapeRenderer, camera, spriteBatch, stats);
-        drawRocketParticles(shapeRenderer, camera, stats);
+        // Следы ракет рисуются отдельно через SpriteBatch (аддитивные текстуры),
+        // из PlayState — чтобы не смешивать состояние SpriteBatch и ShapeRenderer.
     }
 
     private void drawProjectiles(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch, RenderStats stats) {
@@ -317,131 +322,165 @@ public class GameObjectManager {
         }
     }
 
-    private void drawRocketParticles(ShapeRenderer shapeRenderer, Camera camera, RenderStats stats) {
+    /**
+     * Отрисовка следов ракет через SpriteBatch: мягкие аддитивные текстуры.
+     * Вызывается из PlayState вне shapeRenderer-блока, чтобы не смешивать
+     * GL-состояние двух рендереров.
+     */
+    public void drawRocketParticles(SpriteBatch spriteBatch, Camera camera, RenderStats stats) {
+        if (rocketParticles.size == 0) return;
+        spriteBatch.begin();
+        spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
         for (RocketParticle p : rocketParticles) {
             stats.particlesActive++;
             if (camera.isInRenderBounds(p.getX(), p.getY(), p.getCullRadius())) {
                 stats.particlesVisible++;
-                p.draw(shapeRenderer, camera);
+                p.draw(spriteBatch, camera);
                 stats.particlesDrawn++;
             } else {
                 stats.particlesCulled++;
             }
         }
+        spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        spriteBatch.end();
+    }
+
+    /**
+     * Отрисовка дыма вражеских кораблей через SpriteBatch (мягкая текстура,
+     * обычное смешивание). Вызывается из PlayState вне shapeRenderer-блока.
+     */
+    public void drawEnemySmoke(SpriteBatch spriteBatch, Camera camera, RenderStats stats) {
+        spriteBatch.begin();
+        for (GameObject obj : enemies) {
+            if (!obj.isActive()) continue;
+            EnemyShip es = obj.as(EnemyShip.class);
+            if (es == null) continue;
+            for (SmokeParticle p : es.getSmokeParticles()) {
+                stats.particlesActive++;
+                if (camera.isInRenderBounds(p.getX(), p.getY(), p.getCullRadius())) {
+                    stats.particlesVisible++;
+                    p.draw(spriteBatch, camera);
+                    stats.particlesDrawn++;
+                } else {
+                    stats.particlesCulled++;
+                }
+            }
+        }
+        spriteBatch.end();
     }
 
     // Перегрузка для обратной совместимости
     public void draw(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch) {
         draw(shapeRenderer, camera, spriteBatch, new RenderStats());
     }
-    
+
     // Перегрузка для обратной совместимости
     public void draw(ShapeRenderer shapeRenderer, Camera camera) {
         draw(shapeRenderer, camera, null, new RenderStats());
     }
-    
+
     // === КОЛЛИЗИИ ===
-    
+
     /**
      * Проверить коллизии между всеми объектами
      */
     public void checkCollisions() {
         // Коллизии снарядов с препятствиями
         checkProjectileObstacleCollisions();
-        
+
         // Коллизии снарядов с врагами
         checkProjectileEnemyCollisions();
-        
+
         // Коллизии вражеских снарядов с игроком
         checkProjectilePlayerCollisions();
-        
+
         // Коллизии игрока с препятствиями
         checkPlayerObstacleCollisions();
-        
+
         // Коллизии игрока с врагами
         checkPlayerEnemyCollisions();
     }
-    
+
     private void checkProjectileObstacleCollisions() {
         for (GameObject projectile : projectiles) {
             if (!projectile.isActive()) continue;
-            
+
             for (GameObject obstacle : obstacles) {
                 if (!obstacle.isActive()) continue;
-                
+
                 if (projectile.intersects(obstacle)) {
                     handleProjectileObstacleCollision(projectile, obstacle);
                 }
             }
         }
     }
-    
+
     private void checkProjectileEnemyCollisions() {
         for (GameObject projectile : projectiles) {
             if (!projectile.isActive()) continue;
-            
+
             // Пули врагов не задевают вражеские корабли (без дружественного огня):
             // иначе корабль убивает сам себя, т.к. OrkBullet спавнится в его центре
             if (projectile.isOrkBullet()) continue;
-            
+
             for (GameObject enemy : enemies) {
                 if (!enemy.isActive()) continue;
-                
+
                 if (projectile.intersects(enemy)) {
                     handleProjectileEnemyCollision(projectile, enemy);
                 }
             }
         }
     }
-    
+
     private void checkProjectilePlayerCollisions() {
         if (player == null || !player.isActive()) return;
-        
+
         Player p = player.as(Player.class);
         if (p == null) return;
-        
+
         for (GameObject projectile : projectiles) {
             if (!projectile.isActive()) continue;
-            
+
             // Игрока задевают только вражеские пули
             if (!projectile.isOrkBullet()) continue;
-            
+
             if (projectile.intersects(player)) {
                 projectile.markForRemoval();
                 p.hit();
             }
         }
     }
-    
+
     private void checkPlayerObstacleCollisions() {
         if (player == null || !player.isActive()) return;
-        
+
         for (GameObject obstacle : obstacles) {
             if (!obstacle.isActive()) continue;
-            
+
             if (player.intersects(obstacle)) {
                 handlePlayerObstacleCollision(player, obstacle);
             }
         }
     }
-    
+
     private void checkPlayerEnemyCollisions() {
         if (player == null || !player.isActive()) return;
-        
+
         for (GameObject enemy : enemies) {
             if (!enemy.isActive()) continue;
-            
+
             if (player.intersects(enemy)) {
                 handlePlayerEnemyCollision(player, enemy);
             }
         }
     }
-    
+
     // === ОБРАБОТКА КОЛЛИЗИЙ ===
-    
+
     private void handleProjectileObstacleCollision(GameObject projectile, GameObject obstacle) {
         projectile.markForRemoval();
-        
+
         if (obstacle.isAsteroid()) {
             Asteroid asteroid = obstacle.as(Asteroid.class);
             if (asteroid != null) {
@@ -474,11 +513,11 @@ public class GameObjectManager {
             asteroidDestroyedListener.onAsteroidDestroyed(asteroid, asteroid.getX(), asteroid.getY());
         }
     }
-    
+
     private void handleProjectileEnemyCollision(GameObject projectile, GameObject enemy) {
         // Уничтожаем снаряд
         projectile.markForRemoval();
-        
+
         // Наносим урон врагу
         if (enemy.isEnemyShip()) {
             EnemyShip enemyShip = enemy.as(EnemyShip.class);
@@ -490,19 +529,19 @@ public class GameObjectManager {
             }
         }
     }
-    
+
     private void handlePlayerObstacleCollision(GameObject player, GameObject obstacle) {
         // Логика столкновения игрока с препятствием
         GameLogger.debug("Player collided with obstacle");
     }
-    
+
     private void handlePlayerEnemyCollision(GameObject player, GameObject enemy) {
         // Логика столкновения игрока с врагом
         GameLogger.debug("Player collided with enemy");
     }
-    
+
     // === УДАЛЕНИЕ ОБЪЕКТОВ ===
-    
+
     private void removeObject(GameObject obj) {
         // Возвращаем авто-ракеты в пул при удалении
         if (obj.getObject() instanceof AutoRocket) {
@@ -516,27 +555,34 @@ public class GameObjectManager {
         }
 
         allObjects.removeValue(obj, true);
-        
+
         // Удаляем из быстрых списков
         projectiles.removeValue(obj, true);
         obstacles.removeValue(obj, true);
         enemies.removeValue(obj, true);
         particles.removeValue(obj, true);
-        
+
         if (obj == player) {
             player = null;
         }
-        
+
         activeObjects--;
         GameLogger.debug("Removed object, active: " + activeObjects);
     }
-    
+
     // === ОЧИСТКА ===
-    
+
     /**
      * Очистить все объекты
      */
     public void clear() {
+        for (GameObject obj : enemies) {
+            EnemyShip enemyShip = obj.as(EnemyShip.class);
+            if (enemyShip != null) enemyShip.dispose();
+        }
+        for (RocketParticle particle : rocketParticles) {
+            com.gdx.utils.ParticlePool.freeRocketParticle(particle);
+        }
         allObjects.clear();
         projectiles.clear();
         obstacles.clear();
@@ -544,25 +590,25 @@ public class GameObjectManager {
         particles.clear();
         rocketParticles.clear();
         player = null;
-        
+
         totalObjects = 0;
         activeObjects = 0;
-        
+
         // Счётчик активных частиц принадлежит миру, сбрасываем вместе с ним
         com.gdx.utils.ParticleBudget.reset();
-        
+
         GameLogger.info("GameObjectManager cleared");
     }
-    
+
     // === СТАТИСТИКА ===
-    
+
     public int getTotalObjects() { return totalObjects; }
     public int getActiveObjects() { return activeObjects; }
     public int getProjectileCount() { return projectiles.size; }
     public int getObstacleCount() { return obstacles.size; }
     public int getEnemyCount() { return enemies.size; }
     public int getRocketParticleCount() { return rocketParticles.size; }
-    
+
     /**
      * Количество реально активных частиц, принадлежащих менеджеру:
      * следы ракет (rocketParticles) + пламя двигателей вражеских кораблей
@@ -574,6 +620,7 @@ public class GameObjectManager {
             EnemyShip es = obj.as(EnemyShip.class);
             if (es != null) {
                 count += es.getFlameParticles().size;
+                count += es.getSmokeParticles().size;
             }
         }
         if (player != null) {
@@ -581,11 +628,13 @@ public class GameObjectManager {
             if (p != null) {
                 count += p.getFlameParticles().size;
                 count += p.getShieldParticles().size;
+                count += p.getSparkParticles().size;
+                count += p.getExhaustTrailSampleCount();
             }
         }
         return count;
     }
-    
+
     /**
      * Получить статистику
      */

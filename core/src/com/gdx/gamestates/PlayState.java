@@ -16,6 +16,7 @@ import com.gdx.entities.ExplosionParticle;
 import com.gdx.entities.FlameParticle;
 import com.gdx.entities.OptimizedParticle;
 import com.gdx.entities.ShieldParticle;
+import com.gdx.entities.SparkParticle;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 import com.gdx.managers.GameKeys;
@@ -51,7 +52,7 @@ public class PlayState extends GameState {
     private Background background;
     private Player player;
     private GameObjectManager gameObjectManager;
-    
+
     // Оставляем только частицы, так как они обрабатываются по-другому
     private Array<Particle> particles;
     private Array<OptimizedParticle> optimizedParticles;
@@ -65,16 +66,16 @@ public class PlayState extends GameState {
     // Счётчики рендера (culling) и копия границ камеры для ParticleBudget
     private final RenderStats renderStats = new RenderStats();
     private final CameraBounds cameraBounds = new CameraBounds();
-    
+
     // Таймер для автоматических ракет
     private float autoRocketTimer = 0f;
     private final float AUTO_ROCKET_INTERVAL = 1f; // Интервал в секундах
-    
+
     // Кэш для ближайшего врага
     private Enemy cachedNearestEnemy = null;
     private float enemyCacheTimer = 0f;
     private final float ENEMY_CACHE_DURATION = 0.1f; // Обновляем каждые 0.1 секунды
-    
+
     // FPS счетчик
     private FPSLogger fpsLogger;
     private boolean showFPS = false;
@@ -86,41 +87,41 @@ public class PlayState extends GameState {
 
     // Нижняя граница текстового HUD-блока (используется для отступа Debug menu)
     private float hudBottomY = 0f;
-    
+
     // Система паузы
     private boolean isPaused = false;
     private float pauseTime = 0f;
     private float totalPauseTime = 0f;
     private boolean pauseOverlayVisible = true;
     private float pauseOverlayTimer = 0f;
-    
+
     // Профилирование производительности
     private long lastUpdateTime = 0;
     private long cameraTime = 0, backgroundTime = 0, playerTime = 0;
     private long bulletsTime = 0, asteroidsTime = 0, particlesTime = 0;
     private long rocketsTime = 0, orkTime = 0, collisionsTime = 0;
     private long drawTime = 0;
-    
+
     // Счетчик кадров для FPS
     private int frameCount = 0;
-    
+
     // Android управление
     private AndroidInputManager androidInputManager;
-    
+
     // Управление бесконечным миром
     private WorldManager worldManager;
-    
+
     // Система прокачки
     private ProgressionManager progressionManager;
     private boolean showUpgradeScreen = false;
-    
+
     // Анимация полоски опыта
     private float experienceBarTimer = 0f;
     private float lastExperienceProgress = 0f;
     private float animatedProgress = 0f;
     private boolean isLevelingUp = false;
     private float levelUpTimer = 0f;
-    
+
     // Флаг для предотвращения повторной инициализации
     private boolean isInitialized = false;
     private boolean isRestoredFromSave = false;
@@ -129,7 +130,7 @@ public class PlayState extends GameState {
     public PlayState(GameStateManager gameStateManager) {
         super(gameStateManager);
     }
-    
+
     public PlayState(GameStateManager gameStateManager, ProgressionManager progressionManager) {
         super(gameStateManager);
         this.progressionManager = progressionManager;
@@ -145,12 +146,12 @@ public class PlayState extends GameState {
             System.out.println("Пропускаем инициализацию - уже инициализировано");
             return;
         }
-        
+
         // Инициализируем только базовые компоненты, которые не зависят от состояния игры
         shapeRenderer = new ShapeRenderer();
         camera = new Camera();
         background = new Background(camera);
-        
+
         // Инициализируем GameObjectManager для управления всеми объектами
         if (gameObjectManager == null) {
             gameObjectManager = new GameObjectManager();
@@ -159,7 +160,7 @@ public class PlayState extends GameState {
                 numAsteroidsLeft--;
             });
         }
-        
+
         // Инициализируем только частицы (они обрабатываются по-другому)
         if (particles == null) particles = new Array<Particle>();
         if (optimizedParticles == null) optimizedParticles = new Array<OptimizedParticle>();
@@ -185,51 +186,65 @@ public class PlayState extends GameState {
         // Инициализируем WorldManager для бесконечного мира (после создания игрока)
         // Передаем ссылки на GameObjectManager вместо отдельных списков
         worldManager = new WorldManager(gameObjectManager, player);
-        
+        setupVisualTestObjects();
+
         // Начальные объекты создаются в WorldManager
-        
+
         // Инициализируем систему прокачки только если её еще нет
         if (progressionManager == null) {
             progressionManager = new ProgressionManager();
             progressionManager.setGameStateManager(gameStateManager);
         }
-        
+
         // Инициализируем FPS счетчик
         fpsLogger = new FPSLogger();
         createUiFont();
         spriteBatch = new SpriteBatch();
-        
+
         // Инициализируем Android управление
         androidInputManager = new AndroidInputManager();
-        
+
         // Отмечаем, что инициализация завершена
         isInitialized = true;
     }
-    
+
+    private void setupVisualTestObjects() {
+        String scenario = System.getProperty("astro.visualTest", "");
+        if ("rocket".equals(scenario)) {
+            Asteroid target = new Asteroid(player.getX() + 260f, player.getY() + 120f, Asteroid.MEDIUM);
+            gameObjectManager.addAsteroid(target);
+            gameObjectManager.addAutoRocket(ObjectPools.obtainAutoRocket(
+                    player.getX(), player.getY(), MathUtils.HALF_PI, target));
+        } else if ("enemy-smoke".equals(scenario)) {
+            gameObjectManager.addEnemyShip(new EnemyShip(
+                    player.getX() + 180f, player.getY() + 70f, player, null));
+        }
+    }
+
     private void spawnInitialObjects() {
         System.out.println("Создаем начальные объекты для тестирования...");
-        
+
         // Создаем несколько астероидов
         for (int i = 0; i < 5; i++) {
             float x = MathUtils.random(100, MyGdxGame.WIDTH - 100);
             float y = MathUtils.random(100, MyGdxGame.HEIGHT - 100);
             gameObjectManager.addAsteroid(new Asteroid(x, y, Asteroid.LARGE));
         }
-        
+
         // Создаем несколько орк-астероидов
         for (int i = 0; i < 3; i++) {
             float x = MathUtils.random(100, MyGdxGame.WIDTH - 100);
             float y = MathUtils.random(100, MyGdxGame.HEIGHT - 100);
             gameObjectManager.addOrkAsteroid(new OrkAsteroid(x, y, OrkAsteroid.MEDIUM, player, null));
         }
-        
+
         // Создаем несколько вражеских кораблей
         for (int i = 0; i < 2; i++) {
             float x = MathUtils.random(100, MyGdxGame.WIDTH - 100);
             float y = MathUtils.random(100, MyGdxGame.HEIGHT - 100);
             gameObjectManager.addEnemyShip(new EnemyShip(x, y, player, null));
         }
-        
+
         System.out.println("Начальные объекты созданы: " + gameObjectManager.getStats());
     }
 
@@ -241,7 +256,7 @@ public class PlayState extends GameState {
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
-    
+
     private void createExplosion(float x, float y, int particleCount) {
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
         for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
@@ -249,7 +264,7 @@ public class PlayState extends GameState {
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
-    
+
     private void createShipExplosion(float x, float y) {
         // Создаем много частиц для эффектного взрыва корабля
         for(int i = 0; i < 15 && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
@@ -262,7 +277,7 @@ public class PlayState extends GameState {
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
-    
+
     // Методы для создания оптимизированных частиц
     private void createOptimizedExplosion(float x, float y, int particleCount) {
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
@@ -271,7 +286,7 @@ public class PlayState extends GameState {
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
-    
+
     private void createOptimizedFlameParticles(float x, float y, int particleCount) {
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
         for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
@@ -279,7 +294,7 @@ public class PlayState extends GameState {
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
-    
+
     private void createOptimizedSmokeParticles(float x, float y, int particleCount) {
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
         for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
@@ -287,29 +302,29 @@ public class PlayState extends GameState {
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
-    
+
     private void addScore(int points) {
         score += points;
         if (score > highScore) {
             highScore = score;
             MyGdxGame.highScore = highScore; // Обновляем глобальный рекорд
         }
-        
+
         // Добавляем опыт за очки
         progressionManager.addExperience(points);
     }
-    
+
     // Найти ближайшего врага к игроку (оптимизированная версия)
     private Enemy findNearestEnemy() {
         Enemy nearest = null;
         float minDistanceSquared = Float.MAX_VALUE;
-        
+
         // Проверяем все препятствия через GameObjectManager
         for (GameObject obj : gameObjectManager.getObstacles()) {
             float dx = obj.getX() - player.getX();
             float dy = obj.getY() - player.getY();
             float distanceSquared = dx * dx + dy * dy;
-            
+
             if (distanceSquared < minDistanceSquared) {
                 minDistanceSquared = distanceSquared;
                 if (obj.isAsteroid()) {
@@ -319,10 +334,10 @@ public class PlayState extends GameState {
                 }
             }
         }
-        
+
         return nearest;
     }
-    
+
     // Создать автоматическую ракету
     private void createAutoRocket() {
         if (cachedNearestEnemy != null) {
@@ -330,16 +345,16 @@ public class PlayState extends GameState {
             float dy = cachedNearestEnemy.getY() - player.getY();
             float dist = (float) Math.sqrt(dx * dx + dy * dy);
             if (dist > AutoRocket.DETECTION_RANGE) return;
-            
+
             float rocketAngle;
             if (autoRocketLeftSide) {
                 rocketAngle = player.getRadians() + MathUtils.HALF_PI;
             } else {
                 rocketAngle = player.getRadians() - MathUtils.HALF_PI;
             }
-            
+
             gameObjectManager.addAutoRocket(com.gdx.utils.ObjectPools.obtainAutoRocket(player.getX(), player.getY(), rocketAngle, cachedNearestEnemy));
-            
+
             autoRocketLeftSide = !autoRocketLeftSide;
         }
     }
@@ -371,13 +386,13 @@ public class PlayState extends GameState {
             gameObjectManager.addAsteroid(new Asteroid(x, y, Asteroid.LARGE));
         }
     }
-    
+
     private void spawnOrkAsteroids() {
         // GameObjectManager сам управляет очисткой
-        
+
         // Создаем 1-2 орк-астероида в зависимости от уровня
         int numToSpawn = Math.min(1 + level / 3, 3);
-        
+
         for (int i = 0; i < numToSpawn; i++) {
             float x = MathUtils.random(MyGdxGame.WIDTH);
             float y = MathUtils.random(MyGdxGame.HEIGHT);
@@ -403,7 +418,7 @@ public class PlayState extends GameState {
                 if (obj.intersects(player)) {
                     player.hit();
                     createShipExplosion(player.getX(), player.getY());
-                    
+
                     if (obj.isAsteroid()) {
                         Asteroid asteroid = obj.as(Asteroid.class);
                         if (asteroid != null) {
@@ -428,7 +443,7 @@ public class PlayState extends GameState {
             System.out.println("WARNING: Invalid deltaTime: " + dt + ", using 0.016f (60 FPS)");
             dt = 0.016f; // Принудительно устанавливаем 60 FPS
         }
-        
+
         // СТАРАЯ СИСТЕМА ПАУЗЫ - ЗАКОММЕНТИРОВАНА
         // Теперь пауза управляется через новую систему состояний
         /*
@@ -440,13 +455,13 @@ public class PlayState extends GameState {
             return;
         }
         */
-        
+
         // Применяем улучшения к игровым объектам (если есть новые)
         // progressionManager.applyUpgradesToGameObjects(player, autoRockets, bullets);
 
         // Начинаем профилирование
         long startTime = System.nanoTime();
-        
+
         //update camera to follow player
         long cameraStart = System.nanoTime();
         camera.followTarget(player.getX(), player.getY());
@@ -467,7 +482,9 @@ public class PlayState extends GameState {
         handleInput();
 
         // Обновляем бесконечный мир
-        worldManager.update(dt, isRestoredFromSave);
+        if (System.getProperty("astro.visualTest", "").isEmpty()) {
+            worldManager.update(dt, isRestoredFromSave);
+        }
 
         //next level (теперь не нужен, так как мир бесконечный)
         // if(asteroids.size == 0 && orkAsteroids.size == 0) {
@@ -511,7 +528,7 @@ public class PlayState extends GameState {
                 i--;
             }
         }
-        
+
         //update optimized particles
         for(int i = 0; i < optimizedParticles.size; i++) {
             optimizedParticles.get(i).update(dt);
@@ -523,26 +540,26 @@ public class PlayState extends GameState {
             }
         }
         particlesTime = System.nanoTime() - particlesStart;
-        
+
                 //update auto rockets
         long rocketsStart = System.nanoTime();
         // GameObjectManager уже обновил все объекты
         rocketsTime = System.nanoTime() - rocketsStart;
-        
+
         //update ork asteroids and bullets
         long orkStart = System.nanoTime();
         // GameObjectManager уже обновил все объекты
-        
+
         // Анимация полоски опыта
         experienceBarTimer += dt;
         float currentProgress = progressionManager.getExperienceProgress();
-        
+
         // Проверяем, произошло ли повышение уровня
         if (currentProgress < lastExperienceProgress) {
             isLevelingUp = true;
             levelUpTimer = 0f;
         }
-        
+
         // Анимация повышения уровня
         if (isLevelingUp) {
             levelUpTimer += dt;
@@ -551,7 +568,7 @@ public class PlayState extends GameState {
                 animatedProgress = 0f;
             }
         }
-        
+
         // Плавная анимация прогресса
         if (!isLevelingUp) {
             float targetProgress = currentProgress;
@@ -560,24 +577,26 @@ public class PlayState extends GameState {
                 animatedProgress += diff * dt * 5f; // Скорость анимации
             }
         }
-        
+
         lastExperienceProgress = currentProgress;
-        
+
         // GameObjectManager уже обновил все объекты
         orkTime = System.nanoTime() - orkStart;
-        
+
         // Обновляем кэш ближайшего врага
         enemyCacheTimer += dt;
         if (enemyCacheTimer >= ENEMY_CACHE_DURATION) {
             cachedNearestEnemy = findNearestEnemy();
             enemyCacheTimer = 0f;
         }
-        
+
         //create auto rocket every second
-        autoRocketTimer += dt;
-        if(autoRocketTimer >= AUTO_ROCKET_INTERVAL) {
-            createAutoRocket();
-            autoRocketTimer = 0f;
+        if (System.getProperty("astro.visualTest", "").isEmpty()) {
+            autoRocketTimer += dt;
+            if(autoRocketTimer >= AUTO_ROCKET_INTERVAL) {
+                createAutoRocket();
+                autoRocketTimer = 0f;
+            }
         }
 
         //check collisions
@@ -585,7 +604,7 @@ public class PlayState extends GameState {
         checkCollisions();
         gameObjectManager.checkCollisions();
         collisionsTime = System.nanoTime() - collisionsStart;
-        
+
         // Обновляем FPS счетчик - подсчет кадров
         if (showFPS) {
             frameCount++;
@@ -596,33 +615,33 @@ public class PlayState extends GameState {
                 fpsTimer = 0f;
             }
         }
-        
+
         // Завершаем мониторинг производительности
         PerformanceMonitor.endFrame();
-        
+
         // Логируем низкий FPS для диагностики с профилированием
         if (currentFPS < 100 && showFPS) {
-            long totalTime = cameraTime + backgroundTime + playerTime + bulletsTime + 
+            long totalTime = cameraTime + backgroundTime + playerTime + bulletsTime +
                            asteroidsTime + particlesTime + rocketsTime + orkTime + collisionsTime;
-            
+
             System.out.println("=== PERFORMANCE PROFILE ===");
-            System.out.println("FPS: " + currentFPS + " | Objects: " + gameObjectManager.getStats() + 
+            System.out.println("FPS: " + currentFPS + " | Objects: " + gameObjectManager.getStats() +
                              " P=" + particles.size);
             System.out.println("World: " + worldManager.getWorldInfo());
-            System.out.println("Times (μs): Camera=" + (cameraTime/1000) + 
-                             " Background=" + (backgroundTime/1000) + 
-                             " Player=" + (playerTime/1000) + 
+            System.out.println("Times (μs): Camera=" + (cameraTime/1000) +
+                             " Background=" + (backgroundTime/1000) +
+                             " Player=" + (playerTime/1000) +
                              " Bullets=" + (bulletsTime/1000));
-            System.out.println("          Asteroids=" + (asteroidsTime/1000) + 
-                             " Particles=" + (particlesTime/1000) + 
-                             " Rockets=" + (rocketsTime/1000) + 
+            System.out.println("          Asteroids=" + (asteroidsTime/1000) +
+                             " Particles=" + (particlesTime/1000) +
+                             " Rockets=" + (rocketsTime/1000) +
                              " Orks=" + (orkTime/1000));
-            System.out.println("          Collisions=" + (collisionsTime/1000) + 
+            System.out.println("          Collisions=" + (collisionsTime/1000) +
                              " Total=" + (totalTime/1000) + " μs");
             System.out.println("===========================");
         }
     }
-    
+
     @Override
     public void draw() {
 //        System.out.println("PLAY STATE DRAWING");
@@ -633,31 +652,37 @@ public class PlayState extends GameState {
 
         // Отрисовка заполненных объектов (фон)
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        
+
 //draw background first
         background.draw(shapeRenderer, camera);
-        
+
         // Отрисовка всех игровых объектов через GameObjectManager (с culling:
         // снаряды, препятствия, враги и следы ракет за камерой в renderer не идут)
         gameObjectManager.draw(shapeRenderer, camera, spriteBatch, renderStats);
-        
+
         shapeRenderer.end();
-        
+
         // Отрисовка линий (корабль). Игрок рисуется здесь один раз за кадр —
         // раньше он попадал в рендер и из allObjects менеджера, и этим вызовом,
         // из-за чего корабль, пламя и щит рисовались дважды.
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        
+
         float playerRadius = Math.max(1f, player.getWidth() / 2f);
         int flameCount = player.getFlameParticles().size;
         int shieldCount = player.getShieldParticles().size;
+        int sparkCount = player.getSparkParticles().size;
+        int exhaustTrailCount = player.getExhaustTrailSampleCount();
         boolean playerInView = camera.isInRenderBounds(player.getX(), player.getY(), playerRadius);
-        renderStats.particlesActive += flameCount + shieldCount;
+        renderStats.particlesActive += flameCount + shieldCount + sparkCount + exhaustTrailCount;
         if (playerInView) {
             player.draw(shapeRenderer, camera, spriteBatch);
+            // Внутренние образцы непрерывного шлейфа рисуются Player одним
+            // проходом; учитываем их в общей статистике частиц.
+            renderStats.particlesVisible += exhaustTrailCount;
+            renderStats.particlesDrawn += exhaustTrailCount;
         }
-        // Пламя и щит игрока считаем поштучно (с culling): внеэкранные частицы
-        // не должны расходовать видимый бюджет и забирать слоты у эффектов на экране
+        // Пламя, щит и искры игрока считаем поштучно (с culling): внеэкранные
+        // частицы не должны расходовать видимый бюджет и забирать слоты у эффектов
         if (playerInView) {
             for (FlameParticle fp : player.getFlameParticles()) {
                 if (camera.isInRenderBounds(fp.getX(), fp.getY(), fp.getCullRadius())) {
@@ -675,15 +700,23 @@ public class PlayState extends GameState {
                     renderStats.particlesCulled++;
                 }
             }
+            for (SparkParticle sp : player.getSparkParticles()) {
+                if (camera.isInRenderBounds(sp.getX(), sp.getY(), sp.getCullRadius())) {
+                    renderStats.particlesVisible++;
+                    renderStats.particlesDrawn++;
+                } else {
+                    renderStats.particlesCulled++;
+                }
+            }
         } else {
-            renderStats.particlesCulled += flameCount + shieldCount;
+            renderStats.particlesCulled += flameCount + shieldCount + sparkCount + exhaustTrailCount;
         }
 
         shapeRenderer.end();
-        
+
         // Отрисовка заполненных объектов (частицы взрывов) — с culling
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        
+
         //draw particles
         for(int i = 0; i < particles.size; i++) {
             Particle p = particles.get(i);
@@ -696,9 +729,9 @@ public class PlayState extends GameState {
                 renderStats.particlesCulled++;
             }
         }
-        
+
         shapeRenderer.end();
-        
+
         // Оптимизированные частицы рисуются через SpriteBatch (текстуры).
         // begin()/end() вынесены сюда: раньше batch.draw вызывался без begin().
         if (optimizedParticles.size > 0) {
@@ -717,7 +750,13 @@ public class PlayState extends GameState {
             }
             spriteBatch.end();
         }
-        
+
+        // Следы ракет — мягкие аддитивные текстуры через SpriteBatch
+        gameObjectManager.drawRocketParticles(spriteBatch, camera, renderStats);
+
+        // Дым вражеских кораблей — мягкая текстура, обычное смешивание
+        gameObjectManager.drawEnemySmoke(spriteBatch, camera, renderStats);
+
         // Итоговая категория «Objects»: все мировые объекты, включая игрока
         renderStats.objectsActive = gameObjectManager.getActiveObjects();
         renderStats.objectsVisible = renderStats.projectilesVisible + renderStats.obstaclesVisible
@@ -733,41 +772,41 @@ public class PlayState extends GameState {
         spriteBatch.begin();
         drawHudText();
         spriteBatch.end();
-        
+
         // Крутая анимированная полоска прогресса опыта
         float progressBarWidth = 200f;
         float progressBarHeight = 12f;
         float progressBarX = 10f;
         float progressBarY = MyGdxGame.HEIGHT - 95f;
-        
+
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        
+
         // Тень полоски
         shapeRenderer.setColor(0f, 0f, 0f, 0.5f);
         shapeRenderer.rect(progressBarX + 2, progressBarY - 2, progressBarWidth, progressBarHeight);
-        
+
         // Фон полоски с градиентом
         shapeRenderer.setColor(0.2f, 0.2f, 0.3f, 1f);
         shapeRenderer.rect(progressBarX, progressBarY, progressBarWidth, progressBarHeight);
-        
+
         // Внутренний фон с эффектом глубины
         shapeRenderer.setColor(0.1f, 0.1f, 0.2f, 1f);
         shapeRenderer.rect(progressBarX + 1, progressBarY + 1, progressBarWidth - 2, progressBarHeight - 2);
-        
+
         // Анимированное заполнение полоски
         if (isLevelingUp) {
             // Эффект повышения уровня - пульсирующий градиент
             float pulseIntensity = 0.5f + 0.5f * MathUtils.sin(levelUpTimer * 10f);
             shapeRenderer.setColor(1f, 1f, 0f, pulseIntensity);
             shapeRenderer.rect(progressBarX + 2, progressBarY + 2, progressBarWidth - 4, progressBarHeight - 4);
-            
+
             // Дополнительный эффект свечения
             shapeRenderer.setColor(1f, 0.8f, 0f, pulseIntensity * 0.5f);
             shapeRenderer.rect(progressBarX + 2, progressBarY + 2, progressBarWidth - 4, progressBarHeight - 4);
         } else {
             // Обычное заполнение с анимацией
             float fillWidth = (progressBarWidth - 4) * animatedProgress;
-            
+
             // Градиентное заполнение
             for (int i = 0; i < fillWidth; i += 2) {
                 float segmentProgress = i / fillWidth;
@@ -775,11 +814,11 @@ public class PlayState extends GameState {
                 float g = 0.5f + 0.5f * segmentProgress;
                 float b = 0f;
                 float alpha = 0.8f + 0.2f * MathUtils.sin(experienceBarTimer * 3f + i * 0.1f);
-                
+
                 shapeRenderer.setColor(r, g, b, alpha);
                 shapeRenderer.rect(progressBarX + 2 + i, progressBarY + 2, 2, progressBarHeight - 4);
             }
-            
+
             // Эффект свечения на конце полоски
             if (animatedProgress > 0) {
                 float glowIntensity = 0.3f + 0.2f * MathUtils.sin(experienceBarTimer * 5f);
@@ -787,14 +826,14 @@ public class PlayState extends GameState {
                 shapeRenderer.rect(progressBarX + 2 + fillWidth - 4, progressBarY + 2, 4, progressBarHeight - 4);
             }
         }
-        
+
         // Рамка полоски
         shapeRenderer.setColor(0.6f, 0.6f, 0.8f, 1f);
         shapeRenderer.rect(progressBarX, progressBarY, progressBarWidth, 2);
         shapeRenderer.rect(progressBarX, progressBarY + progressBarHeight - 2, progressBarWidth, 2);
         shapeRenderer.rect(progressBarX, progressBarY, 2, progressBarHeight);
         shapeRenderer.rect(progressBarX + progressBarWidth - 2, progressBarY, 2, progressBarHeight);
-        
+
         // Дополнительные эффекты
         if (animatedProgress > 0.9f) {
             // Эффект готовности к повышению уровня
@@ -802,15 +841,15 @@ public class PlayState extends GameState {
             shapeRenderer.setColor(1f, 0f, 0f, readyPulse);
             shapeRenderer.rect(progressBarX + 2, progressBarY + 2, progressBarWidth - 4, 2);
         }
-        
+
         shapeRenderer.end();
-        
+
         // Детальная F3-табличка с полезной информацией (клавиша F)
         // Начинаем ниже HUD-блока с безопасным отступом
         if (showFPS) {
             drawDebugTable(hudBottomY - 16f);
         }
-        
+
         // СТАРАЯ СИСТЕМА ПАУЗЫ - ЗАКОММЕНТИРОВАНА
         // Теперь пауза управляется через новую систему состояний
         /*
@@ -821,76 +860,76 @@ public class PlayState extends GameState {
             shapeRenderer.setColor(0, 0, 0, pulseAlpha);
             shapeRenderer.rect(0, 0, MyGdxGame.WIDTH, MyGdxGame.HEIGHT);
             shapeRenderer.end();
-            
+
             // Рамка вокруг экрана
             shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
             shapeRenderer.setColor(1, 1, 1, 0.3f);
             shapeRenderer.rect(10, 10, MyGdxGame.WIDTH - 20, MyGdxGame.HEIGHT - 20);
             shapeRenderer.end();
-            
+
             // Основной текст паузы с анимацией
             font.setColor(1, 1, 1, 1);
             font.getData().setScale(3f);
             String pauseText = "⏸ ПАУЗА ⏸";
             float textWidth = font.draw(spriteBatch, pauseText, 0, 0).width;
             float textY = MyGdxGame.HEIGHT / 2 + 80;
-            font.draw(spriteBatch, pauseText, 
-                     (MyGdxGame.WIDTH - textWidth) / 2, 
+            font.draw(spriteBatch, pauseText,
+                     (MyGdxGame.WIDTH - textWidth) / 2,
                      textY);
-            
+
             // Подсказка с миганием
             font.getData().setScale(1.2f);
             String hintText = "Нажмите ESC для продолжения";
             textWidth = font.draw(spriteBatch, hintText, 0, 0).width;
             float blinkAlpha = 0.5f + 0.5f * (float)Math.abs(Math.sin(pauseTime * 3f));
             font.setColor(1, 1, 1, blinkAlpha);
-            font.draw(spriteBatch, hintText, 
-                     (MyGdxGame.WIDTH - textWidth) / 2, 
+            font.draw(spriteBatch, hintText,
+                     (MyGdxGame.WIDTH - textWidth) / 2,
                      MyGdxGame.HEIGHT / 2 - 10);
-            
+
             // Время в паузе
             font.setColor(0.9f, 0.9f, 0.9f, 1);
             String timeText = String.format("⏱ Время в паузе: %.1f сек", pauseTime);
             textWidth = font.draw(spriteBatch, timeText, 0, 0).width;
-            font.draw(spriteBatch, timeText, 
-                     (MyGdxGame.WIDTH - textWidth) / 2, 
+            font.draw(spriteBatch, timeText,
+                     (MyGdxGame.WIDTH - textWidth) / 2,
                      MyGdxGame.HEIGHT / 2 - 60);
-            
+
             // Общее время в паузе
             font.setColor(0.7f, 0.7f, 0.7f, 1);
             String totalTimeText = String.format("📊 Общее время: %.1f сек", totalPauseTime);
             textWidth = font.draw(spriteBatch, totalTimeText, 0, 0).width;
-            font.draw(spriteBatch, totalTimeText, 
-                     (MyGdxGame.WIDTH - textWidth) / 2, 
-                     MyGdxGame.WIDTH - textWidth) / 2, 
+            font.draw(spriteBatch, totalTimeText,
+                     (MyGdxGame.WIDTH - textWidth) / 2,
+                     MyGdxGame.WIDTH - textWidth) / 2,
                      MyGdxGame.HEIGHT / 2 - 90);
-            
+
             // Дополнительные подсказки
             font.getData().setScale(0.9f);
             font.setColor(0.6f, 0.6f, 0.6f, 1);
             String extraHint = "💡 Игра продолжает отрисовываться";
             textWidth = font.draw(spriteBatch, extraHint, 0, 0).width;
-            font.draw(spriteBatch, extraHint, 
-                     (MyGdxGame.WIDTH - textWidth) / 2, 
+            font.draw(spriteBatch, extraHint,
+                     (MyGdxGame.WIDTH - textWidth) / 2,
                      MyGdxGame.HEIGHT / 2 - 120);
-            
+
             // Подсказка о выходе в меню
             String menuHint = "🎮 Нажмите TAB для выхода в меню";
             textWidth = font.draw(spriteBatch, menuHint, 0, 0).width;
-            font.draw(spriteBatch, menuHint, 
-                     (MyGdxGame.WIDTH - textWidth) / 2, 
+            font.draw(spriteBatch, menuHint,
+                     (MyGdxGame.WIDTH - textWidth) / 2,
                      MyGdxGame.HEIGHT / 2 - 150);
-            
+
             // Сбрасываем размер шрифта
             font.getData().setScale(1f);
         }
         */
-        
+
         // Рендерим Android элементы управления поверх всего
         if (androidInputManager != null && androidInputManager.isAndroid()) {
             androidInputManager.render(shapeRenderer);
         }
-        
+
         // Записываем время отрисовки
         drawTime = System.nanoTime() - drawStart;
     }
@@ -905,7 +944,7 @@ public class PlayState extends GameState {
             System.out.println("=== ВЫХОД В МЕНЮ ИЗ ПАУЗЫ ===");
             gameStateManager.setState(GameStateManager.MENU, saveGameState());
         }
-        
+
         // Переключение паузы (ESC)
         if (GameKeys.isPressed(GameKeys.ESCAPE)) {
             isPaused = false;
@@ -914,21 +953,26 @@ public class PlayState extends GameState {
         }
     }
     */
-    
+
     @Override
     public void handleInput() {
+        if (!System.getProperty("astro.visualTest", "").isEmpty()) {
+            camera.setTargetZoom(2f);
+            return;
+        }
+
         // Отладка клавиш
         if (GameKeys.isPressed(GameKeys.ESCAPE)) {
             System.out.println("ESCAPE нажата!");
         }
-        
+
         player.setLeft(GameKeys.isDown(GameKeys.LEFT));
         player.setRight(GameKeys.isDown(GameKeys.RIGHT));
         player.setUp(GameKeys.isDown(GameKeys.UP));
         if (GameKeys.isDown(GameKeys.SPACE)) {
             player.shoot();
         }
-        
+
         // Управление зумом - используем isDown для непрерывного действия
         if (GameKeys.isDown(GameKeys.ZOOM_IN)) {
             camera.zoomIn();
@@ -939,12 +983,12 @@ public class PlayState extends GameState {
         if (GameKeys.isPressed(GameKeys.ENTER)) {
             camera.resetZoom();
         }
-        
+
         // Переключение FPS счетчика
         if (GameKeys.isPressed(GameKeys.TOGGLE_FPS)) {
             showFPS = !showFPS;
         }
-        
+
         // Управление лимитом FPS
         if (GameKeys.isPressed(GameKeys.FPS_UP)) {
             MyGdxGame.increaseFPS();
@@ -952,7 +996,7 @@ public class PlayState extends GameState {
         if (GameKeys.isPressed(GameKeys.FPS_DOWN)) {
             MyGdxGame.decreaseFPS();
         }
-        
+
         // СТАРАЯ СИСТЕМА ПАУЗЫ - ЗАКОММЕНТИРОВАНА
         // Теперь пауза управляется через новую систему состояний
         /*
@@ -968,7 +1012,7 @@ public class PlayState extends GameState {
             }
         }
         */
-        
+
         // Возврат в меню с сохранением состояния (только если не в паузе)
         // if (GameKeys.isPressed(GameKeys.ESCAPE) && !isPaused) {
         //     System.out.println("=== ВОЗВРАТ В МЕНЮ: Сохраняем состояние игры ===");
@@ -981,23 +1025,23 @@ public class PlayState extends GameState {
         //     }
         //     gameStateManager.setState(GameStateManager.MENU, saveGameState());
         // }
-        
+
         // Тестовая кнопка для получения опыта (для тестирования)
         if (GameKeys.isPressed(GameKeys.TEST)) {
             progressionManager.addExperience(50);
         }
     }
-    
+
     // Геттеры для применения улучшений
     public Player getPlayer() {
         return player;
     }
-    
+
     public Array<AutoRocket> getAutoRockets() {
         // Возвращаем пустой массив, так как теперь используем GameObjectManager
         return new Array<AutoRocket>();
     }
-    
+
     // Методы для сохранения и восстановления состояния
     public com.gdx.managers.GameState saveGameState() {
         System.out.println("=== СОХРАНЕНИЕ СОСТОЯНИЯ ===");
@@ -1005,7 +1049,7 @@ public class PlayState extends GameState {
         if (player != null) {
             System.out.println("Player позиция: (" + player.getX() + ", " + player.getY() + ")");
         }
-        
+
         com.gdx.managers.GameState gameState = new com.gdx.managers.GameState();
         gameState.setPlayer(player);
         // GameObjectManager сам управляет всеми объектами
@@ -1016,20 +1060,20 @@ public class PlayState extends GameState {
         gameState.setScore(score);
         gameState.setHighScore(highScore);
         gameState.setAutoRocketTimer(autoRocketTimer);
-        
+
         System.out.println("Состояние создано - Очки: " + gameState.getScore() + ", Объекты: " + gameObjectManager.getStats());
         return gameState;
     }
-    
+
     public void restoreGameState(com.gdx.managers.GameState gameState) {
         if (gameState != null) {
             System.out.println("=== ВОССТАНОВЛЕНИЕ СОСТОЯНИЯ ===");
-            
+
             // Восстанавливаем игровые объекты
             player = gameState.getPlayer();
             // GameObjectManager сам управляет всеми объектами
             particles = gameState.getParticles();
-            
+
             // Восстанавливаем игровые параметры
             level = gameState.getLevel();
             totalAsteroids = gameState.getTotalAsteroids();
@@ -1037,7 +1081,7 @@ public class PlayState extends GameState {
             score = gameState.getScore();
             highScore = gameState.getHighScore();
             autoRocketTimer = gameState.getAutoRocketTimer();
-            
+
             System.out.println("После восстановления:");
             if (player != null) {
                 System.out.println("Позиция игрока: (" + player.getX() + ", " + player.getY() + ")");
@@ -1048,22 +1092,22 @@ public class PlayState extends GameState {
                 System.out.println("ОШИБКА: Player == null после восстановления!");
             }
             System.out.println("Объекты: " + gameObjectManager.getStats());
-            
+
             // Обновляем ссылки в объектах
             if (player != null) {
                 // GameObjectManager сам управляет всеми объектами
             }
-            
+
             // Обновляем WorldManager
             if (worldManager != null) {
                 worldManager.updateReferences(gameObjectManager, player);
             }
-            
+
             // Проверяем и пересоздаем текстуру корабля, если нужно
             if (player != null) {
                 player.recreateTextureIfNeeded();
             }
-            
+
             // Отмечаем, что состояние восстановлено из сохранения
             isRestoredFromSave = true;
         }

@@ -15,6 +15,14 @@ task run(dependsOn: classes, type: JavaExec) {
     workingDir = project.assetsDir
     ignoreExitValue = true
 
+    if (project.hasProperty("visualTest")) {
+        systemProperty "astro.visualTest", project.property("visualTest")
+        def visualOutput = project.findProperty("visualOutput") ?:
+                new File(rootProject.buildDir, "visual-tests/${project.property('visualTest')}.png").absolutePath
+        systemProperty "astro.visualOutput", visualOutput
+        systemProperty "astro.visualCaptureTime", project.findProperty("visualCaptureTime") ?: "3.0"
+    }
+
     if (OperatingSystem.current() == OperatingSystem.MAC_OS) {
         // Required to run on macOS
         jvmArgs += "-XstartOnFirstThread"

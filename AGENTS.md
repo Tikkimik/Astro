@@ -35,6 +35,7 @@ Game logic lives under `core/src/com/gdx/`; platform launchers under `com.mygdx.
 ## Conventions
 
 - Code comments and commit messages are in **Russian**.
+- Do not add comments that merely restate the code. Comment only non-obvious reasons, constraints, formulas, workarounds, and contracts that are easy to break. Keep comments concise and remove outdated or redundant comments in code you modify.
 - Package base: `com.gdx` for core game, `com.mygdx.game` for platform launchers.
 - Dependencies: `core` → LibGDX only; platform modules depend on `core`.
 - Assets directory is `assets/` (shared by desktop, android, html).
