@@ -132,10 +132,7 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
             GameLogger.info("ESC pressed in game - pause");
             if (stateManager != null) {
-                // Сохраняем текущее состояние игры
-                saveGameState();
-
-                // Переходим в паузу
+                // onExit сохранит состояние ровно один раз.
                 stateManager.setState(ImprovedGameStateManager.GameState.PAUSED);
             }
         }
@@ -144,10 +141,7 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.P)) {
             GameLogger.info("P pressed in game - pause");
             if (stateManager != null) {
-                // Сохраняем текущее состояние игры
-                saveGameState();
-
-                // Переходим в паузу
+                // onExit сохранит состояние ровно один раз.
                 stateManager.setState(ImprovedGameStateManager.GameState.PAUSED);
             }
         }

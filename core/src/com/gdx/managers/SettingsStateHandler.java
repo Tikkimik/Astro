@@ -224,6 +224,7 @@ public class SettingsStateHandler implements ImprovedGameStateManager.StateHandl
         // 3. Область параметров (прокручиваемая) с обрезкой по scissor
         contentClip.set(0f, contentBottom, winW, availableHeight);
         ScissorStack.calculateScissors(uiCamera, spriteBatch.getTransformMatrix(), contentClip, scissor);
+        spriteBatch.flush();
         ScissorStack.pushScissors(scissor);
 
         String[] items = getItems();
@@ -245,6 +246,7 @@ public class SettingsStateHandler implements ImprovedGameStateManager.StateHandl
                 headingFont.draw(spriteBatch, getCurrentValueText(selectedTab, i), valueX, baseline);
             }
         }
+        spriteBatch.flush();
         ScissorStack.popScissors();
 
         // 4. Описание выбранного параметра (фиксированная строка над footer)
@@ -306,8 +308,9 @@ public class SettingsStateHandler implements ImprovedGameStateManager.StateHandl
         }
 
         // Колесо мыши — прокрутка списка (только список, footer/вкладки не трогаем)
-        int wheel = Gdx.input.getDeltaY();
-        if (wheel != 0) {
+        float wheel = GameInputProcessor.scrollDeltaY;
+        GameInputProcessor.scrollDeltaY = 0f;
+        if (wheel != 0f) {
             scroll = clamp(scroll - wheel * SCROLL_WHEEL_STEP, 0f, maxScroll);
         }
 
