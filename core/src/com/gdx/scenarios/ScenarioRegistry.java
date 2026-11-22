@@ -23,6 +23,7 @@ public final class ScenarioRegistry {
         registerEngineScenarios();
         registerInteractionScenarios();
         registerCollisionAndTargetingScenarios();
+        registerApprovedCombatScenarios();
     }
 
     private ScenarioRegistry() {}
@@ -132,6 +133,8 @@ public final class ScenarioRegistry {
                 })
                 .checkAt(0.2f, "asteroid destroyed", context -> context.expectHealth("target", 0))
                 .checkAt(0.2f, "bullet removed", context -> context.expectManaged("bullet", false))
+                .checkAt(0.2f, "small asteroid reward", context -> context.expectScore(5))
+                .checkAt(0.2f, "small asteroid experience", context -> context.expectExperience(5))
                 .build());
 
         register(scenario("rocket-hits-enemy")
@@ -144,7 +147,7 @@ public final class ScenarioRegistry {
                     context.enemyShip("target", x, y);
                     context.rocket("rocket", x - 80f, y, 0f, "target");
                 })
-                .checkAt(1.3f, "enemy damaged", context -> context.expectHealth("target", 2))
+                .checkAt(1.3f, "enemy damaged", context -> context.expectHealth("target", 1))
                 .checkAt(1.3f, "rocket removed", context -> context.expectManaged("rocket", false))
                 .captureAt(0.75f, "approach")
                 .build());
@@ -184,8 +187,8 @@ public final class ScenarioRegistry {
                     context.bullet("bullet", x - 4f, y, 0f);
                 })
                 .checkAt(0.2f, "enemy removed", context -> context.expectManaged("target", false))
-                .checkAt(0.2f, "score awarded", context -> context.expectScoreAtLeast(1))
-                .checkAt(0.2f, "experience awarded", context -> context.expectExperienceAtLeast(1))
+                .checkAt(0.2f, "score awarded", context -> context.expectScore(25))
+                .checkAt(0.2f, "experience awarded", context -> context.expectExperience(25))
                 .build());
     }
 
@@ -266,6 +269,167 @@ public final class ScenarioRegistry {
                 })
                 .checkAt(0.05f, "in-range target selected",
                         context -> context.expectNearestEnemy("inside", AutoRocket.DETECTION_RANGE))
+                .build());
+    }
+
+    private static void registerApprovedCombatScenarios() {
+        register(scenario("bullet-damages-enemy-ship")
+                .tags("bullet", "enemy-ship", "damage", "logic")
+                .duration(0.2f)
+                .setup(context -> {
+                    float x = context.player().getX() + 20f;
+                    float y = context.player().getY();
+                    context.enemyShip("target", x, y);
+                    context.bullet("bullet", x - 10f, y, 0f);
+                })
+                .checkAt(0.15f, "bullet deals one damage", context -> context.expectHealth("target", 2))
+                .checkAt(0.15f, "hit gives no score", context -> context.expectScore(0))
+                .build());
+
+        register(scenario("bullet-damages-ork-asteroid")
+                .tags("bullet", "ork-asteroid", "damage", "logic")
+                .duration(0.2f)
+                .setup(context -> {
+                    float x = context.player().getX() + 20f;
+                    float y = context.player().getY();
+                    context.orkAsteroid("target", x, y, OrkAsteroid.SMALL);
+                    context.bullet("bullet", x - 10f, y, 0f);
+                })
+                .checkAt(0.15f, "ork asteroid has one health", context -> context.expectHealth("target", 1))
+                .checkAt(0.15f, "damage gives no score", context -> context.expectScore(0))
+                .build());
+
+        register(scenario("bullet-destroys-ork-asteroid")
+                .tags("bullet", "ork-asteroid", "rewards", "logic")
+                .duration(0.2f)
+                .setup(context -> {
+                    float x = context.player().getX() + 20f;
+                    float y = context.player().getY();
+                    context.orkAsteroid("target", x, y, OrkAsteroid.SMALL);
+                    context.bullet("first", x - 10f, y, 0f);
+                    context.bullet("second", x - 10f, y, 0f);
+                })
+                .checkAt(0.15f, "ork asteroid removed", context -> context.expectManaged("target", false))
+                .checkAt(0.15f, "ork asteroid reward", context -> context.expectScore(10))
+                .checkAt(0.15f, "ork asteroid experience", context -> context.expectExperience(10))
+                .build());
+
+        register(scenario("medium-asteroid-splits-without-reward")
+                .tags("bullet", "asteroid", "rewards", "logic")
+                .duration(0.2f)
+                .setup(context -> {
+                    float x = context.player().getX() + 25f;
+                    float y = context.player().getY();
+                    context.asteroid("target", x, y, Asteroid.MEDIUM);
+                    context.bullet("bullet", x - 10f, y, 0f);
+                })
+                .checkAt(0.15f, "medium asteroid removed", context -> context.expectManaged("target", false))
+                .checkAt(0.15f, "split gives no score", context -> context.expectScore(0))
+                .build());
+
+        register(scenario("rocket-destroys-ork-asteroid")
+                .tags("rocket", "ork-asteroid", "damage", "rewards", "logic")
+                .duration(0.2f)
+                .setup(context -> {
+                    float x = context.player().getX() + 30f;
+                    float y = context.player().getY();
+                    context.orkAsteroid("target", x, y, OrkAsteroid.SMALL);
+                    context.rocket("rocket", x - 10f, y, 0f, "target");
+                })
+                .checkAt(0.15f, "rocket destroys two-health target",
+                        context -> context.expectManaged("target", false))
+                .checkAt(0.15f, "ork rocket reward", context -> context.expectScore(10))
+                .checkAt(0.15f, "ork rocket experience", context -> context.expectExperience(10))
+                .build());
+
+        register(scenario("enemy-bullet-stops-on-other-enemy")
+                .tags("enemy", "bullet", "friendly-fire", "logic")
+                .duration(0.2f)
+                .setup(context -> {
+                    float x = context.player().getX() + 100f;
+                    float y = context.player().getY();
+                    context.enemyShip("target", x, y);
+                    context.enemyBullet("bullet", x - 4f, y, 0f);
+                })
+                .checkAt(0.15f, "enemy bullet removed", context -> context.expectManaged("bullet", false))
+                .checkAt(0.15f, "friendly fire deals no damage", context -> context.expectHealth("target", 3))
+                .build());
+
+        register(scenario("enemy-bullet-ignores-owner")
+                .tags("enemy", "bullet", "friendly-fire", "logic")
+                .duration(0.15f)
+                .setup(context -> {
+                    float x = context.player().getX() + 100f;
+                    float y = context.player().getY();
+                    context.enemyShip("owner", x, y);
+                    context.enemyBullet("bullet", x, y, 0f, "owner");
+                })
+                .checkAt(0.1f, "owner bullet remains active", context -> context.expectManaged("bullet", true))
+                .checkAt(0.1f, "owner takes no damage", context -> context.expectHealth("owner", 3))
+                .build());
+
+        register(scenario("enemy-bullet-survives-owner-destruction")
+                .tags("enemy", "bullet", "lifetime", "logic")
+                .duration(0.2f)
+                .setup(context -> {
+                    float x = context.player().getX() + 220f;
+                    float y = context.player().getY();
+                    context.enemyShip("owner", x, y);
+                    context.enemyBullet("bullet", x + 30f, y, 0f, "owner");
+                    context.destroyEnemy("owner");
+                })
+                .checkAt(0.15f, "owner removed", context -> context.expectManaged("owner", false))
+                .checkAt(0.15f, "fired bullet remains active",
+                        context -> context.expectManaged("bullet", true))
+                .build());
+
+        register(scenario("rocket-retargets-nearest-enemy")
+                .tags("rocket", "targeting", "retargeting", "logic")
+                .duration(0.9f)
+                .setup(context -> {
+                    float x = context.player().getX();
+                    float y = context.player().getY();
+                    context.enemyShip("lost", x + 100f, y);
+                    context.enemyShip("replacement", x + 240f, y + 40f);
+                    context.rocket("rocket", x, y, 0f, "lost");
+                    context.destroyEnemy("lost");
+                })
+                .checkAt(0.7f, "rocket acquires replacement",
+                        context -> context.expectRocketTarget("rocket", "replacement"))
+                .build());
+
+        register(scenario("rocket-expires-without-target")
+                .tags("rocket", "targeting", "timeout", "logic")
+                .duration(3.8f)
+                .setup(context -> {
+                    float x = context.player().getX();
+                    float y = context.player().getY();
+                    context.enemyShip("lost", x + 100f, y);
+                    context.rocket("rocket", x, y, 0f, "lost");
+                    context.destroyEnemy("lost");
+                })
+                .checkAt(3.65f, "untargeted rocket removed",
+                        context -> context.expectManaged("rocket", false))
+                .build());
+
+        register(scenario("rocket-explosion-damages-nearby-enemy")
+                .tags("rocket", "explosion", "area-damage", "enemy-ship", "logic", "visual")
+                .duration(0.25f)
+                .setup(context -> {
+                    float x = context.player().getX() + 100f;
+                    float y = context.player().getY();
+                    context.enemyShip("direct", x, y);
+                    context.enemyShip("near", x + 35f, y + 20f);
+                    context.enemyShip("far", x + 85f, y);
+                    context.rocket("rocket", x - 10f, y, 0f, "direct");
+                })
+                .checkAt(0.12f, "direct target takes two damage",
+                        context -> context.expectHealth("direct", 1))
+                .checkAt(0.12f, "near target takes splash damage",
+                        context -> context.expectHealth("near", 2))
+                .checkAt(0.12f, "far target is unharmed",
+                        context -> context.expectHealth("far", 3))
+                .captureAt(0.08f, "blast")
                 .build());
     }
 }

@@ -39,12 +39,21 @@ public class GameObjectManager {
     }
     private EnemyDestroyedListener enemyDestroyedListener;
 
+    public interface RocketExplosionListener {
+        void onRocketExplosion(float x, float y, float radius);
+    }
+    private RocketExplosionListener rocketExplosionListener;
+
     public void setAsteroidDestroyedListener(AsteroidDestroyedListener listener) {
         this.asteroidDestroyedListener = listener;
     }
 
     public void setEnemyDestroyedListener(EnemyDestroyedListener listener) {
         this.enemyDestroyedListener = listener;
+    }
+
+    public void setRocketExplosionListener(RocketExplosionListener listener) {
+        this.rocketExplosionListener = listener;
     }
 
     // Статистика
@@ -443,13 +452,18 @@ public class GameObjectManager {
 
     private void checkProjectileObstacleCollisions() {
         for (GameObject projectile : projectiles) {
-            if (!projectile.isActive()) continue;
+            if (!projectile.isActive() || projectile.shouldRemove()) continue;
 
             for (GameObject obstacle : obstacles) {
                 if (!obstacle.isActive()) continue;
 
+                OrkBullet enemyBullet = projectile.as(OrkBullet.class);
+                if (enemyBullet != null && enemyBullet.getOwner() == obstacle.getObject()) continue;
+
                 if (projectile.intersects(obstacle)) {
-                    handleProjectileObstacleCollision(projectile, obstacle);
+                    if (enemyBullet != null) projectile.markForRemoval();
+                    else handleProjectileObstacleCollision(projectile, obstacle);
+                    break;
                 }
             }
         }
@@ -457,17 +471,18 @@ public class GameObjectManager {
 
     private void checkProjectileEnemyCollisions() {
         for (GameObject projectile : projectiles) {
-            if (!projectile.isActive()) continue;
-
-            // Пули врагов не задевают вражеские корабли (без дружественного огня):
-            // иначе корабль убивает сам себя, т.к. OrkBullet спавнится в его центре
-            if (projectile.isOrkBullet()) continue;
+            if (!projectile.isActive() || projectile.shouldRemove()) continue;
 
             for (GameObject enemy : enemies) {
                 if (!enemy.isActive()) continue;
 
+                OrkBullet enemyBullet = projectile.as(OrkBullet.class);
+                if (enemyBullet != null && enemyBullet.getOwner() == enemy.getObject()) continue;
+
                 if (projectile.intersects(enemy)) {
-                    handleProjectileEnemyCollision(projectile, enemy);
+                    if (enemyBullet != null) projectile.markForRemoval();
+                    else handleProjectileEnemyCollision(projectile, enemy);
+                    break;
                 }
             }
         }
@@ -480,7 +495,7 @@ public class GameObjectManager {
         if (p == null) return;
 
         for (GameObject projectile : projectiles) {
-            if (!projectile.isActive()) continue;
+            if (!projectile.isActive() || projectile.shouldRemove()) continue;
 
             // Игрока задевают только вражеские пули
             if (!projectile.isOrkBullet()) continue;
@@ -520,12 +535,22 @@ public class GameObjectManager {
 
     private void handleProjectileObstacleCollision(GameObject projectile, GameObject obstacle) {
         projectile.markForRemoval();
+        Array<GameObject> splashTargets = projectile.isAutoRocket()
+                ? collectSplashTargets(obstacle.getX(), obstacle.getY(), obstacle)
+                : null;
+        damageObstacle(obstacle, projectileDamage(projectile));
+        if (splashTargets != null) {
+            applyRocketExplosion(obstacle.getX(), obstacle.getY(), splashTargets);
+        }
+    }
 
+    private void damageObstacle(GameObject obstacle, int damage) {
         if (obstacle.isAsteroid()) {
             Asteroid asteroid = obstacle.as(Asteroid.class);
             if (asteroid != null) {
-                asteroid.takeDamage(1);
-                if (asteroid.shouldRemove()) {
+                boolean wasAlive = !asteroid.shouldRemove();
+                asteroid.takeDamage(damage);
+                if (wasAlive && asteroid.shouldRemove()) {
                     obstacle.markForRemoval();
                     splitAsteroid(asteroid);
                 }
@@ -533,9 +558,11 @@ public class GameObjectManager {
         } else if (obstacle.isOrkAsteroid()) {
             OrkAsteroid orkAsteroid = obstacle.as(OrkAsteroid.class);
             if (orkAsteroid != null) {
-                orkAsteroid.takeDamage(1);
-                if (orkAsteroid.shouldRemove()) {
+                boolean wasAlive = !orkAsteroid.shouldRemove();
+                orkAsteroid.takeDamage(damage);
+                if (wasAlive && orkAsteroid.shouldRemove()) {
                     obstacle.markForRemoval();
+                    notifyEnemyDestroyed(orkAsteroid);
                 }
             }
         }
@@ -555,23 +582,69 @@ public class GameObjectManager {
     }
 
     private void handleProjectileEnemyCollision(GameObject projectile, GameObject enemy) {
-        // Уничтожаем снаряд
         projectile.markForRemoval();
+        Array<GameObject> splashTargets = projectile.isAutoRocket()
+                ? collectSplashTargets(enemy.getX(), enemy.getY(), enemy)
+                : null;
+        damageEnemy(enemy, projectileDamage(projectile));
+        if (splashTargets != null) {
+            applyRocketExplosion(enemy.getX(), enemy.getY(), splashTargets);
+        }
+    }
 
-        // Наносим урон врагу
+    private void damageEnemy(GameObject enemy, int damage) {
         if (enemy.isEnemyShip()) {
             EnemyShip enemyShip = enemy.as(EnemyShip.class);
             if (enemyShip != null) {
                 boolean wasAlive = !enemyShip.shouldRemove();
-                enemyShip.takeDamage(1);
+                enemyShip.takeDamage(damage);
                 if (wasAlive && enemyShip.shouldRemove()) {
                     enemy.markForRemoval();
-                    if (enemyDestroyedListener != null) {
-                        enemyDestroyedListener.onEnemyDestroyed(enemyShip,
-                                enemyShip.getX(), enemyShip.getY());
-                    }
+                    notifyEnemyDestroyed(enemyShip);
                 }
             }
+        }
+    }
+
+    private int projectileDamage(GameObject projectile) {
+        AutoRocket rocket = projectile.as(AutoRocket.class);
+        if (rocket != null) return Math.max(1, Math.round(rocket.getDamage()));
+        Bullet bullet = projectile.as(Bullet.class);
+        return bullet == null ? 1 : Math.max(1, Math.round(bullet.getDamage()));
+    }
+
+    private Array<GameObject> collectSplashTargets(float x, float y, GameObject directTarget) {
+        Array<GameObject> targets = new Array<>();
+        collectSplashTargets(obstacles, targets, x, y, directTarget);
+        collectSplashTargets(enemies, targets, x, y, directTarget);
+        return targets;
+    }
+
+    private void collectSplashTargets(Array<GameObject> source, Array<GameObject> targets,
+                                      float x, float y, GameObject directTarget) {
+        float radiusSquared = AutoRocket.EXPLOSION_RADIUS * AutoRocket.EXPLOSION_RADIUS;
+        int initialSize = source.size;
+        for (int i = 0; i < initialSize; i++) {
+            GameObject candidate = source.get(i);
+            if (candidate == directTarget || !candidate.isActive() || candidate.shouldRemove()) continue;
+            if (distanceSquared(candidate.getObject(), x, y) <= radiusSquared) targets.add(candidate);
+        }
+    }
+
+    private void applyRocketExplosion(float x, float y, Array<GameObject> targets) {
+        if (rocketExplosionListener != null) {
+            rocketExplosionListener.onRocketExplosion(x, y, AutoRocket.EXPLOSION_RADIUS);
+        }
+        for (GameObject target : targets) {
+            if (target.shouldRemove()) continue;
+            if (target.isObstacle()) damageObstacle(target, AutoRocket.SPLASH_DAMAGE);
+            else if (target.isEnemy()) damageEnemy(target, AutoRocket.SPLASH_DAMAGE);
+        }
+    }
+
+    private void notifyEnemyDestroyed(Enemy enemy) {
+        if (enemyDestroyedListener != null) {
+            enemyDestroyedListener.onEnemyDestroyed(enemy, enemy.getX(), enemy.getY());
         }
     }
 

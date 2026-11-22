@@ -154,7 +154,7 @@ public class OrkAsteroid extends Enemy implements GameObject.Drawable {
             angle += (MathUtils.random() - 0.5f) * accuracy;
             
             // Создаем пулю орка
-            OrkBullet bullet = new OrkBullet(x, y, angle);
+            OrkBullet bullet = new OrkBullet(x, y, angle, this);
             if (gameObjectManager != null) {
                 gameObjectManager.addOrkBullet(bullet);
             }

@@ -10,16 +10,26 @@ public class OrkBullet extends SpaceObject implements GameObject.Updatable, Game
     private float lifeTime = 4f;
     private float lifeTimer = 0f;
     private boolean remove = false;
+    private Enemy owner;
     
     public OrkBullet(float x, float y, float angle) {
-        init(x, y, angle);
+        this(x, y, angle, null);
+    }
+
+    public OrkBullet(float x, float y, float angle, Enemy owner) {
+        init(x, y, angle, owner);
     }
     
     // Метод инициализации для пула объектов
     public void init(float x, float y, float angle) {
+        init(x, y, angle, null);
+    }
+
+    public void init(float x, float y, float angle, Enemy owner) {
         this.x = x;
         this.y = y;
         this.radians = angle;
+        this.owner = owner;
         this.remove = false;
         this.lifeTimer = 0f;
         
@@ -28,6 +38,10 @@ public class OrkBullet extends SpaceObject implements GameObject.Updatable, Game
         dy = MathUtils.sin(angle) * speed;
         
         width = height = 2;
+    }
+
+    public Enemy getOwner() {
+        return owner;
     }
     
     public void update(float dt) {

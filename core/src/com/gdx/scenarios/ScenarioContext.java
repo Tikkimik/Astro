@@ -78,6 +78,12 @@ public final class ScenarioContext {
         return register(id, bullet);
     }
 
+    public OrkBullet enemyBullet(String id, float x, float y, float angle, String ownerId) {
+        OrkBullet bullet = new OrkBullet(x, y, angle, get(ownerId, Enemy.class));
+        objects.addOrkBullet(bullet);
+        return register(id, bullet);
+    }
+
     public AutoRocket rocket(String id, float x, float y, float angle, String targetId) {
         Enemy target = get(targetId, Enemy.class);
         AutoRocket rocket = ObjectPools.obtainAutoRocket(x, y, angle, target);
@@ -142,10 +148,24 @@ public final class ScenarioContext {
         }
     }
 
+    public void expectScore(int expected) {
+        int actual = playState.getScore();
+        if (actual != expected) {
+            throw new AssertionError("score: expected=" + expected + ", actual=" + actual);
+        }
+    }
+
     public void expectExperienceAtLeast(int expected) {
         int actual = playState.getProgressionManager().getCurrentExperience();
         if (actual < expected) {
             throw new AssertionError("experience: expected at least=" + expected + ", actual=" + actual);
+        }
+    }
+
+    public void expectExperience(int expected) {
+        int actual = playState.getProgressionManager().getCurrentExperience();
+        if (actual != expected) {
+            throw new AssertionError("experience: expected=" + expected + ", actual=" + actual);
         }
     }
 
@@ -156,6 +176,21 @@ public final class ScenarioContext {
             String actualName = actual == null ? "none" : actual.getEnemyType();
             throw new AssertionError("nearest enemy: expected=" + expectedId + ", actual=" + actualName);
         }
+    }
+
+    public void expectRocketTarget(String rocketId, String expectedTargetId) {
+        Enemy actual = get(rocketId, AutoRocket.class).getTarget();
+        Enemy expected = get(expectedTargetId, Enemy.class);
+        if (actual != expected) {
+            String actualName = actual == null ? "none" : actual.getEnemyType();
+            throw new AssertionError(rocketId + " target: expected=" + expectedTargetId
+                    + ", actual=" + actualName);
+        }
+    }
+
+    public void destroyEnemy(String id) {
+        Enemy enemy = get(id, Enemy.class);
+        enemy.takeDamage(enemy.getHealth());
     }
 
 }

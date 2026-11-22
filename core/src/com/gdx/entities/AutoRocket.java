@@ -34,7 +34,10 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable, Gam
     public static final float DETECTION_RANGE = 1200f;
 
     // Урон ракеты
-    private float damage = 1f;
+    private float damage = 2f;
+
+    public static final float EXPLOSION_RADIUS = 60f;
+    public static final int SPLASH_DAMAGE = 1;
 
     private GameObjectManager manager;
 
@@ -77,6 +80,7 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable, Gam
         isLaunched = false;
         remove = false;
         lostTargetLifeTimer = 0f;
+        damage = 2f;
 
         width = height = 3;
 
@@ -107,12 +111,15 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable, Gam
                 isLaunched = true;
             }
 
+            updateTarget();
             if (target == null) {
                 lostTargetLifeTimer += dt;
                 if (lostTargetLifeTimer >= LOST_TARGET_LIFETIME) {
                     remove = true;
                     return;
                 }
+            } else {
+                lostTargetLifeTimer = 0f;
             }
 
             // Ускоряем ракету
@@ -160,10 +167,7 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable, Gam
 
     // Пересчет траектории для самонаведения
     private void recalculateTrajectory(float dt) {
-        if (target == null || target.shouldRemove()) {
-            target = null;
-            return;
-        }
+        if (target == null) return;
 
         float targetDx = target.getX() - x;
         float targetDy = target.getY() - y;
@@ -199,6 +203,19 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable, Gam
             dx = MathUtils.cos(newAngle) * currentSpeed;
             dy = MathUtils.sin(newAngle) * currentSpeed;
         }
+    }
+
+    private void updateTarget() {
+        if (target != null && !target.shouldRemove()) {
+            float targetDx = target.getX() - x;
+            float targetDy = target.getY() - y;
+            if (targetDx * targetDx + targetDy * targetDy <= DETECTION_RANGE * DETECTION_RANGE) return;
+        }
+        target = manager == null ? null : manager.findNearestEnemy(x, y, DETECTION_RANGE);
+    }
+
+    public Enemy getTarget() {
+        return target;
     }
 
     public boolean shouldRemove() {

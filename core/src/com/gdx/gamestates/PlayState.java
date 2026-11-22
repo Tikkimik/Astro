@@ -15,6 +15,7 @@ import com.gdx.entities.EnemyShip;
 import com.gdx.entities.ExplosionParticle;
 import com.gdx.entities.FlameParticle;
 import com.gdx.entities.OptimizedParticle;
+import com.gdx.entities.RocketExplosionEffect;
 import com.gdx.entities.ShieldParticle;
 import com.gdx.entities.SparkParticle;
 import com.gdx.game.MyGdxGame;
@@ -58,6 +59,7 @@ public class PlayState extends GameState {
     // Оставляем только частицы, так как они обрабатываются по-другому
     private Array<Particle> particles;
     private Array<OptimizedParticle> optimizedParticles;
+    private Array<RocketExplosionEffect> rocketExplosionEffects;
 
     private int level;
     private int totalAsteroids;
@@ -161,17 +163,22 @@ public class PlayState extends GameState {
             gameObjectManager.setAsteroidDestroyedListener((asteroid, x, y) -> {
                 createParticles(x, y);
                 if (numAsteroidsLeft > 0) numAsteroidsLeft--;
-                addScore(5);
+                if (asteroid.getType() == Asteroid.SMALL) addScore(5);
             });
             gameObjectManager.setEnemyDestroyedListener((enemy, x, y) -> {
                 createOptimizedExplosion(x, y, 8);
-                addScore(25);
+                addScore(enemy instanceof OrkAsteroid ? 10 : 25);
+            });
+            gameObjectManager.setRocketExplosionListener((x, y, radius) -> {
+                rocketExplosionEffects.add(new RocketExplosionEffect(x, y, radius));
+                createOptimizedExplosion(x, y, 12);
             });
         }
 
         // Инициализируем только частицы (они обрабатываются по-другому)
         if (particles == null) particles = new Array<Particle>();
         if (optimizedParticles == null) optimizedParticles = new Array<OptimizedParticle>();
+        if (rocketExplosionEffects == null) rocketExplosionEffects = new Array<RocketExplosionEffect>();
         com.gdx.utils.ParticleBudget.register(particles);
         com.gdx.utils.ParticleBudget.register(optimizedParticles);
 
@@ -518,6 +525,11 @@ public class PlayState extends GameState {
                 i--;
             }
         }
+        for (int i = rocketExplosionEffects.size - 1; i >= 0; i--) {
+            RocketExplosionEffect effect = rocketExplosionEffects.get(i);
+            effect.update(dt);
+            if (effect.isComplete()) rocketExplosionEffects.removeIndex(i);
+        }
         particlesTime = System.nanoTime() - particlesStart;
 
                 //update auto rockets
@@ -640,6 +652,10 @@ public class PlayState extends GameState {
         // снаряды, препятствия, враги и следы ракет за камерой в renderer не идут)
         gameObjectManager.draw(shapeRenderer, camera, spriteBatch, renderStats);
 
+        for (RocketExplosionEffect effect : rocketExplosionEffects) {
+            effect.drawFlash(shapeRenderer, camera);
+        }
+
         shapeRenderer.end();
 
         // Отрисовка линий (корабль). Игрок рисуется здесь один раз за кадр —
@@ -690,6 +706,10 @@ public class PlayState extends GameState {
             }
         } else {
             renderStats.particlesCulled += flameCount + shieldCount + sparkCount + exhaustTrailCount;
+        }
+
+        for (RocketExplosionEffect effect : rocketExplosionEffects) {
+            effect.drawRing(shapeRenderer, camera);
         }
 
         shapeRenderer.end();
