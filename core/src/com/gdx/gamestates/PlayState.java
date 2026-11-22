@@ -312,26 +312,8 @@ public class PlayState extends GameState {
 
     // Найти ближайшего врага к игроку (оптимизированная версия)
     private Enemy findNearestEnemy() {
-        Enemy nearest = null;
-        float minDistanceSquared = Float.MAX_VALUE;
-
-        // Проверяем все препятствия через GameObjectManager
-        for (GameObject obj : gameObjectManager.getObstacles()) {
-            float dx = obj.getX() - player.getX();
-            float dy = obj.getY() - player.getY();
-            float distanceSquared = dx * dx + dy * dy;
-
-            if (distanceSquared < minDistanceSquared) {
-                minDistanceSquared = distanceSquared;
-                if (obj.isAsteroid()) {
-                    nearest = obj.as(Asteroid.class);
-                } else if (obj.isOrkAsteroid()) {
-                    nearest = obj.as(OrkAsteroid.class);
-                }
-            }
-        }
-
-        return nearest;
+        return gameObjectManager.findNearestEnemy(
+                player.getX(), player.getY(), AutoRocket.DETECTION_RANGE);
     }
 
     // Создать автоматическую ракету

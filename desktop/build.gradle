@@ -8,7 +8,7 @@ project.ext.assetsDir = new File("../assets")
 
 import org.gradle.internal.os.OperatingSystem
 
-task run(dependsOn: classes, type: JavaExec) {
+task run(dependsOn: [classes, ":core:jar"], type: JavaExec) {
     mainClass = project.mainClassName
     classpath = sourceSets.main.runtimeClasspath
     standardInput = System.in
@@ -30,7 +30,7 @@ task run(dependsOn: classes, type: JavaExec) {
     }
 }
 
-task runScenario(dependsOn: classes, type: JavaExec) {
+task runScenario(dependsOn: [classes, ":core:jar"], type: JavaExec) {
     mainClass = project.mainClassName
     classpath = sourceSets.main.runtimeClasspath
     standardInput = System.in
@@ -54,7 +54,7 @@ task runScenario(dependsOn: classes, type: JavaExec) {
     }
 }
 
-task scenarioSuite(dependsOn: classes) {
+task scenarioSuite(dependsOn: [classes, ":core:jar"]) {
     doLast {
         def catalogOutput = new ByteArrayOutputStream()
         javaexec {
@@ -88,7 +88,7 @@ task scenarioSuite(dependsOn: classes) {
     }
 }
 
-task debug(dependsOn: classes, type: JavaExec) {
+task debug(dependsOn: [classes, ":core:jar"], type: JavaExec) {
     mainClass = project.mainClassName
     classpath = sourceSets.main.runtimeClasspath
     standardInput = System.in

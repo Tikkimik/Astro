@@ -8,6 +8,7 @@ import com.gdx.entities.Enemy;
 import com.gdx.entities.EnemyShip;
 import com.gdx.entities.GameObject;
 import com.gdx.entities.OrkBullet;
+import com.gdx.entities.OrkAsteroid;
 import com.gdx.entities.Player;
 import com.gdx.entities.SpaceObject;
 import com.gdx.gamestates.PlayState;
@@ -57,6 +58,12 @@ public final class ScenarioContext {
         EnemyShip enemy = new EnemyShip(x, y, player(), null);
         objects.addEnemyShip(enemy);
         return register(id, enemy);
+    }
+
+    public OrkAsteroid orkAsteroid(String id, float x, float y, int type) {
+        OrkAsteroid asteroid = new OrkAsteroid(x, y, type, player(), null);
+        objects.addOrkAsteroid(asteroid);
+        return register(id, asteroid);
     }
 
     public Bullet bullet(String id, float x, float y, float angle) {
@@ -141,4 +148,14 @@ public final class ScenarioContext {
             throw new AssertionError("experience: expected at least=" + expected + ", actual=" + actual);
         }
     }
+
+    public void expectNearestEnemy(String expectedId, float maxDistance) {
+        Enemy expected = get(expectedId, Enemy.class);
+        Enemy actual = objects.findNearestEnemy(player().getX(), player().getY(), maxDistance);
+        if (actual != expected) {
+            String actualName = actual == null ? "none" : actual.getEnemyType();
+            throw new AssertionError("nearest enemy: expected=" + expectedId + ", actual=" + actualName);
+        }
+    }
+
 }

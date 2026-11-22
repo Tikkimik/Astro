@@ -197,6 +197,37 @@ public class GameObjectManager {
         return enemies;
     }
 
+    public Enemy findNearestEnemy(float x, float y, float maxDistance) {
+        Enemy nearest = null;
+        float nearestDistanceSquared = maxDistance * maxDistance;
+
+        for (GameObject object : obstacles) {
+            nearest = nearerEnemy(object, x, y, nearest, nearestDistanceSquared);
+            if (nearest != null) nearestDistanceSquared = distanceSquared(nearest, x, y);
+        }
+        for (GameObject object : enemies) {
+            nearest = nearerEnemy(object, x, y, nearest, nearestDistanceSquared);
+            if (nearest != null) nearestDistanceSquared = distanceSquared(nearest, x, y);
+        }
+        return nearest;
+    }
+
+    private Enemy nearerEnemy(GameObject object, float x, float y, Enemy current, float currentDistanceSquared) {
+        if (!object.isActive()) return current;
+        Enemy candidate = object.as(Enemy.class);
+        if (candidate == null || candidate.shouldRemove()) return current;
+        float candidateDistanceSquared = distanceSquared(candidate, x, y);
+        return candidateDistanceSquared < currentDistanceSquared
+                || (current == null && candidateDistanceSquared == currentDistanceSquared)
+                ? candidate : current;
+    }
+
+    private float distanceSquared(SpaceObject object, float x, float y) {
+        float dx = object.getX() - x;
+        float dy = object.getY() - y;
+        return dx * dx + dy * dy;
+    }
+
     /**
      * Получить все частицы
      */
@@ -550,8 +581,8 @@ public class GameObjectManager {
     }
 
     private void handlePlayerEnemyCollision(GameObject player, GameObject enemy) {
-        // Логика столкновения игрока с врагом
-        GameLogger.debug("Player collided with enemy");
+        Player collidedPlayer = player.as(Player.class);
+        if (collidedPlayer != null) collidedPlayer.hit();
     }
 
     // === УДАЛЕНИЕ ОБЪЕКТОВ ===

@@ -2,7 +2,9 @@ package com.gdx.scenarios;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.entities.Asteroid;
+import com.gdx.entities.AutoRocket;
 import com.gdx.entities.EnemyShip;
+import com.gdx.entities.OrkAsteroid;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,6 +22,7 @@ public final class ScenarioRegistry {
     static {
         registerEngineScenarios();
         registerInteractionScenarios();
+        registerCollisionAndTargetingScenarios();
     }
 
     private ScenarioRegistry() {}
@@ -183,6 +186,86 @@ public final class ScenarioRegistry {
                 .checkAt(0.2f, "enemy removed", context -> context.expectManaged("target", false))
                 .checkAt(0.2f, "score awarded", context -> context.expectScoreAtLeast(1))
                 .checkAt(0.2f, "experience awarded", context -> context.expectExperienceAtLeast(1))
+                .build());
+    }
+
+    private static void registerCollisionAndTargetingScenarios() {
+        register(scenario("player-hits-asteroid")
+                .tags("player", "collision", "asteroid", "logic")
+                .duration(0.15f)
+                .setup(context -> {
+                    context.disablePlayerShield();
+                    context.asteroid("asteroid", context.player().getX(),
+                            context.player().getY(), Asteroid.SMALL);
+                })
+                .checkAt(0.1f, "player hit by asteroid", context -> context.expectPlayerHit(true))
+                .build());
+
+        register(scenario("shield-blocks-asteroid")
+                .tags("player", "shield", "collision", "asteroid", "logic")
+                .duration(0.15f)
+                .setup(context -> context.asteroid("asteroid", context.player().getX(),
+                        context.player().getY(), Asteroid.SMALL))
+                .checkAt(0.1f, "shield blocks asteroid", context -> context.expectPlayerHit(false))
+                .build());
+
+        register(scenario("player-hits-enemy-ship")
+                .tags("player", "collision", "enemy-ship", "logic", "visual")
+                .duration(0.15f)
+                .setup(context -> {
+                    context.disablePlayerShield();
+                    context.enemyShip("enemy", context.player().getX() + 16f,
+                            context.player().getY());
+                })
+                .checkAt(0.1f, "player hit by enemy ship", context -> context.expectPlayerHit(true))
+                .captureAt(0.1f, "impact")
+                .build());
+
+        register(scenario("shield-blocks-enemy-ship")
+                .tags("player", "shield", "collision", "enemy-ship", "logic")
+                .duration(0.15f)
+                .setup(context -> context.enemyShip("enemy",
+                        context.player().getX() + 16f, context.player().getY()))
+                .checkAt(0.1f, "shield blocks enemy ship", context -> context.expectPlayerHit(false))
+                .build());
+
+        register(scenario("nearest-target-prefers-asteroid")
+                .tags("rocket", "targeting", "asteroid", "enemy-ship", "logic")
+                .duration(0.1f)
+                .setup(context -> {
+                    float x = context.player().getX();
+                    float y = context.player().getY();
+                    context.asteroid("near", x + 100f, y, Asteroid.SMALL);
+                    context.enemyShip("far", x + 200f, y);
+                })
+                .checkAt(0.05f, "nearest asteroid selected",
+                        context -> context.expectNearestEnemy("near", 500f))
+                .build());
+
+        register(scenario("nearest-target-prefers-enemy-ship")
+                .tags("rocket", "targeting", "asteroid", "enemy-ship", "logic")
+                .duration(0.1f)
+                .setup(context -> {
+                    float x = context.player().getX();
+                    float y = context.player().getY();
+                    context.enemyShip("near", x + 100f, y);
+                    context.orkAsteroid("far", x + 200f, y, OrkAsteroid.SMALL);
+                })
+                .checkAt(0.05f, "nearest enemy ship selected",
+                        context -> context.expectNearestEnemy("near", 500f))
+                .build());
+
+        register(scenario("targeting-respects-detection-range")
+                .tags("rocket", "targeting", "range", "logic")
+                .duration(0.1f)
+                .setup(context -> {
+                    float x = context.player().getX();
+                    float y = context.player().getY();
+                    context.enemyShip("inside", x + AutoRocket.DETECTION_RANGE - 10f, y);
+                    context.enemyShip("outside", x + AutoRocket.DETECTION_RANGE + 50f, y);
+                })
+                .checkAt(0.05f, "in-range target selected",
+                        context -> context.expectNearestEnemy("inside", AutoRocket.DETECTION_RANGE))
                 .build());
     }
 }
