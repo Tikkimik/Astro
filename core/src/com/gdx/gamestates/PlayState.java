@@ -21,7 +21,6 @@ import com.gdx.entities.SparkParticle;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 import com.gdx.managers.GameKeys;
-import com.gdx.managers.GameStateManager;
 import com.gdx.managers.AndroidInputManager;
 import com.gdx.managers.WorldManager;
 import com.gdx.managers.ProgressionManager;
@@ -35,6 +34,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Disposable;
 import java.util.ArrayList;
 import java.util.List;
 import com.gdx.utils.ObjectPools;
@@ -47,7 +47,7 @@ import com.gdx.utils.CameraBounds;
 import com.gdx.scenarios.ScenarioRunner;
 import com.gdx.scenarios.ScenarioRuntime;
 
-public class PlayState extends GameState {
+public class PlayState implements Disposable {
 
     private ShapeRenderer shapeRenderer;
 
@@ -92,13 +92,6 @@ public class PlayState extends GameState {
     // Нижняя граница текстового HUD-блока (используется для отступа Debug menu)
     private float hudBottomY = 0f;
 
-    // Система паузы
-    private boolean isPaused = false;
-    private float pauseTime = 0f;
-    private float totalPauseTime = 0f;
-    private boolean pauseOverlayVisible = true;
-    private float pauseOverlayTimer = 0f;
-
     // Профилирование производительности
     private long lastUpdateTime = 0;
     private long cameraTime = 0, backgroundTime = 0, playerTime = 0;
@@ -124,7 +117,6 @@ public class PlayState extends GameState {
 
     // Система прокачки
     private ProgressionManager progressionManager;
-    private boolean showUpgradeScreen = false;
 
     // Анимация полоски опыта
     private float experienceBarTimer = 0f;
@@ -139,16 +131,9 @@ public class PlayState extends GameState {
     private boolean autoRocketLeftSide = true; // Флаг для чередования сторон авторакет
     private ScenarioRunner scenarioRunner;
 
-    public PlayState(GameStateManager gameStateManager) {
-        super(gameStateManager);
+    public PlayState() {
     }
 
-    public PlayState(GameStateManager gameStateManager, ProgressionManager progressionManager) {
-        super(gameStateManager);
-        this.progressionManager = progressionManager;
-    }
-
-    @Override
     public void init() {
         System.out.println("=== ИНИЦИАЛИЗАЦИЯ PLAYSTATE ===");
         System.out.println("isInitialized: " + isInitialized);
@@ -214,7 +199,6 @@ public class PlayState extends GameState {
         // Инициализируем систему прокачки только если её еще нет
         if (progressionManager == null) {
             progressionManager = new ProgressionManager();
-            progressionManager.setGameStateManager(gameStateManager);
         }
 
         scenarioRunner = ScenarioRuntime.attach(this);
@@ -423,7 +407,6 @@ public class PlayState extends GameState {
         }
     }
 
-    @Override
     public void update(float dt) {
 //        System.out.println("PLAY STATE UPDATING");
 
@@ -435,18 +418,6 @@ public class PlayState extends GameState {
             System.out.println("WARNING: Invalid deltaTime: " + dt + ", using 0.016f (60 FPS)");
             dt = 0.016f; // Принудительно устанавливаем 60 FPS
         }
-
-        // СТАРАЯ СИСТЕМА ПАУЗЫ - ЗАКОММЕНТИРОВАНА
-        // Теперь пауза управляется через новую систему состояний
-        /*
-        if (isPaused) {
-            pauseTime += dt;
-            totalPauseTime += dt;
-            // Обрабатываем только ввод для паузы, но пропускаем всю игровую логику
-            handlePauseInput();
-            return;
-        }
-        */
 
         // Применяем улучшения к игровым объектам (если есть новые)
         // progressionManager.applyUpgradesToGameObjects(player, autoRockets, bullets);
@@ -640,7 +611,6 @@ public class PlayState extends GameState {
         }
     }
 
-    @Override
     public void draw() {
 //        System.out.println("PLAY STATE DRAWING");
         long drawStart = System.nanoTime();
@@ -856,80 +826,6 @@ public class PlayState extends GameState {
             drawDebugTable(hudBottomY - 16f);
         }
 
-        // СТАРАЯ СИСТЕМА ПАУЗЫ - ЗАКОММЕНТИРОВАНА
-        // Теперь пауза управляется через новую систему состояний
-        /*
-        if (isPaused) {
-            // Анимированный полупрозрачный фон с пульсацией
-            float pulseAlpha = 0.6f + 0.1f * (float)Math.sin(pauseTime * 2f);
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-            shapeRenderer.setColor(0, 0, 0, pulseAlpha);
-            shapeRenderer.rect(0, 0, MyGdxGame.WIDTH, MyGdxGame.HEIGHT);
-            shapeRenderer.end();
-
-            // Рамка вокруг экрана
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-            shapeRenderer.setColor(1, 1, 1, 0.3f);
-            shapeRenderer.rect(10, 10, MyGdxGame.WIDTH - 20, MyGdxGame.HEIGHT - 20);
-            shapeRenderer.end();
-
-            // Основной текст паузы с анимацией
-            font.setColor(1, 1, 1, 1);
-            font.getData().setScale(3f);
-            String pauseText = "⏸ ПАУЗА ⏸";
-            float textWidth = font.draw(spriteBatch, pauseText, 0, 0).width;
-            float textY = MyGdxGame.HEIGHT / 2 + 80;
-            font.draw(spriteBatch, pauseText,
-                     (MyGdxGame.WIDTH - textWidth) / 2,
-                     textY);
-
-            // Подсказка с миганием
-            font.getData().setScale(1.2f);
-            String hintText = "Нажмите ESC для продолжения";
-            textWidth = font.draw(spriteBatch, hintText, 0, 0).width;
-            float blinkAlpha = 0.5f + 0.5f * (float)Math.abs(Math.sin(pauseTime * 3f));
-            font.setColor(1, 1, 1, blinkAlpha);
-            font.draw(spriteBatch, hintText,
-                     (MyGdxGame.WIDTH - textWidth) / 2,
-                     MyGdxGame.HEIGHT / 2 - 10);
-
-            // Время в паузе
-            font.setColor(0.9f, 0.9f, 0.9f, 1);
-            String timeText = String.format("⏱ Время в паузе: %.1f сек", pauseTime);
-            textWidth = font.draw(spriteBatch, timeText, 0, 0).width;
-            font.draw(spriteBatch, timeText,
-                     (MyGdxGame.WIDTH - textWidth) / 2,
-                     MyGdxGame.HEIGHT / 2 - 60);
-
-            // Общее время в паузе
-            font.setColor(0.7f, 0.7f, 0.7f, 1);
-            String totalTimeText = String.format("📊 Общее время: %.1f сек", totalPauseTime);
-            textWidth = font.draw(spriteBatch, totalTimeText, 0, 0).width;
-            font.draw(spriteBatch, totalTimeText,
-                     (MyGdxGame.WIDTH - textWidth) / 2,
-                     MyGdxGame.WIDTH - textWidth) / 2,
-                     MyGdxGame.HEIGHT / 2 - 90);
-
-            // Дополнительные подсказки
-            font.getData().setScale(0.9f);
-            font.setColor(0.6f, 0.6f, 0.6f, 1);
-            String extraHint = "💡 Игра продолжает отрисовываться";
-            textWidth = font.draw(spriteBatch, extraHint, 0, 0).width;
-            font.draw(spriteBatch, extraHint,
-                     (MyGdxGame.WIDTH - textWidth) / 2,
-                     MyGdxGame.HEIGHT / 2 - 120);
-
-            // Подсказка о выходе в меню
-            String menuHint = "🎮 Нажмите TAB для выхода в меню";
-            textWidth = font.draw(spriteBatch, menuHint, 0, 0).width;
-            font.draw(spriteBatch, menuHint,
-                     (MyGdxGame.WIDTH - textWidth) / 2,
-                     MyGdxGame.HEIGHT / 2 - 150);
-
-            // Сбрасываем размер шрифта
-            font.getData().setScale(1f);
-        }
-        */
 
         // Рендерим Android элементы управления поверх всего
         if (androidInputManager != null && androidInputManager.isAndroid()) {
@@ -940,27 +836,6 @@ public class PlayState extends GameState {
         drawTime = System.nanoTime() - drawStart;
     }
 
-    // СТАРАЯ СИСТЕМА ПАУЗЫ - ЗАКОММЕНТИРОВАНА
-    // Теперь пауза управляется через новую систему состояний
-    /*
-    // Метод для обработки ввода в паузе
-    private void handlePauseInput() {
-        // Выход в меню из паузы (TAB для Menu)
-        if (GameKeys.isPressed(GameKeys.TAB)) {
-            System.out.println("=== ВЫХОД В МЕНЮ ИЗ ПАУЗЫ ===");
-            gameStateManager.setState(GameStateManager.MENU, saveGameState());
-        }
-
-        // Переключение паузы (ESC)
-        if (GameKeys.isPressed(GameKeys.ESCAPE)) {
-            isPaused = false;
-            System.out.println("=== ПАУЗА ОТКЛЮЧЕНА ===");
-            System.out.println("Общее время в паузе: " + totalPauseTime + " сек");
-        }
-    }
-    */
-
-    @Override
     public void handleInput() {
         if (ScenarioRuntime.isActive()) {
             camera.setTargetZoom(2f);
@@ -999,35 +874,6 @@ public class PlayState extends GameState {
         if (GameKeys.isPressed(GameKeys.FPS_DOWN)) {
             MyGdxGame.decreaseFPS();
         }
-
-        // СТАРАЯ СИСТЕМА ПАУЗЫ - ЗАКОММЕНТИРОВАНА
-        // Теперь пауза управляется через новую систему состояний
-        /*
-        if (GameKeys.isPressed(GameKeys.ESCAPE)) {
-            isPaused = !isPaused;
-            if (isPaused) {
-                System.out.println("=== ПАУЗА АКТИВИРОВАНА ===");
-                pauseTime = 0f;
-                pauseOverlayTimer = 0f;
-            } else {
-                System.out.println("=== ПАУЗА ОТКЛЮЧЕНА ===");
-                System.out.println("Общее время в паузе: " + totalPauseTime + " сек");
-            }
-        }
-        */
-
-        // Возврат в меню с сохранением состояния (только если не в паузе)
-        // if (GameKeys.isPressed(GameKeys.ESCAPE) && !isPaused) {
-        //     System.out.println("=== ВОЗВРАТ В МЕНЮ: Сохраняем состояние игры ===");
-        //     System.out.println("Очки: " + score + ", Астероиды: " + asteroids.size);
-        //     if (player != null) {
-        //         System.out.println("Позиция игрока: (" + player.getX() + ", " + player.getY() + ")");
-        //     }
-        //     if (!asteroids.isEmpty()) {
-        //         System.out.println("Позиция первого астероида: (" + asteroids.get(0).getX() + ", " + asteroids.get(0).getY() + ")");
-        //     }
-        //     gameStateManager.setState(GameStateManager.MENU, saveGameState());
-        // }
 
         // Тестовая кнопка для получения опыта (для тестирования)
         if (GameKeys.isPressed(GameKeys.TEST)) {

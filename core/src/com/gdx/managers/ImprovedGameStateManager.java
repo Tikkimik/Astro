@@ -43,10 +43,7 @@ public class ImprovedGameStateManager {
         MENU("Главное меню"),
         PLAYING("Игровой процесс"),
         PAUSED("Пауза"),
-        SETTINGS("Настройки"),
-        UPGRADE_SELECTION("Выбор улучшений"),
-        GAME_OVER("Игра окончена"),
-        VICTORY("Победа");
+        SETTINGS("Настройки");
         
         private final String description;
         

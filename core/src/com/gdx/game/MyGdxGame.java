@@ -26,7 +26,6 @@ import com.gdx.managers.MenuStateHandler;
 import com.gdx.managers.RealPlayStateHandler;
 import com.gdx.managers.PausedStateHandler;
 import com.gdx.managers.SettingsStateHandler;
-import com.gdx.managers.UpgradeSelectionStateHandler;
 import com.gdx.scenarios.ScenarioRuntime;
 
 public class MyGdxGame extends ApplicationAdapter {
@@ -108,7 +107,6 @@ public class MyGdxGame extends ApplicationAdapter {
 		initializeStateSystem();
 
 		// Вернули обычную игру для профилирования
-		// gameStateManager.push(new com.gdx.gamestates.FPSTestState(gameStateManager));
 
 		batch = new SpriteBatch();
 		// img = new Texture("badlogic.jpg"); // Убираем логотип
@@ -251,7 +249,6 @@ public class MyGdxGame extends ApplicationAdapter {
 		SettingsStateHandler settingsHandler = new SettingsStateHandler();
 		settingsHandler.setStateManager(gameStateManager);
 		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.SETTINGS, settingsHandler);
-		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.UPGRADE_SELECTION, new UpgradeSelectionStateHandler());
 
 		// Добавляем слушателя для логирования изменений состояния
 		gameStateManager.addStateChangeListener((from, to) -> {

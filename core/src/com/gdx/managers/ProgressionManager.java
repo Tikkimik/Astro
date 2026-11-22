@@ -29,7 +29,6 @@ public class ProgressionManager {
     // Доступные улучшения
     private List<Upgrade> availableUpgrades;
     private List<Upgrade> selectedUpgrades;
-    private GameStateManager gameStateManager;
     
     public ProgressionManager() {
         availableUpgrades = new ArrayList<>();
@@ -95,24 +94,6 @@ public class ProgressionManager {
         // Увеличиваем опыт для следующего уровня (как в Magic Survival)
         experienceToNextLevel = (int)(experienceToNextLevel * 1.15f);
         
-        // Показываем экран выбора улучшений
-        showUpgradeScreen();
-    }
-    
-    private void showUpgradeSelection() {
-        // Здесь будет логика показа экрана выбора улучшений
-        // Пока что просто выбираем случайное улучшение
-        selectRandomUpgrade();
-    }
-    
-    public void setGameStateManager(GameStateManager gameStateManager) {
-        this.gameStateManager = gameStateManager;
-    }
-    
-    public void showUpgradeScreen() {
-        if (gameStateManager != null) {
-            gameStateManager.setState(GameStateManager.UPGRADE_SELECTION, this);
-        }
     }
     
     public void selectRandomUpgrade() {

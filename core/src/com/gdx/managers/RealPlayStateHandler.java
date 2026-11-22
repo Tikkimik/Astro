@@ -111,9 +111,7 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
         GameLogger.info("Инициализация настоящей игры...");
 
         try {
-            // Создаем настоящий PlayState
-            // Передаем null для gameStateManager, так как используем новую систему
-            playState = new PlayState(null);
+            playState = new PlayState();
 
             // Инициализируем игру
             playState.init();
