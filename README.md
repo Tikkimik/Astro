@@ -21,10 +21,15 @@
 ## 🎮 Управление
 
 ### Desktop
-- **WASD** - движение корабля
+- **←/→** - поворот корабля
+- **↑** - тяга
 - **Пробел** - стрельба
-- **R** - самонаводящиеся ракеты
-- **ESC** - выход
+- **Esc / P** - пауза
+- **+ / −** - масштаб камеры, **Enter** - сброс масштаба
+- **F** - диагностическая таблица
+- **F11** - полноэкранный режим
+
+Самонаводящиеся ракеты запускаются автоматически. Клавиша **T** добавляет тестовый опыт и предназначена только для разработки.
 
 ### Mobile
 - **Виртуальный джойстик** - движение
@@ -46,7 +51,10 @@
 - **TimeManager** - управление временем и фиксированным шагом
 - **InterpolationManager** - плавная интерполяция для отрисовки
 - **GameConfig** - централизованная конфигурация
-- **GameStateManager** - управление состояниями игры
+- **ImprovedGameStateManager** - управление состояниями приложения
+- **PlayState** - текущее игровое ядро; постепенно отделяется от старой системы состояний
+- **GameObjectManager** - регистрация, обновление и столкновения мировых объектов
+- **WorldManager** - генерация и очистка секторов бесконечного мира
 - **Camera** - система камеры с зумом
 - **Particle System** - система частиц
 
@@ -59,9 +67,12 @@ core/src/com/gdx/
 │   ├── Asteroid.java  # Астероиды
 │   └── Particle.java  # Система частиц
 ├── managers/          # Менеджеры
-│   ├── GameStateManager.java
+│   ├── ImprovedGameStateManager.java
+│   ├── GameObjectManager.java
+│   ├── WorldManager.java
 │   ├── Camera.java
 │   └── AndroidInputManager.java
+├── scenarios/         # Детерминированные проверки механик и визуала
 ├── utils/             # Утилиты
 │   ├── TimeManager.java
 │   ├── InterpolationManager.java
@@ -123,8 +134,10 @@ Times (μs): Camera=5 Background=1 Player=10 Bullets=0
 
 ### Android
 ```bash
-./gradlew android:installDebug
+./build-android-java17.sh
 ```
+
+Android-сборка требует Java 17; core и desktop используют Java 21.
 
 ### Web
 ```bash
@@ -192,11 +205,12 @@ float[] interpolatedPos = InterpolationManager.interpolatePosition(
 ## 📚 Документация
 
 - [SCENARIO_TESTING_PLAN.md](SCENARIO_TESTING_PLAN.md) - Конструктор детерминированных игровых сценариев
-- [FIXED_TIMESTEP_GUIDE.md](FIXED_TIMESTEP_GUIDE.md) - Подробное описание системы фиксированного временного шага
-- [PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) - Руководство по оптимизации производительности
-- [SETTINGS_GUIDE.md](SETTINGS_GUIDE.md) - Руководство по использованию настроек
-- [BUGFIX_REPORT.md](BUGFIX_REPORT.md) - Отчет об исправлении багов
-- [TOOLTIPS_UPDATE.md](TOOLTIPS_UPDATE.md) - Отчет о добавлении подсказок
+- [FUTURE_PLANS.md](FUTURE_PLANS.md) - Отложенные продуктовые направления и архитектурные ориентиры
+- [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) - Текущий игровой flow, наследование и безопасная дорожная карта рефакторинга
+- [ARCHITECTURE_REFACTOR_PLAN.md](ARCHITECTURE_REFACTOR_PLAN.md) - Живой поэтапный план архитектурных изменений
+- [RUNTIME_OWNERSHIP.md](RUNTIME_OWNERSHIP.md) - Фактические владельцы update, render, удаления и ресурсов до рефакторинга
+- [ARCHITECTURE_BASELINE.md](ARCHITECTURE_BASELINE.md) - Проверенная исходная матрица сценариев и визуальных контрольных точек
+- [REVIEW_PLAN.md](REVIEW_PLAN.md) - Исторический снимок первичного ревью; требует сверки с текущим кодом
 
 ## 🎮 Геймплей
 
