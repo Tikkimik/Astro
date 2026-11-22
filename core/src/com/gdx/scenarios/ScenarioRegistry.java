@@ -431,5 +431,130 @@ public final class ScenarioRegistry {
                         context -> context.expectHealth("far", 3))
                 .captureAt(0.08f, "blast")
                 .build());
+
+        register(scenario("enemy-ship-requires-three-bullets")
+                .tags("bullet", "enemy-ship", "damage", "rewards", "logic")
+                .duration(0.4f)
+                .setup(context -> {
+                    float x = context.player().getX() + 120f;
+                    float y = context.player().getY();
+                    context.enemyShip("target", x, y);
+                    context.bullet("first", x - 4f, y, 0f);
+                })
+                .tick((context, elapsed, dt) -> {
+                    context.runOnce("second-shot", elapsed, 0.1f, () -> {
+                        EnemyShip target = context.get("target", EnemyShip.class);
+                        context.bullet("second", target.getX() - 4f, target.getY(), 0f);
+                    });
+                    context.runOnce("third-shot", elapsed, 0.2f, () -> {
+                        EnemyShip target = context.get("target", EnemyShip.class);
+                        context.bullet("third", target.getX() - 4f, target.getY(), 0f);
+                    });
+                })
+                .checkAt(0.08f, "first bullet leaves two health",
+                        context -> context.expectHealth("target", 2))
+                .checkAt(0.18f, "second bullet leaves one health",
+                        context -> context.expectHealth("target", 1))
+                .checkAt(0.18f, "two hits give no score", context -> context.expectScore(0))
+                .checkAt(0.3f, "third bullet destroys ship",
+                        context -> context.expectManaged("target", false))
+                .checkAt(0.3f, "ship destruction gives score", context -> context.expectScore(25))
+                .checkAt(0.3f, "ship destruction gives experience",
+                        context -> context.expectExperience(25))
+                .build());
+
+        register(scenario("large-asteroid-chain-rewards-twenty")
+                .tags("bullet", "asteroid", "splitting", "rewards", "logic")
+                .duration(0.55f)
+                .setup(context -> {
+                    float x = context.player().getX() + 180f;
+                    float y = context.player().getY();
+                    context.asteroid("large", x, y, Asteroid.LARGE);
+                    context.bullet("first", x - 4f, y, 0f);
+                })
+                .tick((context, elapsed, dt) -> {
+                    context.runOnce("destroy-medium", elapsed, 0.12f,
+                            () -> context.shootAllAsteroidsOfType(Asteroid.MEDIUM));
+                    context.runOnce("destroy-small", elapsed, 0.28f,
+                            () -> context.shootAllAsteroidsOfType(Asteroid.SMALL));
+                })
+                .checkAt(0.1f, "large splits into two medium",
+                        context -> context.expectAsteroidCount(Asteroid.MEDIUM, 2))
+                .checkAt(0.1f, "large stage gives no score", context -> context.expectScore(0))
+                .checkAt(0.25f, "medium split into four small",
+                        context -> context.expectAsteroidCount(Asteroid.SMALL, 4))
+                .checkAt(0.25f, "medium stages give no score", context -> context.expectScore(0))
+                .checkAt(0.45f, "all small asteroids destroyed",
+                        context -> context.expectManagedCount(Asteroid.class, 0))
+                .checkAt(0.45f, "chain gives twenty score", context -> context.expectScore(20))
+                .checkAt(0.45f, "chain gives twenty experience",
+                        context -> context.expectExperience(20))
+                .build());
+
+        register(scenario("rocket-explosion-does-not-hurt-player")
+                .tags("rocket", "explosion", "player", "area-damage", "logic")
+                .duration(0.2f)
+                .setup(context -> {
+                    context.disablePlayerShield();
+                    float x = context.player().getX() + 45f;
+                    float y = context.player().getY();
+                    context.enemyShip("target", x, y);
+                    context.rocket("rocket", x - 10f, y, 0f, "target");
+                })
+                .checkAt(0.15f, "rocket explodes", context -> context.expectManaged("rocket", false))
+                .checkAt(0.15f, "player ignores own explosion",
+                        context -> context.expectPlayerHit(false))
+                .build());
+
+        register(scenario("ork-asteroid-does-not-split")
+                .tags("bullet", "ork-asteroid", "splitting", "logic")
+                .duration(0.2f)
+                .setup(context -> {
+                    float x = context.player().getX() + 100f;
+                    float y = context.player().getY();
+                    context.orkAsteroid("target", x, y, OrkAsteroid.LARGE);
+                    context.bullet("first", x - 4f, y, 0f);
+                    context.bullet("second", x - 4f, y, 0f);
+                })
+                .checkAt(0.15f, "ork asteroid destroyed",
+                        context -> context.expectManaged("target", false))
+                .checkAt(0.15f, "no ork fragments created",
+                        context -> context.expectManagedCount(OrkAsteroid.class, 0))
+                .build());
+
+        register(scenario("rockets-may-share-target")
+                .tags("rocket", "targeting", "multiple-projectiles", "logic")
+                .duration(0.75f)
+                .setup(context -> {
+                    float x = context.player().getX();
+                    float y = context.player().getY();
+                    context.enemyShip("target", x + 600f, y);
+                    context.rocket("first", x, y - 10f, 0f, "target");
+                    context.rocket("second", x, y + 10f, 0f, "target");
+                })
+                .checkAt(0.65f, "first rocket keeps shared target",
+                        context -> context.expectRocketTarget("first", "target"))
+                .checkAt(0.65f, "second rocket keeps shared target",
+                        context -> context.expectRocketTarget("second", "target"))
+                .build());
+
+        register(scenario("rocket-keeps-flying-after-target-loss")
+                .tags("rocket", "targeting", "movement", "logic")
+                .duration(0.9f)
+                .setup(context -> {
+                    float x = context.player().getX();
+                    float y = context.player().getY();
+                    context.enemyShip("lost", x + 100f, y);
+                    context.rocket("rocket", x, y, 0f, "lost");
+                    context.rememberPosition("launch", "rocket");
+                    context.destroyEnemy("lost");
+                })
+                .checkAt(0.8f, "rocket has no replacement target",
+                        context -> context.expectRocketHasNoTarget("rocket"))
+                .checkAt(0.8f, "untargeted rocket remains active",
+                        context -> context.expectManaged("rocket", true))
+                .checkAt(0.8f, "untargeted rocket keeps moving",
+                        context -> context.expectMovedAtLeast("rocket", "launch", 20f))
+                .build());
     }
 }

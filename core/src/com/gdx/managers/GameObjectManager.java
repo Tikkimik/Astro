@@ -455,7 +455,7 @@ public class GameObjectManager {
             if (!projectile.isActive() || projectile.shouldRemove()) continue;
 
             for (GameObject obstacle : obstacles) {
-                if (!obstacle.isActive()) continue;
+                if (!obstacle.isActive() || obstacle.shouldRemove()) continue;
 
                 OrkBullet enemyBullet = projectile.as(OrkBullet.class);
                 if (enemyBullet != null && enemyBullet.getOwner() == obstacle.getObject()) continue;
@@ -474,7 +474,7 @@ public class GameObjectManager {
             if (!projectile.isActive() || projectile.shouldRemove()) continue;
 
             for (GameObject enemy : enemies) {
-                if (!enemy.isActive()) continue;
+                if (!enemy.isActive() || enemy.shouldRemove()) continue;
 
                 OrkBullet enemyBullet = projectile.as(OrkBullet.class);
                 if (enemyBullet != null && enemyBullet.getOwner() == enemy.getObject()) continue;
@@ -511,7 +511,7 @@ public class GameObjectManager {
         if (player == null || !player.isActive()) return;
 
         for (GameObject obstacle : obstacles) {
-            if (!obstacle.isActive()) continue;
+            if (!obstacle.isActive() || obstacle.shouldRemove()) continue;
 
             if (player.intersects(obstacle)) {
                 handlePlayerObstacleCollision(player, obstacle);
@@ -523,7 +523,7 @@ public class GameObjectManager {
         if (player == null || !player.isActive()) return;
 
         for (GameObject enemy : enemies) {
-            if (!enemy.isActive()) continue;
+            if (!enemy.isActive() || enemy.shouldRemove()) continue;
 
             if (player.intersects(enemy)) {
                 handlePlayerEnemyCollision(player, enemy);

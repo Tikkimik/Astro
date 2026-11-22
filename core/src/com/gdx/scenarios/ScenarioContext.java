@@ -15,14 +15,18 @@ import com.gdx.gamestates.PlayState;
 import com.gdx.managers.GameObjectManager;
 import com.gdx.utils.ObjectPools;
 
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 public final class ScenarioContext {
 
     private final PlayState playState;
     private final GameObjectManager objects;
     private final Map<String, SpaceObject> ids = new LinkedHashMap<>();
+    private final Map<String, float[]> positionSnapshots = new LinkedHashMap<>();
+    private final Set<String> completedActions = new HashSet<>();
 
     ScenarioContext(PlayState playState) {
         this.playState = playState;
@@ -127,6 +131,30 @@ public final class ScenarioContext {
         }
     }
 
+    public void expectManagedCount(Class<? extends SpaceObject> type, int expected) {
+        int actual = 0;
+        for (GameObject object : objects.getAllObjects()) {
+            if (object.isActive() && !object.shouldRemove() && type.isInstance(object.getObject())) actual++;
+        }
+        if (actual != expected) {
+            throw new AssertionError(type.getSimpleName() + " count: expected=" + expected
+                    + ", actual=" + actual);
+        }
+    }
+
+    public void expectAsteroidCount(int type, int expected) {
+        int actual = 0;
+        for (GameObject object : objects.getObstacles()) {
+            Asteroid asteroid = object.as(Asteroid.class);
+            if (object.isActive() && !object.shouldRemove()
+                    && asteroid != null && asteroid.getType() == type) actual++;
+        }
+        if (actual != expected) {
+            throw new AssertionError("asteroid type " + type + " count: expected=" + expected
+                    + ", actual=" + actual);
+        }
+    }
+
     public void expectHealth(String id, int expected) {
         int actual = get(id, Enemy.class).getHealth();
         if (actual != expected) {
@@ -185,6 +213,49 @@ public final class ScenarioContext {
             String actualName = actual == null ? "none" : actual.getEnemyType();
             throw new AssertionError(rocketId + " target: expected=" + expectedTargetId
                     + ", actual=" + actualName);
+        }
+    }
+
+    public void expectRocketHasNoTarget(String rocketId) {
+        Enemy actual = get(rocketId, AutoRocket.class).getTarget();
+        if (actual != null) {
+            throw new AssertionError(rocketId + " target: expected=none, actual="
+                    + actual.getEnemyType());
+        }
+    }
+
+    public void rememberPosition(String snapshotId, String objectId) {
+        SpaceObject object = get(objectId, SpaceObject.class);
+        if (positionSnapshots.putIfAbsent(snapshotId,
+                new float[]{object.getX(), object.getY()}) != null) {
+            throw new IllegalArgumentException("Duplicate position snapshot: " + snapshotId);
+        }
+    }
+
+    public void expectMovedAtLeast(String objectId, String snapshotId, float expectedDistance) {
+        SpaceObject object = get(objectId, SpaceObject.class);
+        float[] start = positionSnapshots.get(snapshotId);
+        if (start == null) throw new AssertionError("Unknown position snapshot: " + snapshotId);
+        float dx = object.getX() - start[0];
+        float dy = object.getY() - start[1];
+        float actualDistance = (float) Math.sqrt(dx * dx + dy * dy);
+        if (actualDistance < expectedDistance) {
+            throw new AssertionError(objectId + " distance: expected at least=" + expectedDistance
+                    + ", actual=" + actualDistance);
+        }
+    }
+
+    public void runOnce(String actionId, float elapsed, float time, Runnable action) {
+        if (elapsed >= time && completedActions.add(actionId)) action.run();
+    }
+
+    public void shootAllAsteroidsOfType(int type) {
+        for (GameObject object : objects.getObstacles().toArray(GameObject.class)) {
+            Asteroid asteroid = object.as(Asteroid.class);
+            if (object.isActive() && !object.shouldRemove()
+                    && asteroid != null && asteroid.getType() == type) {
+                objects.addBullet(new Bullet(asteroid.getX() - 4f, asteroid.getY(), 0f));
+            }
         }
     }
 
