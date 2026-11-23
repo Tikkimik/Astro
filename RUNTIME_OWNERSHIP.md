@@ -2,7 +2,7 @@
 
 ## Статус
 
-Карта описывает фактический код после этапа 4 архитектурного рефакторинга. Это диагностический документ, а не целевая модель. Колонка «Пробел» отмечает неоднозначности, которые следующие этапы должны устранять по одной.
+Карта описывает фактический код в ходе этапа 5 архитектурного рефакторинга. Это диагностический документ, а не целевая модель. Колонка «Пробел» отмечает неоднозначности, которые следующие этапы должны устранять по одной.
 
 ## Приложение и экраны
 
@@ -19,8 +19,9 @@
 
 | Объект/ресурс | Создаёт и хранит | Update | Render | Удаление/очистка | Пробел |
 |---|---|---|---|---|---|
-| `PlayState` | `RealPlayStateHandler` | handler → `PlayState.update()` | handler → `PlayState.draw()` | `RealPlayStateHandler.onDispose()` вызывает `PlayState.dispose()` | Всё ещё совмещает orchestration, renderer и HUD; игровые данные вынесены в `GameSession` |
-| `GameSession` | `PlayState` создаёт один раз на новый забег | детерминированное время обновляется из fixed tick | не рисует | живёт и очищается вместе с `PlayState` | `PlayState` пока хранит внутренние быстрые ссылки на объекты сессии до разделения simulation/presentation |
+| `PlayState` | `RealPlayStateHandler` | координирует `GameSimulation`, presentation и HUD | пока содержит render-проходы мира и debug overlay | `RealPlayStateHandler.onDispose()` вызывает `PlayState.dispose()` | World renderer и debug overlay ещё не выделены |
+| `GameSession` | `PlayState` создаёт один раз на новый забег | детерминированное время обновляет `GameSimulation` | не рисует | живёт и очищается вместе с `PlayState` | `PlayState` пока хранит быстрые ссылки на player/object/world для render и совместимости API |
+| `GameSimulation` | `PlayState` | применяет controls, обновляет session/world/player/objects, targeting и collision | не рисует | живёт вместе с `PlayState` | Разделён на `beginTick/finishTick`, чтобы сохранить presentation update между историческими фазами pipeline |
 | `Camera` | `GamePresentation` | `GamePresentation.updateView()` | читается render-проходами через presentation | явной очистки не требует | Зависит от глобальных размеров `MyGdxGame` |
 | `Background` | `GamePresentation` | `GamePresentation.updateView()` | пока вызывается координатором `PlayState` | живёт вместе с presentation | Render-проходы мира ещё не собраны в отдельный renderer |
 | `GameHudRenderer` | `PlayState` | обновляет только локальную анимацию HUD из `GameHudView` | владеет HUD-проходами `SpriteBatch`/`ShapeRenderer` | не владеет GPU-ресурсами | Общий font пока разделяется с debug overlay |
@@ -31,13 +32,13 @@
 
 | Семейство | Создание | Фактический владелец коллекции | Update | Render | Удаление |
 |---|---|---|---|---|---|
-| `Player` | `PlayState` | прямая ссылка `PlayState` + wrapper в `GameObjectManager.allObjects` | отдельно в `PlayState`; wrapper не обновляет его, так как `Player` не реализует `Updatable` | отдельно в `PlayState` | `Player.dispose()` есть; вызывается только из недостигаемого сейчас `PlayState.dispose()` |
+| `Player` | `PlayState` | прямая ссылка `PlayState` + wrapper в `GameObjectManager.allObjects` | отдельно через `GameSimulation`; wrapper не обновляет его, так как `Player` не реализует `Updatable` | отдельно в `PlayState` | Entity по-прежнему совмещает simulation и собственный render |
 | `Asteroid` | `WorldManager`, split или scenario setup | `GameObjectManager` | `GameObjectManager` | `GameObjectManager` | mark/remove в менеджере |
 | `OrkAsteroid` | `WorldManager` или scenario setup | `GameObjectManager.obstacles` | `GameObjectManager` | `GameObjectManager` | mark/remove; стреляет через ссылку на менеджер |
 | `EnemyShip` | `WorldManager` или scenario setup | `GameObjectManager.enemies` | `GameObjectManager` | корпус через менеджер, smoke отдельным manager-pass | remove вызывает `EnemyShip.dispose()` |
 | `Bullet` | `Player`/scenario, регистрирует `GameObjectManager` | `GameObjectManager.projectiles` | `GameObjectManager` | `GameObjectManager` | wrapper mark/remove; обычные bullet не возвращаются в pool в `removeObject` |
 | `OrkBullet` | enemy entity, регистрирует `GameObjectManager` | `GameObjectManager.projectiles` | `GameObjectManager` | `GameObjectManager` | wrapper mark/remove |
-| `AutoRocket` | `PlayState`/scenario, регистрирует `GameObjectManager` | `GameObjectManager.projectiles` | `GameObjectManager` | rocket через менеджер, trail отдельным manager-pass | возвращается в `ObjectPools` |
+| `AutoRocket` | `GameSimulation`/scenario, регистрирует `GameObjectManager` | `GameObjectManager.projectiles` | `GameObjectManager` | rocket через менеджер, trail отдельным manager-pass | возвращается в `ObjectPools` |
 | Секторы мира | `WorldManager` | `WorldManager.loadedSectors` | `WorldManager` | не рисуются напрямую | ключи загруженных секторов не удаляются при cleanup объектов |
 | Spatial grid | `WorldManager` | `WorldManager` | перестраивается каждый tick | — | сейчас не используется основным collision detection |
 
@@ -60,7 +61,7 @@
 
 | Шаг | Текущий владелец | Наблюдение |
 |---|---|---|
-| Player ↔ obstacle предварительная проверка | `PlayState.checkCollisions()` | Наносит hit и создаёт ship explosion |
+| Player ↔ obstacle предварительная проверка | `GameSimulation` | Наносит hit и создаёт ship explosion через presentation callback |
 | Все основные пары столкновений | `GameObjectManager.checkCollisions()` | Повторно проверяет player ↔ obstacle, а также projectiles/enemies/player |
 | Прямой и splash damage | `GameObjectManager` | Связан с type checks и конкретными классами |
 | Split обычного астероида | `GameObjectManager` | Создаёт дочерние стадии и вызывает listener |
@@ -72,15 +73,15 @@
 | Шаг | Владелец | Наблюдение |
 |---|---|---|
 | OS events | `GameInputProcessor` или `AndroidInputManager` | Записывают глобальное состояние `GameKeys`/mobile input |
-| Fixed tick input | `PlayState.update()` вызывает `handleInput()` | Может выполняться несколько раз за render frame |
-| Frame input | `ImprovedGameStateManager.handleInput()` → `RealPlayStateHandler` → `PlayState.handleInput()` | Второй вызов после fixed ticks |
+| Fixed tick input | `PlayState.update()` передаёт стабильный `PlayerControls` в `GameSimulation` | Один снимок непрерывного ввода применяется ко всем fixed ticks кадра |
+| Frame input | `ImprovedGameStateManager.handleInput()` → `RealPlayStateHandler` → `PlayState.handleInput()` | Снимает held-состояние и отдельно потребляет одноразовые команды |
 | Edge reset | `MyGdxGame.render()` вызывает `GameKeys.update()` | Происходит один раз в конце render frame |
 
-Двойной путь ввода — первый runtime-кандидат на исправление после завершения baseline.
+Повторное применение одноразовых команд устранено на этапе 1; непрерывное состояние намеренно повторяется на каждом fixed tick.
 
 ## Ближайшие решения
 
-1. На этапе 5 разделить simulation pipeline и presentation без изменения боевых контрактов.
-2. Убрать внутренние быстрые ссылки `PlayState` после появления отдельного simulation-владельца.
+1. Завершить этап 5 выделением debug overlay/метрик и стабилизацией render-проходов.
+2. Убирать внутренние быстрые ссылки `PlayState` по мере выделения world renderer, не создавая параллельных владельцев.
 3. Не считать in-memory snapshot форматом долговременного сохранения: для него потребуется отдельный сериализуемый DTO и фабрики сущностей.
 4. Пересматривать эту карту после каждого завершённого архитектурного этапа.

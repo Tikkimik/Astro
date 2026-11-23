@@ -258,7 +258,7 @@ enter → active → exit
 
 Цель: сделать порядок игровой логики явным, а рендер — побочным представлением состояния.
 
-Статус: выполняется. HUD и его анимация вынесены в `GameHudRenderer`, данные передаются через immutable `GameHudView`. Камера, фон и визуальные эффекты принадлежат `GamePresentation`, который самостоятельно выполняет их update/dispose. Следующий шаг — выделить gameplay simulation pipeline и debug overlay, сохранив текущий порядок боевых операций.
+Статус: выполняется. HUD и его анимация вынесены в `GameHudRenderer`, данные передаются через immutable `GameHudView`. Камера, фон и визуальные эффекты принадлежат `GamePresentation`, который самостоятельно выполняет их update/dispose. Fixed-tick gameplay pipeline вынесен в `GameSimulation`; `PlayState` координирует две его фазы вокруг presentation update, чтобы не менять существующий порядок эффектов и столкновений. Следующий шаг — выделить debug overlay и метрики.
 
 ### 5.1. Зафиксировать pipeline симуляции
 
@@ -276,26 +276,23 @@ spawn/world streaming
 
 Порядок уточняется по существующим контрактам сценариев.
 
-Фактический порядок на начало этапа 5:
+Фактический порядок после выделения `GameSimulation`:
 
 ```text
-session time
-→ camera/background update (presentation)
-→ player input application
-→ world streaming/spawn
-→ scenario beforeUpdate
-→ player movement
-→ GameObjectManager update and cleanup
-→ visual particles/effects update (presentation)
-→ HUD animation update (presentation)
-→ target cache and automatic rocket spawn
-→ PlayState player/obstacle collision pass
-→ GameObjectManager collision detection and resolution
-→ rewards through listeners
-→ scenario afterUpdate
+GamePresentation view update
+→ GameSimulation.beginTick:
+  session time → controls → world streaming/spawn → scenario beforeUpdate
+  → player movement → GameObjectManager update and cleanup
+→ GamePresentation effects update
+→ GameHudRenderer animation update
+→ GameSimulation.finishTick:
+  target cache/automatic rocket spawn
+  → preliminary player/obstacle collision pass
+  → GameObjectManager collision detection and resolution
+  → rewards through listeners → scenario afterUpdate
 ```
 
-Главный обнаруженный пробел: simulation и presentation перемешаны внутри одного метода, а player/obstacle collision имеет два прохода. Дублирование collision относится к этапу 7 и не переставляется одновременно с текущим переносом.
+Две фазы simulation пока нужны для сохранения наблюдаемого порядка: визуальные эффекты и HUD обновляются после движения объектов, но до targeting/collision. После очистки боевого pipeline эту границу можно упростить. Player/obstacle collision всё ещё имеет два прохода; его устранение относится к этапу 7 и не смешивается с текущим переносом.
 
 ### 5.2. Выделить HUD
 
@@ -525,3 +522,4 @@ GameServices or GameContext
 - 2026-11-23 — завершён этап 2: введён финальный `onDispose`, закрыты ресурсы экранов и общие GPU-кэши, удалён неиспользуемый `push/pop`, сохранение перенесено с технического выхода на финализацию; прошли 30 logic- и 38 полных сценариев, вручную проверена цепочка MENU → SETTINGS → MENU → PLAYING → PAUSED → SETTINGS → PAUSED → MENU → EXIT.
 - 2026-11-23 — завершён этап 3: удалены старые `GameStateManager`, базовый `GameState`, недостижимые экраны и placeholder выбора улучшений; `PlayState` стал самостоятельным игровым объектом, а progression отвязан от навигации. Прошли компиляция, 30 logic- и 38 полных сценариев; осмотрен свежий кадр `straight`.
 - 2026-11-23 — завершён этап 4: добавлены `GameSession` и immutable `GameSessionSnapshot`, старый неполный `GameState` удалён, snapshot восстанавливает счёт, progression, время и состав активных объектов. Добавлен сценарий `session-snapshot-round-trip`; прошли 31 logic- и 39 полных сценариев, вручную проверен pause/resume без повторного создания session. Файловая сериализация осознанно оставлена за границей этапа.
+- 2026-11-23 — этап 5: HUD, presentation-state и fixed-tick gameplay pipeline получили отдельных владельцев. `GameSimulation` сохраняет прежний порядок через `beginTick/finishTick`; сценарий восстановления выявил и защитил особый порядок setup. Прошли 31 logic- и 39 полных сценариев, осмотрен свежий кадр `straight`. Следующий подэтап — debug overlay и метрики.

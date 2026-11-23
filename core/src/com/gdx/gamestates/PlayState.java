@@ -5,7 +5,6 @@ import com.badlogic.gdx.math.MathUtils;
 import com.gdx.entities.Asteroid;
 import com.gdx.entities.AutoRocket;
 import com.gdx.entities.Bullet;
-import com.gdx.entities.Enemy;
 import com.gdx.entities.OrkAsteroid;
 import com.gdx.entities.OrkBullet;
 import com.gdx.entities.Particle;
@@ -24,7 +23,6 @@ import com.gdx.managers.AndroidInputManager;
 import com.gdx.managers.WorldManager;
 import com.gdx.managers.ProgressionManager;
 import com.gdx.managers.GameObjectManager;
-import com.gdx.entities.GameObject;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.FPSLogger;
 import com.badlogic.gdx.graphics.Texture;
@@ -49,6 +47,8 @@ import com.gdx.session.GameSessionSnapshot;
 import com.gdx.presentation.GameHudRenderer;
 import com.gdx.presentation.GameHudView;
 import com.gdx.presentation.GamePresentation;
+import com.gdx.simulation.GameSimulation;
+import com.gdx.simulation.PlayerControls;
 
 public class PlayState implements Disposable {
 
@@ -63,13 +63,7 @@ public class PlayState implements Disposable {
     // Счётчики рендера (culling) и копия границ камеры для ParticleBudget
     private final RenderStats renderStats = new RenderStats();
 
-    // Таймер для автоматических ракет
-    private final float AUTO_ROCKET_INTERVAL = 1f; // Интервал в секундах
-
-    // Кэш для ближайшего врага
-    private Enemy cachedNearestEnemy = null;
-    private float enemyCacheTimer = 0f;
-    private final float ENEMY_CACHE_DURATION = 0.1f; // Обновляем каждые 0.1 секунды
+    private GameSimulation simulation;
 
     // FPS счетчик
     private FPSLogger fpsLogger;
@@ -110,9 +104,7 @@ public class PlayState implements Disposable {
 
     // Флаг для предотвращения повторной инициализации
     private boolean isInitialized = false;
-    private boolean isRestoredFromSave = false;
-    private boolean autoRocketLeftSide = true; // Флаг для чередования сторон авторакет
-    private ScenarioRunner scenarioRunner;
+    private boolean restoredFromSave;
 
     public PlayState() {
     }
@@ -174,7 +166,9 @@ public class PlayState implements Disposable {
         session = new GameSession(player, gameObjectManager, worldManager,
                 progressionManager, MyGdxGame.highScore);
 
-        scenarioRunner = ScenarioRuntime.attach(this);
+        ScenarioRunner scenarioRunner = ScenarioRuntime.attach(this);
+        simulation = new GameSimulation(session, scenarioRunner, this::createShipExplosion);
+        simulation.setRestoredFromSave(restoredFromSave);
 
         // Инициализируем FPS счетчик
         fpsLogger = new FPSLogger();
@@ -276,33 +270,6 @@ public class PlayState implements Disposable {
         MyGdxGame.highScore = session.getHighScore();
     }
 
-    // Найти ближайшего врага к игроку (оптимизированная версия)
-    private Enemy findNearestEnemy() {
-        return gameObjectManager.findNearestEnemy(
-                player.getX(), player.getY(), AutoRocket.DETECTION_RANGE);
-    }
-
-    // Создать автоматическую ракету
-    private void createAutoRocket() {
-        if (cachedNearestEnemy != null) {
-            float dx = cachedNearestEnemy.getX() - player.getX();
-            float dy = cachedNearestEnemy.getY() - player.getY();
-            float dist = (float) Math.sqrt(dx * dx + dy * dy);
-            if (dist > AutoRocket.DETECTION_RANGE) return;
-
-            float rocketAngle;
-            if (autoRocketLeftSide) {
-                rocketAngle = player.getRadians() + MathUtils.HALF_PI;
-            } else {
-                rocketAngle = player.getRadians() - MathUtils.HALF_PI;
-            }
-
-            gameObjectManager.addAutoRocket(com.gdx.utils.ObjectPools.obtainAutoRocket(player.getX(), player.getY(), rocketAngle, cachedNearestEnemy));
-
-            autoRocketLeftSide = !autoRocketLeftSide;
-        }
-    }
-
     private void spawnAsteroids() {
         // Очищаем старые астероиды через GameObjectManager
         // GameObjectManager сам управляет очисткой
@@ -356,25 +323,6 @@ public class PlayState implements Disposable {
         }
     }
 
-    private void checkCollisions() {
-        if(!player.isHit() && !player.isInvulnerable()) {
-            for (GameObject obj : gameObjectManager.getObstacles()) {
-                if (obj.intersects(player)) {
-                    player.hit();
-                    createShipExplosion(player.getX(), player.getY());
-
-                    if (obj.isAsteroid()) {
-                        Asteroid asteroid = obj.as(Asteroid.class);
-                        if (asteroid != null) {
-                            gameObjectManager.splitAsteroid(asteroid);
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
     public void update(float dt) {
 //        System.out.println("PLAY STATE UPDATING");
 
@@ -387,96 +335,24 @@ public class PlayState implements Disposable {
             dt = 0.016f; // Принудительно устанавливаем 60 FPS
         }
 
-        session.updateTime(dt);
-
-        // Применяем улучшения к игровым объектам (если есть новые)
-        // progressionManager.applyUpgradesToGameObjects(player, autoRockets, bullets);
-
-        // Начинаем профилирование
-        long startTime = System.nanoTime();
-
         GamePresentation.ViewTimings presentationTimings = presentation.updateView(dt, player);
         cameraTime = presentationTimings.cameraNanos();
         backgroundTime = presentationTimings.backgroundNanos();
 
-        applyPlayerInput();
-
-        // Обновляем бесконечный мир
-        if (!ScenarioRuntime.isActive()) {
-            worldManager.update(dt, isRestoredFromSave);
+        GameSimulation.BeginTickResult simulationResult = simulation.beginTick(dt,
+                new PlayerControls(inputLeft, inputRight, inputUp, inputFire),
+                ScenarioRuntime.isActive());
+        playerTime = simulationResult.playerNanos();
+        bulletsTime = simulationResult.objectsNanos();
+        asteroidsTime = rocketsTime = orkTime = 0L;
+        if (simulationResult.playerReset()) {
+            System.out.println("Player умер, сбрасываем...");
+            return;
         }
-
-        //next level (теперь не нужен, так как мир бесконечный)
-        // if(asteroids.size == 0 && orkAsteroids.size == 0) {
-        //     level++;
-        //     spawnAsteroids();
-        //     spawnOrkAsteroids();
-        // }
-
-        //update player
-        long playerStart = System.nanoTime();
-        if (scenarioRunner != null) scenarioRunner.beforeUpdate(dt);
-        if (player != null) {
-            player.update(dt);
-            if (player.isDead()) {
-                System.out.println("Player умер, сбрасываем...");
-                player.reset();
-                return;
-            }
-        } else {
-            System.out.println("ОШИБКА: Player == null в update!");
-        }
-        playerTime = System.nanoTime() - playerStart;
-
-        //update player bullets
-        long bulletsStart = System.nanoTime();
-        // Обновляем все объекты через GameObjectManager
-        gameObjectManager.update(dt);
-        bulletsTime = System.nanoTime() - bulletsStart;
-
-        //update asteroids
-        long asteroidsStart = System.nanoTime();
-        // GameObjectManager уже обновил все объекты
-        asteroidsTime = System.nanoTime() - asteroidsStart;
 
         particlesTime = presentation.updateEffects(dt);
-
-                //update auto rockets
-        long rocketsStart = System.nanoTime();
-        // GameObjectManager уже обновил все объекты
-        rocketsTime = System.nanoTime() - rocketsStart;
-
-        //update ork asteroids and bullets
-        long orkStart = System.nanoTime();
-        // GameObjectManager уже обновил все объекты
-
         hudRenderer.update(dt, createHudView());
-
-        // GameObjectManager уже обновил все объекты
-        orkTime = System.nanoTime() - orkStart;
-
-        // Обновляем кэш ближайшего врага
-        enemyCacheTimer += dt;
-        if (enemyCacheTimer >= ENEMY_CACHE_DURATION) {
-            cachedNearestEnemy = findNearestEnemy();
-            enemyCacheTimer = 0f;
-        }
-
-        //create auto rocket every second
-        if (!ScenarioRuntime.isActive()) {
-            session.addAutoRocketTime(dt);
-            if(session.getAutoRocketTimer() >= AUTO_ROCKET_INTERVAL) {
-                createAutoRocket();
-                session.resetAutoRocketTimer();
-            }
-        }
-
-        //check collisions
-        long collisionsStart = System.nanoTime();
-        checkCollisions();
-        gameObjectManager.checkCollisions();
-        if (scenarioRunner != null) scenarioRunner.afterUpdate(dt);
-        collisionsTime = System.nanoTime() - collisionsStart;
+        collisionsTime = simulation.finishTick(dt, ScenarioRuntime.isActive());
 
         // Обновляем FPS счетчик - подсчет кадров
         if (showFPS) {
@@ -712,15 +588,6 @@ public class PlayState implements Disposable {
         }
     }
 
-    private void applyPlayerInput() {
-        player.setLeft(inputLeft);
-        player.setRight(inputRight);
-        player.setUp(inputUp);
-        if (inputFire) {
-            player.shoot();
-        }
-    }
-
     // Геттеры для применения улучшений
     public Player getPlayer() {
         return session.getPlayer();
@@ -782,8 +649,8 @@ public class PlayState implements Disposable {
                 player.recreateTextureIfNeeded();
             }
 
-            // Отмечаем, что состояние восстановлено из сохранения
-            isRestoredFromSave = true;
+            restoredFromSave = true;
+            if (simulation != null) simulation.setRestoredFromSave(true);
         }
     }
 
