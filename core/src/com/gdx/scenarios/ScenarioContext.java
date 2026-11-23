@@ -167,7 +167,7 @@ public final class ScenarioContext {
     public void expectManagedCount(Class<? extends SpaceObject> type, int expected) {
         int actual = 0;
         for (GameObject object : objects.getAllObjects()) {
-            if (object.isActive() && !object.shouldRemove() && type.isInstance(object.getObject())) actual++;
+            if (!object.shouldRemove() && type.isInstance(object.getObject())) actual++;
         }
         if (actual != expected) {
             throw new AssertionError(type.getSimpleName() + " count: expected=" + expected
@@ -179,7 +179,7 @@ public final class ScenarioContext {
         int actual = 0;
         for (GameObject object : objects.getObstacles()) {
             Asteroid asteroid = object.as(Asteroid.class);
-            if (object.isActive() && !object.shouldRemove()
+            if (!object.shouldRemove()
                     && asteroid != null && asteroid.getType() == type) actual++;
         }
         if (actual != expected) {
@@ -297,7 +297,7 @@ public final class ScenarioContext {
     public void shootAllAsteroidsOfType(int type) {
         for (GameObject object : objects.getObstacles().toArray(GameObject.class)) {
             Asteroid asteroid = object.as(Asteroid.class);
-            if (object.isActive() && !object.shouldRemove()
+            if (!object.shouldRemove()
                     && asteroid != null && asteroid.getType() == type) {
                 objects.addBullet(new Bullet(asteroid.getX() - 4f, asteroid.getY(), 0f));
             }

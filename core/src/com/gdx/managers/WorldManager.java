@@ -235,7 +235,7 @@ public class WorldManager {
         
         // Добавляем все объекты в сетку через GameObjectManager
         for (GameObject obj : gameObjectManager.getAllObjects()) {
-            if (obj.isActive()) {
+            if (!obj.shouldRemove()) {
                 spatialGrid.add(obj.getObject());
             }
         }

@@ -268,9 +268,9 @@ public class GameObjectManager {
     }
 
     private Enemy nearerEnemy(GameObject object, float x, float y, Enemy current, float currentDistanceSquared) {
-        if (!object.isActive()) return current;
+        if (object.shouldRemove()) return current;
         Enemy candidate = object.as(Enemy.class);
-        if (candidate == null || candidate.shouldRemove()) return current;
+        if (candidate == null) return current;
         float candidateDistanceSquared = distanceSquared(candidate, x, y);
         return candidateDistanceSquared < currentDistanceSquared
                 || (current == null && candidateDistanceSquared == currentDistanceSquared)
@@ -305,8 +305,9 @@ public class GameObjectManager {
                 continue;
             }
 
-            if (obj.isActive()) {
-                obj.update(dt);
+            obj.update(dt);
+            if (obj.shouldRemove()) {
+                removeObject(obj);
             }
         }
 
@@ -340,7 +341,7 @@ public class GameObjectManager {
 
     private void drawProjectiles(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch, RenderStats stats) {
         for (GameObject obj : projectiles) {
-            if (!obj.isActive()) continue;
+            if (obj.shouldRemove()) continue;
             stats.projectilesActive++;
             float radius = Math.max(1f, obj.getWidth() / 2f);
             if (camera.isInRenderBounds(obj.getX(), obj.getY(), radius)) {
@@ -355,7 +356,7 @@ public class GameObjectManager {
 
     private void drawObstacles(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch, RenderStats stats) {
         for (GameObject obj : obstacles) {
-            if (!obj.isActive()) continue;
+            if (obj.shouldRemove()) continue;
             stats.obstaclesActive++;
             float radius = Math.max(1f, obj.getWidth() / 2f);
             if (camera.isInRenderBounds(obj.getX(), obj.getY(), radius)) {
@@ -370,7 +371,7 @@ public class GameObjectManager {
 
     private void drawEnemies(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch, RenderStats stats) {
         for (GameObject obj : enemies) {
-            if (!obj.isActive()) continue;
+            if (obj.shouldRemove()) continue;
             stats.enemiesActive++;
             float radius = Math.max(1f, obj.getWidth() / 2f);
             boolean shipInView = camera.isInRenderBounds(obj.getX(), obj.getY(), radius);
@@ -433,7 +434,7 @@ public class GameObjectManager {
     public void drawEnemySmoke(SpriteBatch spriteBatch, Camera camera, RenderStats stats) {
         spriteBatch.begin();
         for (GameObject obj : enemies) {
-            if (!obj.isActive()) continue;
+            if (obj.shouldRemove()) continue;
             EnemyShip es = obj.as(EnemyShip.class);
             if (es == null) continue;
             for (SmokeParticle p : es.getSmokeParticles()) {
@@ -484,10 +485,10 @@ public class GameObjectManager {
 
     private void checkProjectileObstacleCollisions() {
         for (GameObject projectile : projectiles) {
-            if (!projectile.isActive() || projectile.shouldRemove()) continue;
+            if (projectile.shouldRemove()) continue;
 
             for (GameObject obstacle : obstacles) {
-                if (!obstacle.isActive() || obstacle.shouldRemove()) continue;
+                if (obstacle.shouldRemove()) continue;
 
                 OrkBullet enemyBullet = projectile.as(OrkBullet.class);
                 if (enemyBullet != null && enemyBullet.getOwner() == obstacle.getObject()) continue;
@@ -503,10 +504,10 @@ public class GameObjectManager {
 
     private void checkProjectileEnemyCollisions() {
         for (GameObject projectile : projectiles) {
-            if (!projectile.isActive() || projectile.shouldRemove()) continue;
+            if (projectile.shouldRemove()) continue;
 
             for (GameObject enemy : enemies) {
-                if (!enemy.isActive() || enemy.shouldRemove()) continue;
+                if (enemy.shouldRemove()) continue;
 
                 OrkBullet enemyBullet = projectile.as(OrkBullet.class);
                 if (enemyBullet != null && enemyBullet.getOwner() == enemy.getObject()) continue;
@@ -524,7 +525,7 @@ public class GameObjectManager {
         if (player == null) return;
 
         for (GameObject projectile : projectiles) {
-            if (!projectile.isActive() || projectile.shouldRemove()) continue;
+            if (projectile.shouldRemove()) continue;
 
             // Игрока задевают только вражеские пули
             if (!projectile.isOrkBullet()) continue;
@@ -540,7 +541,7 @@ public class GameObjectManager {
         if (player == null) return;
 
         for (GameObject obstacle : obstacles) {
-            if (!obstacle.isActive() || obstacle.shouldRemove()) continue;
+            if (obstacle.shouldRemove()) continue;
 
             if (player.intersects(obstacle.getObject())) {
                 handlePlayerObstacleCollision();
@@ -552,7 +553,7 @@ public class GameObjectManager {
         if (player == null) return;
 
         for (GameObject enemy : enemies) {
-            if (!enemy.isActive() || enemy.shouldRemove()) continue;
+            if (enemy.shouldRemove()) continue;
 
             if (player.intersects(enemy.getObject())) {
                 handlePlayerEnemyCollision();
@@ -655,7 +656,7 @@ public class GameObjectManager {
         int initialSize = source.size;
         for (int i = 0; i < initialSize; i++) {
             GameObject candidate = source.get(i);
-            if (candidate == directTarget || !candidate.isActive() || candidate.shouldRemove()) continue;
+            if (candidate == directTarget || candidate.shouldRemove()) continue;
             if (distanceSquared(candidate.getObject(), x, y) <= radiusSquared) targets.add(candidate);
         }
     }

@@ -20,7 +20,6 @@ public class GameObject {
     
     private SpaceObject object;
     private Type type;
-    private boolean active = true;
     private boolean remove = false;
     
     public GameObject(SpaceObject object, Type type) {
@@ -31,11 +30,8 @@ public class GameObject {
     // Геттеры
     public SpaceObject getObject() { return object; }
     public Type getType() { return type; }
-    public boolean isActive() { return active; }
-    public boolean shouldRemove() { return remove; }
+    public boolean shouldRemove() { return remove || object.shouldRemove(); }
     
-    // Сеттеры
-    public void setActive(boolean active) { this.active = active; }
     public void markForRemoval() { this.remove = true; }
     
     // Делегирование методов SpaceObject
@@ -88,9 +84,6 @@ public class GameObject {
     public void update(float dt) {
         if (object instanceof Updatable) {
             ((Updatable) object).update(dt);
-            if (object.shouldRemove()) {
-                markForRemoval();
-            }
         }
     }
     
