@@ -50,6 +50,7 @@ public final class GamePresentation {
             Particle particle = particles.get(i);
             particle.update(delta);
             if (particle.shouldRemove()) {
+                ObjectPools.freeParticle(particle);
                 particles.removeIndex(i);
                 ParticleBudget.release(1);
                 i--;
@@ -74,6 +75,9 @@ public final class GamePresentation {
     }
 
     public void dispose() {
+        for (Particle particle : particles) {
+            ObjectPools.freeParticle(particle);
+        }
         for (OptimizedParticle particle : optimizedParticles) {
             ObjectPools.freeOptimizedParticle(particle);
         }

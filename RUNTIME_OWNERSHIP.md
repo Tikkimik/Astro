@@ -48,7 +48,7 @@
 
 | Семейство | Владелец активных объектов | Update | Render | Возврат/очистка | Пробел |
 |---|---|---|---|---|---|
-| Старые `Particle` explosions | `GamePresentation.particles` | `GamePresentation.updateEffects()` | `PlayState`/ShapeRenderer | presentation удаляет и освобождает бюджет | Параллельный путь с optimized particles |
+| Старые `Particle` explosions | `GamePresentation.particles` | `GamePresentation.updateEffects()` | `PlayState`/ShapeRenderer | естественное завершение, eviction и `dispose` возвращают в `ObjectPools` | Параллельный путь с optimized particles |
 | `OptimizedParticle` | `GamePresentation.optimizedParticles` | `GamePresentation.updateEffects()` | `PlayState`/SpriteBatch | presentation возвращает в `ObjectPools` | Render пока остаётся в координаторе |
 | `RocketExplosionEffect` | `GamePresentation.rocketExplosionEffects` | `GamePresentation.updateEffects()` | два render-прохода `PlayState` | presentation удаляет по `isComplete()` | Render пока остаётся в координаторе |
 | Player flame/shield/spark | `Player` | `Player.update()` | отдельные методы `Player` внутри проходов `GameWorldRenderer` | `Player` возвращает в `ParticlePool` | Сущность хранит эффекты, но больше не управляет общими begin/end |

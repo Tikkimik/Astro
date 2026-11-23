@@ -81,7 +81,11 @@ public class ObjectPools {
 
     // Методы для возврата объектов в пулы
     public static void freeParticle(Particle particle) {
-        particlePool.free(particle);
+        if (particle instanceof ExplosionParticle explosionParticle) {
+            explosionParticlePool.free(explosionParticle);
+        } else {
+            particlePool.free(particle);
+        }
     }
 
     public static void freeExplosionParticle(ExplosionParticle particle) {

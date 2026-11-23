@@ -201,6 +201,21 @@ public final class ScenarioRegistry {
                                 DestructionEvent.Cause.DIRECT_PROJECTILE, "bullet", "target"))
                 .build());
 
+        register(scenario("asteroid-particles-return-to-pool")
+                .tags("asteroid", "particles", "pool", "logic", "visual")
+                .duration(1.3f)
+                .setup(context -> {
+                    context.rememberParticlePoolFreeCount();
+                    float x = context.player().getX() + 20f;
+                    float y = context.player().getY();
+                    context.asteroid("target", x, y, Asteroid.SMALL);
+                    context.bullet("bullet", x - 10f, y, 0f);
+                })
+                .checkAt(1.2f, "expired asteroid particles return to pool",
+                        context -> context.expectParticlesReturnedToPool(6))
+                .captureAt(0.15f, "burst")
+                .build());
+
         register(scenario("rocket-hits-enemy")
                 .tags("rocket", "collision", "enemy-ship", "logic", "visual")
                 .duration(1.5f)

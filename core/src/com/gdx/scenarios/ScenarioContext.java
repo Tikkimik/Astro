@@ -33,6 +33,7 @@ public final class ScenarioContext {
     private final Map<String, GameSessionSnapshot> sessionSnapshots = new LinkedHashMap<>();
     private final Set<String> completedActions = new HashSet<>();
     private DestructionEvent lastDestructionEvent;
+    private int particlePoolFreeBefore;
 
     ScenarioContext(PlayState playState) {
         this.playState = playState;
@@ -263,6 +264,18 @@ public final class ScenarioContext {
         }
         if (rocket.getTarget() != null) {
             throw new AssertionError("pooled auto rocket retains target from cleared session");
+        }
+    }
+
+    public void rememberParticlePoolFreeCount() {
+        particlePoolFreeBefore = ObjectPools.particlePool.getFree();
+    }
+
+    public void expectParticlesReturnedToPool(int expected) {
+        int actual = ObjectPools.particlePool.getFree() - particlePoolFreeBefore;
+        if (actual != expected) {
+            throw new AssertionError("particles returned to pool: expected=" + expected
+                    + ", actual=" + actual);
         }
     }
 

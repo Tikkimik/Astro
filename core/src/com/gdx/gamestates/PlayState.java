@@ -205,7 +205,7 @@ public class PlayState implements Disposable {
         // Взрыв за пределами расширенной области спавна не создаём: эффект не будет виден
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
         for(int i = 0; i < 6 && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            presentation.particles().add(new Particle(x, y));
+            presentation.particles().add(ObjectPools.obtainParticle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
@@ -213,7 +213,7 @@ public class PlayState implements Disposable {
     private void createExplosion(float x, float y, int particleCount) {
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
         for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            presentation.particles().add(new ExplosionParticle(x, y));
+            presentation.particles().add(ObjectPools.obtainExplosionParticle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
@@ -221,12 +221,12 @@ public class PlayState implements Disposable {
     private void createShipExplosion(float x, float y) {
         // Создаем много частиц для эффектного взрыва корабля
         for(int i = 0; i < 15 && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            presentation.particles().add(new ExplosionParticle(x, y));
+            presentation.particles().add(ObjectPools.obtainExplosionParticle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
         // Добавляем несколько обычных частиц
         for(int i = 0; i < 8 && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            presentation.particles().add(new Particle(x, y));
+            presentation.particles().add(ObjectPools.obtainParticle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
