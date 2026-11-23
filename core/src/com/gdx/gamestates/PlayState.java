@@ -24,7 +24,6 @@ import com.gdx.managers.WorldManager;
 import com.gdx.managers.ProgressionManager;
 import com.gdx.managers.GameObjectManager;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.FPSLogger;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -32,8 +31,6 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
-import java.util.ArrayList;
-import java.util.List;
 import com.gdx.utils.ObjectPools;
 import com.gdx.utils.PerformanceMetrics;
 import com.gdx.utils.PerformanceMonitor;
@@ -47,6 +44,8 @@ import com.gdx.session.GameSessionSnapshot;
 import com.gdx.presentation.GameHudRenderer;
 import com.gdx.presentation.GameHudView;
 import com.gdx.presentation.GamePresentation;
+import com.gdx.presentation.GameDebugOverlay;
+import com.gdx.presentation.GameDebugView;
 import com.gdx.simulation.GameSimulation;
 import com.gdx.simulation.PlayerControls;
 
@@ -66,25 +65,17 @@ public class PlayState implements Disposable {
     private GameSimulation simulation;
 
     // FPS счетчик
-    private FPSLogger fpsLogger;
     private boolean showFPS = false;
     private BitmapFont font;
     private FreeTypeFontGenerator fontGenerator;
     private SpriteBatch spriteBatch;
-    private int currentFPS = 0;
-    private float fpsTimer = 0f;
 
     private GameHudRenderer hudRenderer;
+    private GameDebugOverlay debugOverlay;
 
     // Профилирование производительности
-    private long lastUpdateTime = 0;
     private long cameraTime = 0, backgroundTime = 0, playerTime = 0;
-    private long bulletsTime = 0, asteroidsTime = 0, particlesTime = 0;
-    private long rocketsTime = 0, orkTime = 0, collisionsTime = 0;
-    private long drawTime = 0;
-
-    // Счетчик кадров для FPS
-    private int frameCount = 0;
+    private long objectsTime = 0, particlesTime = 0, collisionsTime = 0;
 
     // Android управление
     private AndroidInputManager androidInputManager;
@@ -170,11 +161,10 @@ public class PlayState implements Disposable {
         simulation = new GameSimulation(session, scenarioRunner, this::createShipExplosion);
         simulation.setRestoredFromSave(restoredFromSave);
 
-        // Инициализируем FPS счетчик
-        fpsLogger = new FPSLogger();
         createUiFont();
         spriteBatch = new SpriteBatch();
         hudRenderer = new GameHudRenderer(font);
+        debugOverlay = new GameDebugOverlay(font);
 
         // Инициализируем Android управление
         androidInputManager = new AndroidInputManager();
@@ -343,8 +333,7 @@ public class PlayState implements Disposable {
                 new PlayerControls(inputLeft, inputRight, inputUp, inputFire),
                 ScenarioRuntime.isActive());
         playerTime = simulationResult.playerNanos();
-        bulletsTime = simulationResult.objectsNanos();
-        asteroidsTime = rocketsTime = orkTime = 0L;
+        objectsTime = simulationResult.objectsNanos();
         if (simulationResult.playerReset()) {
             System.out.println("Player умер, сбрасываем...");
             return;
@@ -354,46 +343,12 @@ public class PlayState implements Disposable {
         hudRenderer.update(dt, createHudView());
         collisionsTime = simulation.finishTick(dt, ScenarioRuntime.isActive());
 
-        // Обновляем FPS счетчик - подсчет кадров
-        if (showFPS) {
-            frameCount++;
-            fpsTimer += dt;
-            if (fpsTimer >= 1.0f) {
-                currentFPS = frameCount;
-                frameCount = 0;
-                fpsTimer = 0f;
-            }
-        }
-
         // Завершаем мониторинг производительности
         PerformanceMonitor.endFrame();
-
-        // Логируем низкий FPS для диагностики с профилированием
-        if (currentFPS < 100 && showFPS) {
-            long totalTime = cameraTime + backgroundTime + playerTime + bulletsTime +
-                           asteroidsTime + particlesTime + rocketsTime + orkTime + collisionsTime;
-
-            System.out.println("=== PERFORMANCE PROFILE ===");
-            System.out.println("FPS: " + currentFPS + " | Objects: " + gameObjectManager.getStats() +
-                             " P=" + presentation.particles().size);
-            System.out.println("World: " + worldManager.getWorldInfo());
-            System.out.println("Times (μs): Camera=" + (cameraTime/1000) +
-                             " Background=" + (backgroundTime/1000) +
-                             " Player=" + (playerTime/1000) +
-                             " Bullets=" + (bulletsTime/1000));
-            System.out.println("          Asteroids=" + (asteroidsTime/1000) +
-                             " Particles=" + (particlesTime/1000) +
-                             " Rockets=" + (rocketsTime/1000) +
-                             " Orks=" + (orkTime/1000));
-            System.out.println("          Collisions=" + (collisionsTime/1000) +
-                             " Total=" + (totalTime/1000) + " μs");
-            System.out.println("===========================");
-        }
     }
 
     public void draw() {
 //        System.out.println("PLAY STATE DRAWING");
-        long drawStart = System.nanoTime();
         Camera camera = presentation.camera();
 
         // Сброс счётчиков рендера на начало кадра
@@ -530,7 +485,7 @@ public class PlayState implements Disposable {
         // Детальная F3-табличка с полезной информацией (клавиша F)
         // Начинаем ниже HUD-блока с безопасным отступом
         if (showFPS) {
-            drawDebugTable(hudRenderer.getBottomY() - 16f);
+            debugOverlay.draw(spriteBatch, createDebugView(), hudRenderer.getBottomY() - 16f);
         }
 
 
@@ -538,9 +493,6 @@ public class PlayState implements Disposable {
         if (androidInputManager != null && androidInputManager.isAndroid()) {
             androidInputManager.render(shapeRenderer);
         }
-
-        // Записываем время отрисовки
-        drawTime = System.nanoTime() - drawStart;
     }
 
     public void handleInput() {
@@ -607,6 +559,10 @@ public class PlayState implements Disposable {
 
     public GameSession getSession() {
         return session;
+    }
+
+    public void setDebugOverlayVisible(boolean visible) {
+        showFPS = visible;
     }
 
     public Array<AutoRocket> getAutoRockets() {
@@ -708,153 +664,50 @@ public class PlayState implements Disposable {
                 MyGdxGame.WIDTH, MyGdxGame.HEIGHT);
     }
 
-    // Детальная F3-табличка (клавиша F) в стиле Minecraft.
-    // Все строки раскладываются вертикальным курсором: высота строки берётся из
-    // метрик шрифта, у заголовков секций — увеличенный отступ.
-    // Текст рисуется прямо поверх игрового мира, без панели-подложки.
-    private void drawDebugTable(float startY) {
-        List<DebugEntry> lines = buildDebugEntries();
-
-        font.getData().setScale(0.8f);
-        float scale = font.getData().scaleY;
-        float lineH = font.getLineHeight() * scale; // высота строки для текущего масштаба
-        float spacing = 3f;  // межстрочный отступ
-        float headerGap = 7f; // дополнительный отступ перед заголовком секции
-
-        // Вычисляем шаги строк (высота из метрик шрифта + отступы)
-        float[] advances = new float[lines.size()];
-        for (int i = 0; i < lines.size(); i++) {
-            DebugEntry e = lines.get(i);
-            float adv = lineH + spacing;
-            if (e.header && i > 0) {
-                adv += headerGap;
-            }
-            advances[i] = adv;
-        }
-
-        // Текст поверх игрового мира
-        spriteBatch.begin();
-        float x = 10f;
-        float y = startY;
-        for (int i = 0; i < lines.size(); i++) {
-            DebugEntry e = lines.get(i);
-            font.setColor(e.r, e.g, e.b, 1f);
-            font.draw(spriteBatch, e.text, x, y);
-            y -= advances[i];
-        }
-        spriteBatch.end();
-
-        font.getData().setScale(1f);
-    }
-
-    private List<DebugEntry> buildDebugEntries() {
-        List<DebugEntry> list = new ArrayList<>();
-
-        // === Производительность ===
-        list.add(new DebugEntry("--- Debug menu (F чтобы скрыть) ---", 1f, 1f, 0f, true));
-
-        // Фактические значения измеряются в общем окне реального времени
-        // (PerformanceMetrics): кадры рендера и тики игровой логики считаются
-        // отдельно и независимо, лимит и цель показываются как настройки, а не факт.
-        int renderFps = Math.round(PerformanceMetrics.getRenderFps());
-        int simUps = Math.round(PerformanceMetrics.getSimulationUps());
-        String cap = MyGdxGame.targetFPS == 0 ? "Unlimited" : String.valueOf(MyGdxGame.targetFPS);
-        String fixedDtMs = String.format("%.2f", TimeManager.getFixedStep() * 1000f);
-
-        list.add(new DebugEntry("Render FPS: " + renderFps + " | Cap: " + cap, 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Simulation UPS: " + simUps + " | Target: " + GameSettings.getTargetLogicFPS()
-                + " Hz | Fixed dt: " + fixedDtMs + " ms", 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Ticks/frame: " + PerformanceMetrics.getTicksPerFrame(), 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Render cap controls: ` — increase, 1 — decrease", 1f, 1f, 1f, false));
-
-        // Времена одного последнего фиксированного тика (а не всего кадра):
-        // каждое поле перезаписывается внутри PlayState.update при каждом тике.
-        long totalTime = cameraTime + backgroundTime + playerTime + bulletsTime + asteroidsTime
-                + particlesTime + rocketsTime + orkTime + collisionsTime;
-        list.add(new DebugEntry("Simulation tick: " + (totalTime / 1000) + " us", 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Collisions: " + (collisionsTime / 1000) + " us | Camera: " + (cameraTime / 1000) + " us", 1f, 1f, 1f, false));
-
-        // === Игрок ===
-        list.add(new DebugEntry("--- Player ---", 0f, 1f, 1f, true));
-
-        float speed = (float) Math.sqrt(player.getDx() * player.getDx() + player.getDy() * player.getDy());
-        list.add(new DebugEntry(String.format("Pos: x=%.1f y=%.1f", player.getX(), player.getY()), 1f, 1f, 1f, false));
-        list.add(new DebugEntry(String.format("Vel: dx=%.1f dy=%.1f  speed=%.1f", player.getDx(), player.getDy(), speed), 1f, 1f, 1f, false));
-
-        // Направление взгляда (как в Minecraft)
-        float deg = (player.getRadians() * MathUtils.radiansToDegrees);
-        float norm = ((deg % 360) + 360) % 360;
-        String[] dirs = {"E", "NE", "N", "NW", "W", "SW", "S", "SE"};
-        String facing = dirs[(((int) norm + 22) / 45) % 8];
-        list.add(new DebugEntry(String.format("Facing: %.1f deg (%s)", norm, facing), 1f, 1f, 1f, false));
+    private GameDebugView createDebugView() {
+        long totalTickNanos = cameraTime + backgroundTime + playerTime + objectsTime
+                + particlesTime + collisionsTime;
         Camera camera = presentation.camera();
-        list.add(new DebugEntry("Zoom: " + camera.getCurrentZoom() + "  (camera: " + (int) camera.getCameraX() + "," + (int) camera.getCameraY() + ")", 1f, 1f, 1f, false));
-
-        // === Мир / объекты ===
-        // Все показатели читаются из живых коллекций каждый кадр.
-        // activeObjects — объекты, находящиеся сейчас в менеджере;
-        // totalObjects — кумулятивное число созданных за сессию (не убывает).
-        list.add(new DebugEntry("--- World / Objects ---", 0f, 1f, 0f, true));
-        list.add(new DebugEntry("Active objects: " + gameObjectManager.getActiveObjects()
-                + " / Created total: " + gameObjectManager.getTotalObjects(), 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Projectiles: " + gameObjectManager.getProjectileCount(), 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Obstacles: " + gameObjectManager.getObstacleCount(), 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Enemies: " + gameObjectManager.getEnemyCount(), 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Sectors: " + worldManager.getSectorCount(), 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Grid cells: " + worldManager.getGridCellCount(), 1f, 1f, 1f, false));
-
-        // === Отсечение (Rendering / Culling) ===
-        // active — живые объекты/частицы в коллекциях; visible — пересекающие расширенную
-        // область камеры; drawn — реально отправленные в renderer в этом кадре;
-        // culled — активные, но пропущенные из-за нахождения вне камеры.
-        list.add(new DebugEntry("--- Rendering / Culling ---", 1f, 1f, 0.5f, true));
-        list.add(new DebugEntry(cullingLine("Objects", renderStats.objectsActive, renderStats.objectsVisible,
-                renderStats.objectsDrawn, renderStats.objectsCulled), 1f, 1f, 1f, false));
-        list.add(new DebugEntry(cullingLine("Projectiles", renderStats.projectilesActive, renderStats.projectilesVisible,
-                renderStats.projectilesDrawn, renderStats.projectilesCulled), 1f, 1f, 1f, false));
-        list.add(new DebugEntry(cullingLine("Obstacles", renderStats.obstaclesActive, renderStats.obstaclesVisible,
-                renderStats.obstaclesDrawn, renderStats.obstaclesCulled), 1f, 1f, 1f, false));
-        list.add(new DebugEntry(cullingLine("Enemies", renderStats.enemiesActive, renderStats.enemiesVisible,
-                renderStats.enemiesDrawn, renderStats.enemiesCulled), 1f, 1f, 1f, false));
-        list.add(new DebugEntry(cullingLine("Particles", renderStats.particlesActive, renderStats.particlesVisible,
-                renderStats.particlesDrawn, renderStats.particlesCulled), 1f, 1f, 1f, false));
-
-        // === Прокачка ===
-        list.add(new DebugEntry("--- Progression ---", 1f, 0.5f, 0f, true));
-        list.add(new DebugEntry("Level: " + progressionManager.getCurrentLevel(), 1f, 1f, 1f, false));
-        list.add(new DebugEntry("XP: " + progressionManager.getCurrentExperience() + "/" + progressionManager.getExperienceToNextLevel(), 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Score: " + session.getScore() + "   High: " + session.getHighScore(), 1f, 1f, 1f, false));
-
-        // === Система ===
-        list.add(new DebugEntry("--- System ---", 0f, 1f, 0.5f, true));
-        Runtime rt = Runtime.getRuntime();
-        long usedMem = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
-        long maxMem = rt.maxMemory() / 1024 / 1024;
-        list.add(new DebugEntry("Mem: " + usedMem + " MB / " + maxMem + " MB", 1f, 1f, 1f, false));
-        list.add(new DebugEntry("HUD: " + MyGdxGame.WIDTH + "x" + MyGdxGame.HEIGHT, 1f, 1f, 1f, false));
-        list.add(new DebugEntry("GL: " + Gdx.graphics.getGLVersion().getDebugVersionString(), 1f, 1f, 1f, false));
-
-        return list;
+        Runtime runtime = Runtime.getRuntime();
+        return new GameDebugView(
+                new GameDebugView.Performance(
+                        Math.round(PerformanceMetrics.getRenderFps()),
+                        Math.round(PerformanceMetrics.getSimulationUps()),
+                        PerformanceMetrics.getTicksPerFrame(),
+                        MyGdxGame.targetFPS == 0 ? "Unlimited" : String.valueOf(MyGdxGame.targetFPS),
+                        GameSettings.getTargetLogicFPS(), TimeManager.getFixedStep() * 1000f,
+                        totalTickNanos, collisionsTime, cameraTime),
+                new GameDebugView.PlayerState(player.getX(), player.getY(), player.getDx(),
+                        player.getDy(), player.getRadians()),
+                new GameDebugView.CameraState(camera.getCurrentZoom(), camera.getCameraX(), camera.getCameraY()),
+                new GameDebugView.WorldState(
+                        gameObjectManager.getActiveObjects(), gameObjectManager.getTotalObjects(),
+                        gameObjectManager.getProjectileCount(), gameObjectManager.getObstacleCount(),
+                        gameObjectManager.getEnemyCount(), worldManager.getSectorCount(),
+                        worldManager.getGridCellCount()),
+                new GameDebugView.CullingState(
+                        culling(renderStats.objectsActive, renderStats.objectsVisible,
+                                renderStats.objectsDrawn, renderStats.objectsCulled),
+                        culling(renderStats.projectilesActive, renderStats.projectilesVisible,
+                                renderStats.projectilesDrawn, renderStats.projectilesCulled),
+                        culling(renderStats.obstaclesActive, renderStats.obstaclesVisible,
+                                renderStats.obstaclesDrawn, renderStats.obstaclesCulled),
+                        culling(renderStats.enemiesActive, renderStats.enemiesVisible,
+                                renderStats.enemiesDrawn, renderStats.enemiesCulled),
+                        culling(renderStats.particlesActive, renderStats.particlesVisible,
+                                renderStats.particlesDrawn, renderStats.particlesCulled)),
+                new GameDebugView.ProgressionState(
+                        progressionManager.getCurrentLevel(), progressionManager.getCurrentExperience(),
+                        progressionManager.getExperienceToNextLevel(), session.getScore(), session.getHighScore()),
+                new GameDebugView.SystemState(
+                        (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024,
+                        runtime.maxMemory() / 1024 / 1024,
+                        MyGdxGame.WIDTH, MyGdxGame.HEIGHT,
+                        Gdx.graphics.getGLVersion().getDebugVersionString()));
     }
 
-    // Компактная строка категории: "Name: active A | visible V | drawn D | culled C"
-    private String cullingLine(String name, int active, int visible, int drawn, int culled) {
-        return name + ": active " + active + " | visible " + visible + " | drawn " + drawn + " | culled " + culled;
-    }
-
-    // Строка отладочной таблицы: текст, цвет и флаг заголовка секции
-    private static class DebugEntry {
-        final String text;
-        final float r, g, b;
-        final boolean header;
-
-        DebugEntry(String text, float r, float g, float b, boolean header) {
-            this.text = text;
-            this.r = r;
-            this.g = g;
-            this.b = b;
-            this.header = header;
-        }
+    private GameDebugView.Culling culling(int active, int visible, int drawn, int culled) {
+        return new GameDebugView.Culling(active, visible, drawn, culled);
     }
 
     @Override

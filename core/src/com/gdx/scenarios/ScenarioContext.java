@@ -81,6 +81,10 @@ public final class ScenarioContext {
         player().cancelInvulnerability();
     }
 
+    public void showDebugOverlay() {
+        playState.setDebugOverlayVisible(true);
+    }
+
     public Asteroid asteroid(String id, float x, float y, int type) {
         Asteroid asteroid = new Asteroid(x, y, type);
         objects.addAsteroid(asteroid);

@@ -19,12 +19,13 @@
 
 | Объект/ресурс | Создаёт и хранит | Update | Render | Удаление/очистка | Пробел |
 |---|---|---|---|---|---|
-| `PlayState` | `RealPlayStateHandler` | координирует `GameSimulation`, presentation и HUD | пока содержит render-проходы мира и debug overlay | `RealPlayStateHandler.onDispose()` вызывает `PlayState.dispose()` | World renderer и debug overlay ещё не выделены |
+| `PlayState` | `RealPlayStateHandler` | координирует `GameSimulation`, presentation, HUD и debug | пока содержит render-проходы мира | `RealPlayStateHandler.onDispose()` вызывает `PlayState.dispose()` | World renderer ещё не выделен |
 | `GameSession` | `PlayState` создаёт один раз на новый забег | детерминированное время обновляет `GameSimulation` | не рисует | живёт и очищается вместе с `PlayState` | `PlayState` пока хранит быстрые ссылки на player/object/world для render и совместимости API |
 | `GameSimulation` | `PlayState` | применяет controls, обновляет session/world/player/objects, targeting и collision | не рисует | живёт вместе с `PlayState` | Разделён на `beginTick/finishTick`, чтобы сохранить presentation update между историческими фазами pipeline |
 | `Camera` | `GamePresentation` | `GamePresentation.updateView()` | читается render-проходами через presentation | явной очистки не требует | Зависит от глобальных размеров `MyGdxGame` |
 | `Background` | `GamePresentation` | `GamePresentation.updateView()` | пока вызывается координатором `PlayState` | живёт вместе с presentation | Render-проходы мира ещё не собраны в отдельный renderer |
 | `GameHudRenderer` | `PlayState` | обновляет только локальную анимацию HUD из `GameHudView` | владеет HUD-проходами `SpriteBatch`/`ShapeRenderer` | не владеет GPU-ресурсами | Общий font пока разделяется с debug overlay |
+| `GameDebugOverlay` | `PlayState` | не обновляет simulation; получает `GameDebugView` только при включённом overlay | владеет текстовым debug-проходом | не владеет GPU-ресурсами | Общий font принадлежит `PlayState`; timing-поля пока собирает координатор |
 | `ProgressionManager` | `GameSession` | через события наград и HUD-анимацию | HUD читает состояние | живёт вместе с session | Presentation пока читает progression напрямую |
 | `GameSessionSnapshot` | создаёт `GameSession.createSnapshot()` | — | — | immutable snapshot для round-trip | Коллекции объектов восстанавливаются как in-memory состояние; файловая сериализация пока не реализована |
 
@@ -81,7 +82,7 @@
 
 ## Ближайшие решения
 
-1. Завершить этап 5 выделением debug overlay/метрик и стабилизацией render-проходов.
+1. Завершить этап 5 стабилизацией render-проходов мира.
 2. Убирать внутренние быстрые ссылки `PlayState` по мере выделения world renderer, не создавая параллельных владельцев.
 3. Не считать in-memory snapshot форматом долговременного сохранения: для него потребуется отдельный сериализуемый DTO и фабрики сущностей.
 4. Пересматривать эту карту после каждого завершённого архитектурного этапа.

@@ -97,6 +97,16 @@ public final class ScenarioRegistry {
                     context.controls(elapsed < 1.25f, false, false);
                 }));
 
+        register(scenario("debug-overlay")
+                .tags("debug", "ui", "visual")
+                .duration(1.4f)
+                .setup(context -> {
+                    context.disablePlayerShield();
+                    context.showDebugOverlay();
+                })
+                .captureAt(1.2f, "main")
+                .build());
+
         register(scenario("rocket")
                 .tags("rocket", "visual")
                 .duration(2.4f)
