@@ -573,23 +573,15 @@ public class GameObjectManager {
                                 SpaceObject source) {
         if (obstacle.isAsteroid()) {
             Asteroid asteroid = obstacle.as(Asteroid.class);
-            if (asteroid != null) {
-                boolean wasAlive = !asteroid.shouldRemove();
-                asteroid.takeDamage(damage);
-                if (wasAlive && asteroid.shouldRemove()) {
-                    obstacle.markForRemoval();
-                    splitAsteroid(asteroid, cause, source);
-                }
+            if (asteroid != null && applyDamage(obstacle, damage)) {
+                obstacle.markForRemoval();
+                splitAsteroid(asteroid, cause, source);
             }
         } else if (obstacle.isOrkAsteroid()) {
             OrkAsteroid orkAsteroid = obstacle.as(OrkAsteroid.class);
-            if (orkAsteroid != null) {
-                boolean wasAlive = !orkAsteroid.shouldRemove();
-                orkAsteroid.takeDamage(damage);
-                if (wasAlive && orkAsteroid.shouldRemove()) {
-                    obstacle.markForRemoval();
-                    notifyDestroyed(DestructionEvent.Kind.ENEMY, orkAsteroid, cause, source);
-                }
+            if (orkAsteroid != null && applyDamage(obstacle, damage)) {
+                obstacle.markForRemoval();
+                notifyDestroyed(DestructionEvent.Kind.ENEMY, orkAsteroid, cause, source);
             }
         }
     }
@@ -609,15 +601,18 @@ public class GameObjectManager {
                              SpaceObject source) {
         if (enemy.isEnemyShip()) {
             EnemyShip enemyShip = enemy.as(EnemyShip.class);
-            if (enemyShip != null) {
-                boolean wasAlive = !enemyShip.shouldRemove();
-                enemyShip.takeDamage(damage);
-                if (wasAlive && enemyShip.shouldRemove()) {
-                    enemy.markForRemoval();
-                    notifyDestroyed(DestructionEvent.Kind.ENEMY, enemyShip, cause, source);
-                }
+            if (enemyShip != null && applyDamage(enemy, damage)) {
+                enemy.markForRemoval();
+                notifyDestroyed(DestructionEvent.Kind.ENEMY, enemyShip, cause, source);
             }
         }
+    }
+
+    private boolean applyDamage(GameObject target, int damage) {
+        if (!(target.getObject() instanceof Damageable damageable)) return false;
+        boolean wasAlive = !damageable.shouldRemove();
+        damageable.takeDamage(damage);
+        return wasAlive && damageable.shouldRemove();
     }
 
     private int projectileDamage(GameObject projectile) {
