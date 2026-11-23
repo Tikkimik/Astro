@@ -547,3 +547,4 @@ GameServices or GameContext
 - 2026-11-24 — этап 9: первая проверка lifecycle выявила, что свободная авторакета удерживала цель и manager. Добавлен стандартный pool-reset, а `clear-returns-auto-rocket-to-pool` теперь проверяет и разрыв session-ссылок.
 - 2026-11-24 — этап 9: из `ObjectPools` удалены три недостижимых дублирующих пула flame/shield/rocket; фактические obtain/free для этих типов остаются только в `ParticlePool`.
 - 2026-11-24 — этап 9: игровые `Particle`/`ExplosionParticle` переведены на симметричный `obtain → init → free`, включая естественное завершение и `dispose`. Добавлен сценарий `asteroid-particles-return-to-pool`, проверяющий возврат всех шести частиц.
+- 2026-11-24 — этап 9: после финализации state handlers приложение теперь очищает и `ObjectPools`, как уже делало для `ParticlePool`; накопленные свободные объекты не переживают process shutdown.

@@ -103,4 +103,12 @@ public class ObjectPools {
     public static void freeSmokeParticle(SmokeParticle particle) {
         smokeParticlePool.free(particle);
     }
+
+    public static void clearAllPools() {
+        particlePool.clear();
+        optimizedParticlePool.clear();
+        explosionParticlePool.clear();
+        smokeParticlePool.clear();
+        autoRocketPool.clear();
+    }
 }
