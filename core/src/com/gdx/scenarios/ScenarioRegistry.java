@@ -142,6 +142,13 @@ public final class ScenarioRegistry {
                         ScenarioContext::expectPlayerHasSingleOwner)
                 .build());
 
+        register(scenario("clear-returns-auto-rocket-to-pool")
+                .tags("rocket", "ownership", "pool", "logic")
+                .duration(0.1f)
+                .checkAt(0.05f, "clear returns managed rocket exactly once",
+                        ScenarioContext::expectClearReturnsAutoRocketToPool)
+                .build());
+
         register(scenario("session-snapshot-round-trip")
                 .tags("session", "save", "logic")
                 .duration(0.1f)

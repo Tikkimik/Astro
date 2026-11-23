@@ -690,16 +690,7 @@ public class GameObjectManager {
     // === УДАЛЕНИЕ ОБЪЕКТОВ ===
 
     private void removeObject(GameObject obj) {
-        // Возвращаем авто-ракеты в пул при удалении
-        if (obj.getObject() instanceof AutoRocket) {
-            com.gdx.utils.ObjectPools.freeAutoRocket((AutoRocket) obj.getObject());
-        }
-
-        // Освобождаем оставшиеся частицы пламени вражеского корабля и их слоты
-        // бюджета: без этого счётчик активных частиц «протекал» при гибели врагов.
-        if (obj.getObject() instanceof EnemyShip) {
-            ((EnemyShip) obj.getObject()).dispose();
-        }
+        releaseObject(obj);
 
         allObjects.removeValue(obj, true);
 
@@ -713,16 +704,22 @@ public class GameObjectManager {
         GameLogger.debug("Removed object, active: " + activeObjects);
     }
 
+    private void releaseObject(GameObject obj) {
+        if (obj.getObject() instanceof AutoRocket rocket) {
+            com.gdx.utils.ObjectPools.freeAutoRocket(rocket);
+        }
+        if (obj.getObject() instanceof EnemyShip enemyShip) {
+            enemyShip.dispose();
+        }
+    }
+
     // === ОЧИСТКА ===
 
     /**
      * Очистить все объекты
      */
     public void clear() {
-        for (GameObject obj : enemies) {
-            EnemyShip enemyShip = obj.as(EnemyShip.class);
-            if (enemyShip != null) enemyShip.dispose();
-        }
+        for (GameObject obj : allObjects) releaseObject(obj);
         for (RocketParticle particle : rocketParticles) {
             com.gdx.utils.ParticlePool.freeRocketParticle(particle);
         }

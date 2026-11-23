@@ -40,7 +40,7 @@
 | `EnemyShip` | `WorldManager` или scenario setup | `GameObjectManager.enemies` | `GameObjectManager` | корпус через менеджер, smoke отдельным manager-pass | remove вызывает `EnemyShip.dispose()` |
 | `Bullet` | `Player`/scenario, регистрирует `GameObjectManager` | `GameObjectManager.projectiles` | `GameObjectManager` | `GameObjectManager` | wrapper mark/remove; обычные bullet не возвращаются в pool в `removeObject` |
 | `OrkBullet` | enemy entity, регистрирует `GameObjectManager` | `GameObjectManager.projectiles` | `GameObjectManager` | `GameObjectManager` | wrapper mark/remove |
-| `AutoRocket` | `GameSimulation`/scenario, регистрирует `GameObjectManager` | `GameObjectManager.projectiles` | `GameObjectManager` | rocket через менеджер, trail отдельным manager-pass | при обычном удалении возвращается в `ObjectPools`; полная очистка ещё проверяется |
+| `AutoRocket` | `GameSimulation`/scenario, регистрирует `GameObjectManager` | `GameObjectManager.projectiles` | `GameObjectManager` | rocket через менеджер, trail отдельным manager-pass | обычное удаление и полная очистка возвращают в `ObjectPools` через единый release-path |
 | Секторы мира | `WorldManager` | `WorldManager.loadedSectors` | `WorldManager` | не рисуются напрямую | ключи загруженных секторов не удаляются при cleanup объектов |
 | Spatial grid | `WorldManager` | `WorldManager` | перестраивается каждый tick | — | сейчас не используется основным collision detection |
 
@@ -83,7 +83,7 @@
 
 ## Ближайшие решения
 
-1. На этапе 6 проверить симметрию возврата в pools при обычном удалении и полной очистке; неиспользуемый wrapper state уже удалён.
+1. На этапе 6 решить судьбу оставшихся неиспользуемых пулов `Bullet`/`OrkBullet` и зафиксировать окончательную таблицу владельцев.
 2. Убирать внутренние быстрые ссылки `PlayState` только после появления единственного владельца объектов.
 3. Не считать in-memory snapshot форматом долговременного сохранения: для него потребуется отдельный сериализуемый DTO и фабрики сущностей.
 4. Пересматривать эту карту после каждого завершённого архитектурного этапа.
