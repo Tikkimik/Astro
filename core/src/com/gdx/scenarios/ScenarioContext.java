@@ -251,7 +251,8 @@ public final class ScenarioContext {
     }
 
     public void expectClearReturnsAutoRocketToPool() {
-        AutoRocket rocket = ObjectPools.obtainAutoRocket(0f, 0f, 0f, null);
+        Asteroid target = new Asteroid(100f, 0f, Asteroid.SMALL);
+        AutoRocket rocket = ObjectPools.obtainAutoRocket(0f, 0f, 0f, target);
         int freeAfterObtain = ObjectPools.autoRocketPool.getFree();
         objects.addAutoRocket(rocket);
         objects.clear();
@@ -259,6 +260,9 @@ public final class ScenarioContext {
         if (actual != freeAfterObtain + 1) {
             throw new AssertionError("auto rocket pool after clear: expected="
                     + (freeAfterObtain + 1) + ", actual=" + actual);
+        }
+        if (rocket.getTarget() != null) {
+            throw new AssertionError("pooled auto rocket retains target from cleared session");
         }
     }
 

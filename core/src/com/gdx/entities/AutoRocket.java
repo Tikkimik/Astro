@@ -5,12 +5,13 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.utils.Pool;
 import com.gdx.managers.Camera;
 import com.gdx.managers.GameObjectManager;
 import com.gdx.utils.ParticlePool;
 
 
-public class AutoRocket extends SpaceObject implements GameObject.Updatable, GameObject.Drawable {
+public class AutoRocket extends SpaceObject implements GameObject.Updatable, GameObject.Drawable, Pool.Poolable {
 
     private float initialSpeed = 33f;
     private float maxSpeed = 100f;
@@ -215,6 +216,16 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable, Gam
 
     public Targetable getTarget() {
         return target;
+    }
+
+    @Override
+    public void reset() {
+        target = null;
+        manager = null;
+        remove = true;
+        trailSize = 0;
+        trailWriteIndex = 0;
+        trailParticleAccumulator = 0f;
     }
 
     public boolean shouldRemove() {

@@ -56,7 +56,7 @@
 | Rocket trail particles | `GameObjectManager.rocketParticles` | `GameObjectManager` | отдельный SpriteBatch-pass менеджера | `ParticlePool.freeRocketParticle()` | Не являются `GameObject`, несмотря на владение менеджером объектов |
 | Enemy flame/smoke | `EnemyShip` | `EnemyShip` | flame внутри ship draw, smoke отдельным manager-pass | `EnemyShip.dispose()` | Активные эффекты принадлежат entity, но считает их manager |
 | `ParticlePool` | статические массивы | — | — | `MyGdxGame.dispose()` очищает | Глобальное состояние процесса |
-| `ObjectPools` | статические LibGDX pools | — | — | общей очистки на shutdown нет | Два независимых семейства пулов без общего контракта |
+| `ObjectPools` | статические LibGDX pools | — | — | общей очистки на shutdown нет; `AutoRocket.reset()` разрывает session-ссылки | Два независимых семейства пулов без общего контракта; часть пулов может быть мёртвой |
 | `ParticleBudget` | статический глобальный счётчик | обновляется из session/render | влияет на spawn | сбрасывается в `GameObjectManager.clear()` | Зависит от правильной ручной симметрии add/release |
 
 ## Столкновения и награды
