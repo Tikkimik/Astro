@@ -2,7 +2,7 @@
 
 ## Статус
 
-Карта описывает фактический код до архитектурного рефакторинга. Это диагностический документ, а не целевая модель. Колонка «Пробел» отмечает неоднозначности, которые следующие этапы должны устранять по одной.
+Карта описывает фактический код после этапа 4 архитектурного рефакторинга. Это диагностический документ, а не целевая модель. Колонка «Пробел» отмечает неоднозначности, которые следующие этапы должны устранять по одной.
 
 ## Приложение и экраны
 
@@ -19,11 +19,12 @@
 
 | Объект/ресурс | Создаёт и хранит | Update | Render | Удаление/очистка | Пробел |
 |---|---|---|---|---|---|
-| `PlayState` | `RealPlayStateHandler` | handler → `PlayState.update()` | handler → `PlayState.draw()` | метод `dispose()` существует, но рабочий flow его не вызывает | Одновременно session, orchestration, renderer, HUD и save mapper |
+| `PlayState` | `RealPlayStateHandler` | handler → `PlayState.update()` | handler → `PlayState.draw()` | `RealPlayStateHandler.onDispose()` вызывает `PlayState.dispose()` | Всё ещё совмещает orchestration, renderer и HUD; игровые данные вынесены в `GameSession` |
+| `GameSession` | `PlayState` создаёт один раз на новый забег | детерминированное время обновляется из fixed tick | не рисует | живёт и очищается вместе с `PlayState` | `PlayState` пока хранит внутренние быстрые ссылки на объекты сессии до разделения simulation/presentation |
 | `Camera` | `PlayState` | `PlayState` | читается всеми render-проходами | явной очистки не требует | Зависит от глобальных размеров `MyGdxGame` |
 | `Background` | `PlayState` | `PlayState` | `PlayState` | не выражено | Presentation находится внутри session orchestration |
-| `ProgressionManager` | `PlayState` | через события наград и HUD-анимацию | HUD читает состояние | живёт вместе с `PlayState` | Содержит ссылку на нерабочий старый state manager |
-| Snapshot сохранения | создаёт `PlayState.saveGameState()` | — | — | временный объект | Копирование session state выполняет сам большой `PlayState` |
+| `ProgressionManager` | `GameSession` | через события наград и HUD-анимацию | HUD читает состояние | живёт вместе с session | Presentation пока читает progression напрямую |
+| `GameSessionSnapshot` | создаёт `GameSession.createSnapshot()` | — | — | immutable snapshot для round-trip | Коллекции объектов восстанавливаются как in-memory состояние; файловая сериализация пока не реализована |
 
 ## Мир и игровые объекты
 
@@ -78,7 +79,7 @@
 
 ## Ближайшие решения
 
-1. Не менять владельцев до фиксации исходных сценариев.
-2. Сначала устранить двойной input flow.
-3. Затем выразить `dispose` экранов и только после этого удалять старую state system.
+1. На этапе 5 разделить simulation pipeline и presentation без изменения боевых контрактов.
+2. Убрать внутренние быстрые ссылки `PlayState` после появления отдельного simulation-владельца.
+3. Не считать in-memory snapshot форматом долговременного сохранения: для него потребуется отдельный сериализуемый DTO и фабрики сущностей.
 4. Пересматривать эту карту после каждого завершённого архитектурного этапа.

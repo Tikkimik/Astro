@@ -1,15 +1,10 @@
 package com.gdx.managers;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.utils.Array;
 import com.gdx.gamestates.PlayState;
-import com.gdx.managers.ProgressionManager;
 import com.gdx.utils.GameLogger;
+import com.gdx.session.GameSessionSnapshot;
 
 /**
  * Обработчик состояния для настоящей игры
@@ -154,11 +149,11 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
         if (playState != null) {
             try {
                 // Используем метод saveGameState из PlayState
-                com.gdx.managers.GameState savedState = playState.saveGameState();
+                GameSessionSnapshot savedState = playState.saveGameState();
 
                 if (savedState != null) {
                     GameLogger.info("Состояние игры сохранено успешно");
-                    GameLogger.info("Очки: " + savedState.getScore() + ", Уровень: " + savedState.getLevel());
+                    GameLogger.info("Очки: " + savedState.score() + ", Уровень: " + savedState.level());
 
                     // Здесь можно сохранить состояние в глобальную переменную
                     // для восстановления при возврате из паузы
@@ -177,7 +172,7 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
     /**
      * Восстановление состояния игры
      */
-    public void restoreGameState(com.gdx.managers.GameState savedState) {
+    public void restoreGameState(GameSessionSnapshot savedState) {
         if (playState != null && savedState != null) {
             try {
                 GameLogger.info("Восстановление состояния игры...");

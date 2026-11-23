@@ -8,6 +8,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ProgressionManager {
+
+    public record Snapshot(
+            int currentLevel,
+            int currentExperience,
+            int experienceToNextLevel,
+            float playerSpeed,
+            float bulletSpeed,
+            float bulletDamage,
+            float fireRate,
+            int maxHealth,
+            float healthRegen,
+            float criticalChance,
+            float criticalDamage,
+            float autoRocketCooldown,
+            float autoRocketDamage,
+            List<Upgrade> selectedUpgrades
+    ) {}
     
     // Система уровней
     private int currentLevel = 1;
@@ -157,6 +174,30 @@ public class ProgressionManager {
     
     public List<Upgrade> getAvailableUpgrades() { return availableUpgrades; }
     public List<Upgrade> getSelectedUpgrades() { return selectedUpgrades; }
+
+    public Snapshot createSnapshot() {
+        return new Snapshot(currentLevel, currentExperience, experienceToNextLevel,
+                playerSpeed, bulletSpeed, bulletDamage, fireRate, maxHealth,
+                healthRegen, criticalChance, criticalDamage, autoRocketCooldown,
+                autoRocketDamage, List.copyOf(selectedUpgrades));
+    }
+
+    public void restore(Snapshot snapshot) {
+        currentLevel = snapshot.currentLevel();
+        currentExperience = snapshot.currentExperience();
+        experienceToNextLevel = snapshot.experienceToNextLevel();
+        playerSpeed = snapshot.playerSpeed();
+        bulletSpeed = snapshot.bulletSpeed();
+        bulletDamage = snapshot.bulletDamage();
+        fireRate = snapshot.fireRate();
+        maxHealth = snapshot.maxHealth();
+        healthRegen = snapshot.healthRegen();
+        criticalChance = snapshot.criticalChance();
+        criticalDamage = snapshot.criticalDamage();
+        autoRocketCooldown = snapshot.autoRocketCooldown();
+        autoRocketDamage = snapshot.autoRocketDamage();
+        selectedUpgrades = new ArrayList<>(snapshot.selectedUpgrades());
+    }
     
     // Класс для улучшений
     public static class Upgrade {

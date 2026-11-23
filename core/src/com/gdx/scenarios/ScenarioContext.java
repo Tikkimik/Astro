@@ -14,6 +14,7 @@ import com.gdx.entities.SpaceObject;
 import com.gdx.gamestates.PlayState;
 import com.gdx.managers.GameObjectManager;
 import com.gdx.utils.ObjectPools;
+import com.gdx.session.GameSessionSnapshot;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -26,6 +27,7 @@ public final class ScenarioContext {
     private final GameObjectManager objects;
     private final Map<String, SpaceObject> ids = new LinkedHashMap<>();
     private final Map<String, float[]> positionSnapshots = new LinkedHashMap<>();
+    private final Map<String, GameSessionSnapshot> sessionSnapshots = new LinkedHashMap<>();
     private final Set<String> completedActions = new HashSet<>();
 
     ScenarioContext(PlayState playState) {
@@ -37,6 +39,33 @@ public final class ScenarioContext {
     public Player player() { return playState.getPlayer(); }
     public GameObjectManager objects() { return objects; }
     public PlayState playState() { return playState; }
+
+    public void rememberSession(String id) {
+        if (sessionSnapshots.putIfAbsent(id, playState.getSession().createSnapshot()) != null) {
+            throw new IllegalArgumentException("Duplicate session snapshot id: " + id);
+        }
+    }
+
+    public void restoreSession(String id) {
+        GameSessionSnapshot snapshot = sessionSnapshots.get(id);
+        if (snapshot == null) throw new AssertionError("Unknown session snapshot: " + id);
+        playState.restoreGameState(snapshot);
+    }
+
+    public void addScore(int points) {
+        playState.getSession().addScore(points);
+    }
+
+    public void advanceSessionTime(float delta) {
+        playState.getSession().updateTime(delta);
+    }
+
+    public void expectSessionElapsed(float expected) {
+        float actual = playState.getSession().getElapsedTime();
+        if (Math.abs(actual - expected) > 0.0001f) {
+            throw new AssertionError("session elapsed: expected=" + expected + ", actual=" + actual);
+        }
+    }
 
     public void controls(boolean thrust, boolean left, boolean right) {
         player().setUp(thrust);

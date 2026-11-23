@@ -15,6 +15,30 @@ import com.gdx.utils.RenderStats;
  */
 public class GameObjectManager {
 
+    public static final class Snapshot {
+        private final Array<GameObject> allObjects;
+        private final Array<GameObject> projectiles;
+        private final Array<GameObject> obstacles;
+        private final Array<GameObject> enemies;
+        private final Array<GameObject> particles;
+        private final Array<RocketParticle> rocketParticles;
+        private final GameObject player;
+        private final int totalObjects;
+        private final int activeObjects;
+
+        private Snapshot(GameObjectManager source) {
+            allObjects = new Array<>(source.allObjects);
+            projectiles = new Array<>(source.projectiles);
+            obstacles = new Array<>(source.obstacles);
+            enemies = new Array<>(source.enemies);
+            particles = new Array<>(source.particles);
+            rocketParticles = new Array<>(source.rocketParticles);
+            player = source.player;
+            totalObjects = source.totalObjects;
+            activeObjects = source.activeObjects;
+        }
+    }
+
     // Единый список всех активных объектов
     private Array<GameObject> allObjects = new Array<>();
 
@@ -63,6 +87,28 @@ public class GameObjectManager {
     public GameObjectManager() {
         GameLogger.info("GameObjectManager initialized");
         com.gdx.utils.ParticleBudget.register(rocketParticles);
+    }
+
+    public Snapshot createSnapshot() {
+        return new Snapshot(this);
+    }
+
+    public void restore(Snapshot snapshot) {
+        allObjects.clear();
+        allObjects.addAll(snapshot.allObjects);
+        projectiles.clear();
+        projectiles.addAll(snapshot.projectiles);
+        obstacles.clear();
+        obstacles.addAll(snapshot.obstacles);
+        enemies.clear();
+        enemies.addAll(snapshot.enemies);
+        particles.clear();
+        particles.addAll(snapshot.particles);
+        rocketParticles.clear();
+        rocketParticles.addAll(snapshot.rocketParticles);
+        player = snapshot.player;
+        totalObjects = snapshot.totalObjects;
+        activeObjects = snapshot.activeObjects;
     }
 
     // === ДОБАВЛЕНИЕ ОБЪЕКТОВ ===

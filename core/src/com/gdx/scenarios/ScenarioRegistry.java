@@ -22,6 +22,7 @@ public final class ScenarioRegistry {
 
     static {
         registerEngineScenarios();
+        registerSessionScenarios();
         registerInteractionScenarios();
         registerCollisionAndTargetingScenarios();
         registerApprovedCombatScenarios();
@@ -120,6 +121,27 @@ public final class ScenarioRegistry {
                 })
                 .tick((context, elapsed, dt) -> context.controls(false, false, false))
                 .captureAt(2.6f, "main")
+                .build());
+    }
+
+    private static void registerSessionScenarios() {
+        register(scenario("session-snapshot-round-trip")
+                .tags("session", "save", "logic")
+                .duration(0.1f)
+                .setup(context -> {
+                    context.rememberSession("before-mutation");
+                    context.addScore(15);
+                    context.advanceSessionTime(5f);
+                    context.asteroid("added-after-snapshot", 300f, 300f, Asteroid.SMALL);
+                    context.restoreSession("before-mutation");
+                    context.expectSessionElapsed(0f);
+                })
+                .checkAt(0.05f, "score and experience restored", context -> {
+                    context.expectScore(0);
+                    context.expectExperience(0);
+                })
+                .checkAt(0.05f, "objects added after snapshot removed",
+                        context -> context.expectManaged("added-after-snapshot", false))
                 .build());
     }
 

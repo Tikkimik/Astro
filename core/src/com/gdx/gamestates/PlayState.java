@@ -46,6 +46,8 @@ import com.gdx.utils.RenderStats;
 import com.gdx.utils.CameraBounds;
 import com.gdx.scenarios.ScenarioRunner;
 import com.gdx.scenarios.ScenarioRuntime;
+import com.gdx.session.GameSession;
+import com.gdx.session.GameSessionSnapshot;
 
 public class PlayState implements Disposable {
 
@@ -61,18 +63,13 @@ public class PlayState implements Disposable {
     private Array<OptimizedParticle> optimizedParticles;
     private Array<RocketExplosionEffect> rocketExplosionEffects;
 
-    private int level;
-    private int totalAsteroids;
-    private int numAsteroidsLeft;
-    private int score;
-    private int highScore;
+    private GameSession session;
 
     // Счётчики рендера (culling) и копия границ камеры для ParticleBudget
     private final RenderStats renderStats = new RenderStats();
     private final CameraBounds cameraBounds = new CameraBounds();
 
     // Таймер для автоматических ракет
-    private float autoRocketTimer = 0f;
     private final float AUTO_ROCKET_INTERVAL = 1f; // Интервал в секундах
 
     // Кэш для ближайшего врага
@@ -154,7 +151,7 @@ public class PlayState implements Disposable {
             gameObjectManager = new GameObjectManager();
             gameObjectManager.setAsteroidDestroyedListener((asteroid, x, y) -> {
                 createParticles(x, y);
-                if (numAsteroidsLeft > 0) numAsteroidsLeft--;
+                session.decrementAsteroidsLeft();
                 if (asteroid.getType() == Asteroid.SMALL) addScore(5);
             });
             gameObjectManager.setEnemyDestroyedListener((enemy, x, y) -> {
@@ -173,11 +170,6 @@ public class PlayState implements Disposable {
         if (rocketExplosionEffects == null) rocketExplosionEffects = new Array<RocketExplosionEffect>();
         com.gdx.utils.ParticleBudget.register(particles);
         com.gdx.utils.ParticleBudget.register(optimizedParticles);
-
-        // Инициализируем игровые параметры по умолчанию (только если они еще не инициализированы)
-        if (level == 0) level = 1;
-        if (score == 0) score = 0; // Сбрасываем счет только при новой игре
-        if (highScore == 0) highScore = MyGdxGame.highScore; // Загружаем глобальный рекорд
 
         // Создаем игрока только если он еще не создан (не восстановлен из состояния)
         if (player == null) {
@@ -200,6 +192,9 @@ public class PlayState implements Disposable {
         if (progressionManager == null) {
             progressionManager = new ProgressionManager();
         }
+
+        session = new GameSession(player, gameObjectManager, worldManager,
+                progressionManager, MyGdxGame.highScore);
 
         scenarioRunner = ScenarioRuntime.attach(this);
 
@@ -298,14 +293,8 @@ public class PlayState implements Disposable {
     }
 
     private void addScore(int points) {
-        score += points;
-        if (score > highScore) {
-            highScore = score;
-            MyGdxGame.highScore = highScore; // Обновляем глобальный рекорд
-        }
-
-        // Добавляем опыт за очки
-        progressionManager.addExperience(points);
+        session.addScore(points);
+        MyGdxGame.highScore = session.getHighScore();
     }
 
     // Найти ближайшего врага к игроку (оптимизированная версия)
@@ -339,10 +328,10 @@ public class PlayState implements Disposable {
         // Очищаем старые астероиды через GameObjectManager
         // GameObjectManager сам управляет очисткой
 
-        int numToSpawn = 4 + level - 1;
+        int numToSpawn = 4 + session.getLevel() - 1;
 
-        totalAsteroids = numToSpawn * 7;
-        numAsteroidsLeft = totalAsteroids;
+        session.setTotalAsteroids(numToSpawn * 7);
+        session.setNumAsteroidsLeft(session.getTotalAsteroids());
 
         for (int i = 0; i < numToSpawn; i++) {
             float x = MathUtils.random(MyGdxGame.WIDTH);
@@ -367,7 +356,7 @@ public class PlayState implements Disposable {
         // GameObjectManager сам управляет очисткой
 
         // Создаем 1-2 орк-астероида в зависимости от уровня
-        int numToSpawn = Math.min(1 + level / 3, 3);
+        int numToSpawn = Math.min(1 + session.getLevel() / 3, 3);
 
         for (int i = 0; i < numToSpawn; i++) {
             float x = MathUtils.random(MyGdxGame.WIDTH);
@@ -418,6 +407,8 @@ public class PlayState implements Disposable {
             System.out.println("WARNING: Invalid deltaTime: " + dt + ", using 0.016f (60 FPS)");
             dt = 0.016f; // Принудительно устанавливаем 60 FPS
         }
+
+        session.updateTime(dt);
 
         // Применяем улучшения к игровым объектам (если есть новые)
         // progressionManager.applyUpgradesToGameObjects(player, autoRockets, bullets);
@@ -560,10 +551,10 @@ public class PlayState implements Disposable {
 
         //create auto rocket every second
         if (!ScenarioRuntime.isActive()) {
-            autoRocketTimer += dt;
-            if(autoRocketTimer >= AUTO_ROCKET_INTERVAL) {
+            session.addAutoRocketTime(dt);
+            if(session.getAutoRocketTimer() >= AUTO_ROCKET_INTERVAL) {
                 createAutoRocket();
-                autoRocketTimer = 0f;
+                session.resetAutoRocketTimer();
             }
         }
 
@@ -892,19 +883,23 @@ public class PlayState implements Disposable {
 
     // Геттеры для применения улучшений
     public Player getPlayer() {
-        return player;
+        return session.getPlayer();
     }
 
     public GameObjectManager getGameObjectManager() {
-        return gameObjectManager;
+        return session.getObjects();
     }
 
     public ProgressionManager getProgressionManager() {
-        return progressionManager;
+        return session.getProgression();
     }
 
     public int getScore() {
-        return score;
+        return session.getScore();
+    }
+
+    public GameSession getSession() {
+        return session;
     }
 
     public Array<AutoRocket> getAutoRockets() {
@@ -913,44 +908,23 @@ public class PlayState implements Disposable {
     }
 
     // Методы для сохранения и восстановления состояния
-    public com.gdx.managers.GameState saveGameState() {
+    public GameSessionSnapshot saveGameState() {
         System.out.println("=== СОХРАНЕНИЕ СОСТОЯНИЯ ===");
-        System.out.println("До сохранения - Очки: " + score + ", Объекты: " + gameObjectManager.getStats());
+        System.out.println("До сохранения - Очки: " + session.getScore() + ", Объекты: " + gameObjectManager.getStats());
         if (player != null) {
             System.out.println("Player позиция: (" + player.getX() + ", " + player.getY() + ")");
         }
 
-        com.gdx.managers.GameState gameState = new com.gdx.managers.GameState();
-        gameState.setPlayer(player);
-        // GameObjectManager сам управляет всеми объектами
-        gameState.setParticles(particles);
-        gameState.setLevel(level);
-        gameState.setTotalAsteroids(totalAsteroids);
-        gameState.setNumAsteroidsLeft(numAsteroidsLeft);
-        gameState.setScore(score);
-        gameState.setHighScore(highScore);
-        gameState.setAutoRocketTimer(autoRocketTimer);
-
-        System.out.println("Состояние создано - Очки: " + gameState.getScore() + ", Объекты: " + gameObjectManager.getStats());
-        return gameState;
+        GameSessionSnapshot snapshot = session.createSnapshot();
+        System.out.println("Состояние создано - Очки: " + snapshot.score() + ", Объекты: " + gameObjectManager.getStats());
+        return snapshot;
     }
 
-    public void restoreGameState(com.gdx.managers.GameState gameState) {
-        if (gameState != null) {
+    public void restoreGameState(GameSessionSnapshot snapshot) {
+        if (snapshot != null) {
             System.out.println("=== ВОССТАНОВЛЕНИЕ СОСТОЯНИЯ ===");
-
-            // Восстанавливаем игровые объекты
-            player = gameState.getPlayer();
-            // GameObjectManager сам управляет всеми объектами
-            particles = gameState.getParticles();
-
-            // Восстанавливаем игровые параметры
-            level = gameState.getLevel();
-            totalAsteroids = gameState.getTotalAsteroids();
-            numAsteroidsLeft = gameState.getNumAsteroidsLeft();
-            score = gameState.getScore();
-            highScore = gameState.getHighScore();
-            autoRocketTimer = gameState.getAutoRocketTimer();
+            session.restore(snapshot);
+            MyGdxGame.highScore = session.getHighScore();
 
             System.out.println("После восстановления:");
             if (player != null) {
@@ -962,16 +936,6 @@ public class PlayState implements Disposable {
                 System.out.println("ОШИБКА: Player == null после восстановления!");
             }
             System.out.println("Объекты: " + gameObjectManager.getStats());
-
-            // Обновляем ссылки в объектах
-            if (player != null) {
-                // GameObjectManager сам управляет всеми объектами
-            }
-
-            // Обновляем WorldManager
-            if (worldManager != null) {
-                worldManager.updateReferences(gameObjectManager, player);
-            }
 
             // Проверяем и пересоздаем текстуру корабля, если нужно
             if (player != null) {
@@ -1038,10 +1002,10 @@ public class PlayState implements Disposable {
         float y = MyGdxGame.HEIGHT - 8f; // базовая линия первой строки
 
         font.setColor(1, 1, 1, 1); // Белый цвет
-        font.draw(spriteBatch, "Score: " + score, x, y); y -= lineH + spacing;
+        font.draw(spriteBatch, "Score: " + session.getScore(), x, y); y -= lineH + spacing;
 
         font.setColor(1, 1, 1, 1);
-        font.draw(spriteBatch, "High: " + highScore, x, y); y -= lineH + spacing;
+        font.draw(spriteBatch, "High: " + session.getHighScore(), x, y); y -= lineH + spacing;
 
         font.setColor(0, 1, 1, 1); // Голубой цвет для уровня
         font.draw(spriteBatch, "Level: " + progressionManager.getCurrentLevel(), x, y); y -= lineH + spacing;
@@ -1168,7 +1132,7 @@ public class PlayState implements Disposable {
         list.add(new DebugEntry("--- Progression ---", 1f, 0.5f, 0f, true));
         list.add(new DebugEntry("Level: " + progressionManager.getCurrentLevel(), 1f, 1f, 1f, false));
         list.add(new DebugEntry("XP: " + progressionManager.getCurrentExperience() + "/" + progressionManager.getExperienceToNextLevel(), 1f, 1f, 1f, false));
-        list.add(new DebugEntry("Score: " + score + "   High: " + highScore, 1f, 1f, 1f, false));
+        list.add(new DebugEntry("Score: " + session.getScore() + "   High: " + session.getHighScore(), 1f, 1f, 1f, false));
 
         // === Система ===
         list.add(new DebugEntry("--- System ---", 0f, 1f, 0.5f, true));
