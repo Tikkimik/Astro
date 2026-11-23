@@ -11,11 +11,7 @@ import com.gdx.entities.Particle;
 import com.gdx.entities.Player;
 import com.gdx.entities.EnemyShip;
 import com.gdx.entities.ExplosionParticle;
-import com.gdx.entities.FlameParticle;
-import com.gdx.entities.OptimizedParticle;
 import com.gdx.entities.RocketExplosionEffect;
-import com.gdx.entities.ShieldParticle;
-import com.gdx.entities.SparkParticle;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 import com.gdx.managers.GameKeys;
@@ -36,7 +32,6 @@ import com.gdx.utils.PerformanceMetrics;
 import com.gdx.utils.PerformanceMonitor;
 import com.gdx.utils.TimeManager;
 import com.gdx.utils.GameSettings;
-import com.gdx.utils.RenderStats;
 import com.gdx.scenarios.ScenarioRunner;
 import com.gdx.scenarios.ScenarioRuntime;
 import com.gdx.session.GameSession;
@@ -46,6 +41,7 @@ import com.gdx.presentation.GameHudView;
 import com.gdx.presentation.GamePresentation;
 import com.gdx.presentation.GameDebugOverlay;
 import com.gdx.presentation.GameDebugView;
+import com.gdx.presentation.GameWorldRenderer;
 import com.gdx.simulation.GameSimulation;
 import com.gdx.simulation.PlayerControls;
 
@@ -59,9 +55,6 @@ public class PlayState implements Disposable {
 
     private GameSession session;
 
-    // Счётчики рендера (culling) и копия границ камеры для ParticleBudget
-    private final RenderStats renderStats = new RenderStats();
-
     private GameSimulation simulation;
 
     // FPS счетчик
@@ -72,6 +65,7 @@ public class PlayState implements Disposable {
 
     private GameHudRenderer hudRenderer;
     private GameDebugOverlay debugOverlay;
+    private GameWorldRenderer worldRenderer;
 
     // Профилирование производительности
     private long cameraTime = 0, backgroundTime = 0, playerTime = 0;
@@ -165,6 +159,7 @@ public class PlayState implements Disposable {
         spriteBatch = new SpriteBatch();
         hudRenderer = new GameHudRenderer(font);
         debugOverlay = new GameDebugOverlay(font);
+        worldRenderer = new GameWorldRenderer(presentation, player, gameObjectManager);
 
         // Инициализируем Android управление
         androidInputManager = new AndroidInputManager();
@@ -348,137 +343,7 @@ public class PlayState implements Disposable {
     }
 
     public void draw() {
-//        System.out.println("PLAY STATE DRAWING");
-        Camera camera = presentation.camera();
-
-        // Сброс счётчиков рендера на начало кадра
-        renderStats.beginFrame();
-
-        // Отрисовка заполненных объектов (фон)
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-//draw background first
-        presentation.background().draw(shapeRenderer, camera);
-
-        // Отрисовка всех игровых объектов через GameObjectManager (с culling:
-        // снаряды, препятствия, враги и следы ракет за камерой в renderer не идут)
-        gameObjectManager.draw(shapeRenderer, camera, spriteBatch, renderStats);
-
-        for (RocketExplosionEffect effect : presentation.rocketExplosionEffects()) {
-            effect.drawFlash(shapeRenderer, camera);
-        }
-
-        shapeRenderer.end();
-
-        // Отрисовка линий (корабль). Игрок рисуется здесь один раз за кадр —
-        // раньше он попадал в рендер и из allObjects менеджера, и этим вызовом,
-        // из-за чего корабль, пламя и щит рисовались дважды.
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-
-        float playerRadius = Math.max(1f, player.getWidth() / 2f);
-        int flameCount = player.getFlameParticles().size;
-        int shieldCount = player.getShieldParticles().size;
-        int sparkCount = player.getSparkParticles().size;
-        int exhaustTrailCount = player.getExhaustTrailSampleCount();
-        boolean playerInView = camera.isInRenderBounds(player.getX(), player.getY(), playerRadius);
-        renderStats.particlesActive += flameCount + shieldCount + sparkCount + exhaustTrailCount;
-        if (playerInView) {
-            player.draw(shapeRenderer, camera, spriteBatch);
-            // Внутренние образцы непрерывного шлейфа рисуются Player одним
-            // проходом; учитываем их в общей статистике частиц.
-            renderStats.particlesVisible += exhaustTrailCount;
-            renderStats.particlesDrawn += exhaustTrailCount;
-        }
-        // Пламя, щит и искры игрока считаем поштучно (с culling): внеэкранные
-        // частицы не должны расходовать видимый бюджет и забирать слоты у эффектов
-        if (playerInView) {
-            for (FlameParticle fp : player.getFlameParticles()) {
-                if (camera.isInRenderBounds(fp.getX(), fp.getY(), fp.getCullRadius())) {
-                    renderStats.particlesVisible++;
-                    renderStats.particlesDrawn++;
-                } else {
-                    renderStats.particlesCulled++;
-                }
-            }
-            for (ShieldParticle sp : player.getShieldParticles()) {
-                if (camera.isInRenderBounds(sp.getX(), sp.getY(), sp.getCullRadius())) {
-                    renderStats.particlesVisible++;
-                    renderStats.particlesDrawn++;
-                } else {
-                    renderStats.particlesCulled++;
-                }
-            }
-            for (SparkParticle sp : player.getSparkParticles()) {
-                if (camera.isInRenderBounds(sp.getX(), sp.getY(), sp.getCullRadius())) {
-                    renderStats.particlesVisible++;
-                    renderStats.particlesDrawn++;
-                } else {
-                    renderStats.particlesCulled++;
-                }
-            }
-        } else {
-            renderStats.particlesCulled += flameCount + shieldCount + sparkCount + exhaustTrailCount;
-        }
-
-        for (RocketExplosionEffect effect : presentation.rocketExplosionEffects()) {
-            effect.drawRing(shapeRenderer, camera);
-        }
-
-        shapeRenderer.end();
-
-        // Отрисовка заполненных объектов (частицы взрывов) — с culling
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        //draw particles
-        for(int i = 0; i < presentation.particles().size; i++) {
-            Particle p = presentation.particles().get(i);
-            renderStats.particlesActive++;
-            if (camera.isInRenderBounds(p.getX(), p.getY(), p.getCullRadius())) {
-                renderStats.particlesVisible++;
-                p.draw(shapeRenderer, camera);
-                renderStats.particlesDrawn++;
-            } else {
-                renderStats.particlesCulled++;
-            }
-        }
-
-        shapeRenderer.end();
-
-        // Оптимизированные частицы рисуются через SpriteBatch (текстуры).
-        // begin()/end() вынесены сюда: раньше batch.draw вызывался без begin().
-        if (presentation.optimizedParticles().size > 0) {
-            spriteBatch.begin();
-            //draw optimized particles
-            for(int i = 0; i < presentation.optimizedParticles().size; i++) {
-                OptimizedParticle p = presentation.optimizedParticles().get(i);
-                renderStats.particlesActive++;
-                if (camera.isInRenderBounds(p.getX(), p.getY(), p.getCullRadius())) {
-                    renderStats.particlesVisible++;
-                    p.draw(spriteBatch, camera);
-                    renderStats.particlesDrawn++;
-                } else {
-                    renderStats.particlesCulled++;
-                }
-            }
-            spriteBatch.end();
-        }
-
-        // Следы ракет — мягкие аддитивные текстуры через SpriteBatch
-        gameObjectManager.drawRocketParticles(spriteBatch, camera, renderStats);
-
-        // Дым вражеских кораблей — мягкая текстура, обычное смешивание
-        gameObjectManager.drawEnemySmoke(spriteBatch, camera, renderStats);
-
-        // Итоговая категория «Objects»: все мировые объекты, включая игрока
-        renderStats.objectsActive = gameObjectManager.getActiveObjects();
-        renderStats.objectsVisible = renderStats.projectilesVisible + renderStats.obstaclesVisible
-                + renderStats.enemiesVisible + (playerInView ? 1 : 0);
-        renderStats.objectsDrawn = renderStats.projectilesDrawn + renderStats.obstaclesDrawn
-                + renderStats.enemiesDrawn + (playerInView ? 1 : 0);
-        renderStats.objectsCulled = renderStats.objectsActive - renderStats.objectsVisible;
-
-        // Видимый счётчик частиц для ParticleBudget — по итогам реального render-кадра
-        com.gdx.utils.ParticleBudget.setVisible(renderStats.particlesVisible);
+        worldRenderer.draw(shapeRenderer, spriteBatch);
 
         hudRenderer.draw(spriteBatch, shapeRenderer, createHudView());
 
@@ -487,7 +352,6 @@ public class PlayState implements Disposable {
         if (showFPS) {
             debugOverlay.draw(spriteBatch, createDebugView(), hudRenderer.getBottomY() - 16f);
         }
-
 
         // Рендерим Android элементы управления поверх всего
         if (androidInputManager != null && androidInputManager.isAndroid()) {
@@ -668,6 +532,7 @@ public class PlayState implements Disposable {
         long totalTickNanos = cameraTime + backgroundTime + playerTime + objectsTime
                 + particlesTime + collisionsTime;
         Camera camera = presentation.camera();
+        var renderStats = worldRenderer.stats();
         Runtime runtime = Runtime.getRuntime();
         return new GameDebugView(
                 new GameDebugView.Performance(
