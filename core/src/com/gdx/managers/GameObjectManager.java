@@ -58,7 +58,7 @@ public class GameObjectManager {
     public interface DestructionListener {
         void onDestroyed(DestructionEvent event);
     }
-    private DestructionListener destructionListener;
+    private final Array<DestructionListener> destructionListeners = new Array<>();
 
     public interface RocketExplosionListener {
         void onRocketExplosion(float x, float y, float radius);
@@ -70,8 +70,8 @@ public class GameObjectManager {
     }
     private PlayerObstacleCollisionListener playerObstacleCollisionListener;
 
-    public void setDestructionListener(DestructionListener listener) {
-        this.destructionListener = listener;
+    public void addDestructionListener(DestructionListener listener) {
+        destructionListeners.add(listener);
     }
 
     public void setRocketExplosionListener(RocketExplosionListener listener) {
@@ -556,18 +556,21 @@ public class GameObjectManager {
         Array<GameObject> splashTargets = projectile.isAutoRocket()
                 ? collectSplashTargets(target.getX(), target.getY(), target)
                 : null;
-        damageTarget(target, projectileDamage(projectile));
+        damageTarget(target, projectileDamage(projectile),
+                DestructionEvent.Cause.DIRECT_PROJECTILE, projectile.getObject());
         if (splashTargets != null) {
-            applyRocketExplosion(target.getX(), target.getY(), splashTargets);
+            applyRocketExplosion(target.getX(), target.getY(), splashTargets, projectile.getObject());
         }
     }
 
-    private void damageTarget(GameObject target, int damage) {
-        if (target.isObstacle()) damageObstacle(target, damage);
-        else if (target.isEnemy()) damageEnemy(target, damage);
+    private void damageTarget(GameObject target, int damage, DestructionEvent.Cause cause,
+                              SpaceObject source) {
+        if (target.isObstacle()) damageObstacle(target, damage, cause, source);
+        else if (target.isEnemy()) damageEnemy(target, damage, cause, source);
     }
 
-    private void damageObstacle(GameObject obstacle, int damage) {
+    private void damageObstacle(GameObject obstacle, int damage, DestructionEvent.Cause cause,
+                                SpaceObject source) {
         if (obstacle.isAsteroid()) {
             Asteroid asteroid = obstacle.as(Asteroid.class);
             if (asteroid != null) {
@@ -575,7 +578,7 @@ public class GameObjectManager {
                 asteroid.takeDamage(damage);
                 if (wasAlive && asteroid.shouldRemove()) {
                     obstacle.markForRemoval();
-                    splitAsteroid(asteroid);
+                    splitAsteroid(asteroid, cause, source);
                 }
             }
         } else if (obstacle.isOrkAsteroid()) {
@@ -585,13 +588,13 @@ public class GameObjectManager {
                 orkAsteroid.takeDamage(damage);
                 if (wasAlive && orkAsteroid.shouldRemove()) {
                     obstacle.markForRemoval();
-                    notifyDestroyed(DestructionEvent.Kind.ENEMY, orkAsteroid);
+                    notifyDestroyed(DestructionEvent.Kind.ENEMY, orkAsteroid, cause, source);
                 }
             }
         }
     }
 
-    public void splitAsteroid(Asteroid asteroid) {
+    private void splitAsteroid(Asteroid asteroid, DestructionEvent.Cause cause, SpaceObject source) {
         if (asteroid.getType() == Asteroid.LARGE) {
             addAsteroid(new Asteroid(asteroid.getX(), asteroid.getY(), Asteroid.MEDIUM));
             addAsteroid(new Asteroid(asteroid.getX(), asteroid.getY(), Asteroid.MEDIUM));
@@ -599,10 +602,11 @@ public class GameObjectManager {
             addAsteroid(new Asteroid(asteroid.getX(), asteroid.getY(), Asteroid.SMALL));
             addAsteroid(new Asteroid(asteroid.getX(), asteroid.getY(), Asteroid.SMALL));
         }
-        notifyDestroyed(DestructionEvent.Kind.ASTEROID_STAGE, asteroid);
+        notifyDestroyed(DestructionEvent.Kind.ASTEROID_STAGE, asteroid, cause, source);
     }
 
-    private void damageEnemy(GameObject enemy, int damage) {
+    private void damageEnemy(GameObject enemy, int damage, DestructionEvent.Cause cause,
+                             SpaceObject source) {
         if (enemy.isEnemyShip()) {
             EnemyShip enemyShip = enemy.as(EnemyShip.class);
             if (enemyShip != null) {
@@ -610,7 +614,7 @@ public class GameObjectManager {
                 enemyShip.takeDamage(damage);
                 if (wasAlive && enemyShip.shouldRemove()) {
                     enemy.markForRemoval();
-                    notifyDestroyed(DestructionEvent.Kind.ENEMY, enemyShip);
+                    notifyDestroyed(DestructionEvent.Kind.ENEMY, enemyShip, cause, source);
                 }
             }
         }
@@ -641,20 +645,24 @@ public class GameObjectManager {
         }
     }
 
-    private void applyRocketExplosion(float x, float y, Array<GameObject> targets) {
+    private void applyRocketExplosion(float x, float y, Array<GameObject> targets,
+                                      SpaceObject source) {
         if (rocketExplosionListener != null) {
             rocketExplosionListener.onRocketExplosion(x, y, AutoRocket.EXPLOSION_RADIUS);
         }
         for (GameObject target : targets) {
             if (target.shouldRemove()) continue;
-            damageTarget(target, AutoRocket.SPLASH_DAMAGE);
+            damageTarget(target, AutoRocket.SPLASH_DAMAGE,
+                    DestructionEvent.Cause.ROCKET_SPLASH, source);
         }
     }
 
-    private void notifyDestroyed(DestructionEvent.Kind kind, SpaceObject target) {
-        if (destructionListener != null) {
-            destructionListener.onDestroyed(new DestructionEvent(
-                    kind, target, target.getX(), target.getY()));
+    private void notifyDestroyed(DestructionEvent.Kind kind, SpaceObject target,
+                                 DestructionEvent.Cause cause, SpaceObject source) {
+        DestructionEvent event = new DestructionEvent(
+                kind, target, cause, source, target.getX(), target.getY());
+        for (DestructionListener listener : destructionListeners) {
+            listener.onDestroyed(event);
         }
     }
 
@@ -665,7 +673,9 @@ public class GameObjectManager {
             playerObstacleCollisionListener.onPlayerObstacleCollision(player.getX(), player.getY());
         }
         Asteroid asteroid = obstacle.as(Asteroid.class);
-        if (asteroid != null) splitAsteroid(asteroid);
+        if (asteroid != null) {
+            splitAsteroid(asteroid, DestructionEvent.Cause.PLAYER_COLLISION, player);
+        }
     }
 
     private void handlePlayerEnemyCollision() {

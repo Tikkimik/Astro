@@ -373,7 +373,7 @@ background
 
 Цель: новые сочетания сущностей не требуют расширять один большой набор ветвлений.
 
-Статус: выполняется. Дублирующий обход `Player ↔ obstacle` удалён из `GameSimulation`. Для `projectile ↔ target` геометрический поиск возвращает явную пару `ProjectileCollision`, после чего отдельный resolution-path решает friendly fire, удаление снаряда, прямой урон и splash. Уничтожение публикуется как единый `DestructionEvent`, а формула очков и опыта вынесена из `PlayState` в `CombatRewardRules`; presentation по-прежнему только выбирает эффект события.
+Статус: выполнен 2026-11-24. Все пары обнаруживает единый collision flow `GameObjectManager`; projectile detection формирует `ProjectileCollision`, а resolution отдельно решает owner/friendly-fire, удаление, прямой и splash-урон. `DestructionEvent` содержит цель, источник и причину (`DIRECT_PROJECTILE`, `ROCKET_SPLASH`, `PLAYER_COLLISION`), presentation и reward rules подписаны независимо. Формула очков и опыта живёт в `CombatRewardRules`. Spatial grid не подключался: текущий nested-loop не подтверждён как узкое место.
 
 ### 7.1. Единый collision detection
 
@@ -536,3 +536,4 @@ GameServices or GameContext
 - 2026-11-24 — этап 7: удалён второй detection-проход `Player ↔ obstacle` из `GameSimulation`; реакция перенесена в общий collision flow менеджера, а ship explosion остался presentation-listener. Прошли целевые проверки попадания и щита, затем все 33 logic-сценария.
 - 2026-11-24 — этап 7: projectile detection сведён к общему поиску пары `ProjectileCollision`, а последствия вынесены в единый resolution-path. Сохранены owner/friendly-fire, приоритет препятствий, прямой и splash-урон; целевые проверки и все 33 logic-сценария прошли.
 - 2026-11-24 — этап 7: раздельные callbacks уничтожения заменены единым `DestructionEvent`, а награды `5/10/25` и нулевая награда за промежуточные стадии астероида перенесены в `CombatRewardRules`. Целевые проверки и все 33 logic-сценария прошли.
+- 2026-11-24 — завершён этап 7: событие уничтожения получило источник и причину; presentation, rewards и сценарии стали независимыми подписчиками. Добавлен `rocket-splash-destroys-nearby-enemy`, а прямая пуля и столкновение игрока получили проверки metadata. Прошли компиляция и 34 logic-сценария; spatial grid оставлен выключенным до профилирования.

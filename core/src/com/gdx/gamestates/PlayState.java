@@ -113,13 +113,15 @@ public class PlayState implements Disposable {
         // Инициализируем GameObjectManager для управления всеми объектами
         if (gameObjectManager == null) {
             gameObjectManager = new GameObjectManager();
-            gameObjectManager.setDestructionListener(event -> {
+            gameObjectManager.addDestructionListener(event -> {
                 if (event.kind() == DestructionEvent.Kind.ASTEROID_STAGE) {
                     createParticles(event.x(), event.y());
                     session.decrementAsteroidsLeft();
                 } else {
                     createOptimizedExplosion(event.x(), event.y(), 8);
                 }
+            });
+            gameObjectManager.addDestructionListener(event -> {
                 int reward = CombatRewardRules.pointsFor(event);
                 if (reward > 0) addScore(reward);
             });

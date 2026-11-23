@@ -66,7 +66,7 @@
 | Все основные пары столкновений | `GameObjectManager.checkCollisions()` | Единственный detection-проход для projectiles, obstacles, enemies и player; визуальный эффект player ↔ obstacle отправляется listener-событием |
 | Projectile collision resolution | `GameObjectManager` | Получает явную пару после detection; в одном пути решает owner/friendly-fire, удаление снаряда, прямой и splash damage |
 | Split обычного астероида | `GameObjectManager` | Создаёт дочерние стадии и вызывает listener |
-| Уничтожение | `GameObjectManager` публикует `DestructionEvent` | Одно событие для стадии обычного астероида, OrkAsteroid и EnemyShip |
+| Уничтожение | `GameObjectManager` публикует `DestructionEvent` нескольким подписчикам | Событие содержит цель, источник и причину direct/splash/player collision |
 | Score/experience | `CombatRewardRules` вычисляет награду, `GameSession` применяет | `PlayState` маршрутизирует событие в presentation и session, но больше не содержит типовую формулу награды |
 | Collision broad phase | nested loops `GameObjectManager` | Построенный `WorldManager.spatialGrid` не подключён |
 

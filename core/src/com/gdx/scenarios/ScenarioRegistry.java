@@ -1,6 +1,7 @@
 package com.gdx.scenarios;
 
 import com.badlogic.gdx.math.MathUtils;
+import com.gdx.combat.DestructionEvent;
 import com.gdx.entities.Asteroid;
 import com.gdx.entities.AutoRocket;
 import com.gdx.entities.EnemyShip;
@@ -195,6 +196,9 @@ public final class ScenarioRegistry {
                 .checkAt(0.2f, "bullet removed", context -> context.expectManaged("bullet", false))
                 .checkAt(0.2f, "small asteroid reward", context -> context.expectScore(5))
                 .checkAt(0.2f, "small asteroid experience", context -> context.expectExperience(5))
+                .checkAt(0.2f, "direct projectile destruction metadata",
+                        context -> context.expectLastDestruction(
+                                DestructionEvent.Cause.DIRECT_PROJECTILE, "bullet", "target"))
                 .build());
 
         register(scenario("rocket-hits-enemy")
@@ -262,6 +266,9 @@ public final class ScenarioRegistry {
                             context.player().getY(), Asteroid.SMALL);
                 })
                 .checkAt(0.1f, "player hit by asteroid", context -> context.expectPlayerHit(true))
+                .checkAt(0.1f, "player collision destruction metadata",
+                        context -> context.expectLastDestruction(
+                                DestructionEvent.Cause.PLAYER_COLLISION, "player", "asteroid"))
                 .build());
 
         register(scenario("shield-blocks-asteroid")
@@ -490,6 +497,27 @@ public final class ScenarioRegistry {
                 .checkAt(0.12f, "far target is unharmed",
                         context -> context.expectHealth("far", 3))
                 .captureAt(0.08f, "blast")
+                .build());
+
+        register(scenario("rocket-splash-destroys-nearby-enemy")
+                .tags("rocket", "explosion", "area-damage", "rewards", "logic")
+                .duration(0.2f)
+                .setup(context -> {
+                    float x = context.player().getX() + 100f;
+                    float y = context.player().getY();
+                    context.enemyShip("direct", x, y);
+                    OrkAsteroid nearby = context.orkAsteroid(
+                            "near", x + 35f, y + 20f, OrkAsteroid.SMALL);
+                    nearby.setHealth(1);
+                    context.rocket("rocket", x - 10f, y, 0f, "direct");
+                })
+                .checkAt(0.12f, "splash target destroyed",
+                        context -> context.expectManaged("near", false))
+                .checkAt(0.12f, "splash destruction rewarded",
+                        context -> context.expectScore(10))
+                .checkAt(0.12f, "splash destruction metadata",
+                        context -> context.expectLastDestruction(
+                                DestructionEvent.Cause.ROCKET_SPLASH, "rocket", "near"))
                 .build());
 
         register(scenario("enemy-ship-requires-three-bullets")

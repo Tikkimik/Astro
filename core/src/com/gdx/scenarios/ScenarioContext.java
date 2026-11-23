@@ -1,6 +1,7 @@
 package com.gdx.scenarios;
 
 import com.badlogic.gdx.math.MathUtils;
+import com.gdx.combat.DestructionEvent;
 import com.gdx.entities.Asteroid;
 import com.gdx.entities.AutoRocket;
 import com.gdx.entities.Bullet;
@@ -29,10 +30,12 @@ public final class ScenarioContext {
     private final Map<String, float[]> positionSnapshots = new LinkedHashMap<>();
     private final Map<String, GameSessionSnapshot> sessionSnapshots = new LinkedHashMap<>();
     private final Set<String> completedActions = new HashSet<>();
+    private DestructionEvent lastDestructionEvent;
 
     ScenarioContext(PlayState playState) {
         this.playState = playState;
         this.objects = playState.getGameObjectManager();
+        objects.addDestructionListener(event -> lastDestructionEvent = event);
         ids.put("player", playState.getPlayer());
     }
 
@@ -211,6 +214,25 @@ public final class ScenarioContext {
         if (objects.getActiveObjects() != 1) {
             throw new AssertionError("active objects must count the standalone player exactly once: actual="
                     + objects.getActiveObjects());
+        }
+    }
+
+    public void expectLastDestruction(DestructionEvent.Cause expectedCause,
+                                      String expectedSourceId, String expectedTargetId) {
+        if (lastDestructionEvent == null) {
+            throw new AssertionError("expected destruction event, actual=none");
+        }
+        if (lastDestructionEvent.cause() != expectedCause) {
+            throw new AssertionError("destruction cause: expected=" + expectedCause
+                    + ", actual=" + lastDestructionEvent.cause());
+        }
+        SpaceObject expectedSource = get(expectedSourceId, SpaceObject.class);
+        if (lastDestructionEvent.source() != expectedSource) {
+            throw new AssertionError("destruction source: expected=" + expectedSourceId);
+        }
+        SpaceObject expectedTarget = get(expectedTargetId, SpaceObject.class);
+        if (lastDestructionEvent.target() != expectedTarget) {
+            throw new AssertionError("destruction target: expected=" + expectedTargetId);
         }
     }
 
