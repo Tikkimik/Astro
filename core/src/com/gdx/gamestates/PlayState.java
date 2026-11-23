@@ -27,6 +27,8 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
+import com.gdx.combat.CombatRewardRules;
+import com.gdx.combat.DestructionEvent;
 import com.gdx.utils.ObjectPools;
 import com.gdx.utils.PerformanceMetrics;
 import com.gdx.utils.PerformanceMonitor;
@@ -111,14 +113,15 @@ public class PlayState implements Disposable {
         // Инициализируем GameObjectManager для управления всеми объектами
         if (gameObjectManager == null) {
             gameObjectManager = new GameObjectManager();
-            gameObjectManager.setAsteroidDestroyedListener((asteroid, x, y) -> {
-                createParticles(x, y);
-                session.decrementAsteroidsLeft();
-                if (asteroid.getType() == Asteroid.SMALL) addScore(5);
-            });
-            gameObjectManager.setEnemyDestroyedListener((enemy, x, y) -> {
-                createOptimizedExplosion(x, y, 8);
-                addScore(enemy instanceof OrkAsteroid ? 10 : 25);
+            gameObjectManager.setDestructionListener(event -> {
+                if (event.kind() == DestructionEvent.Kind.ASTEROID_STAGE) {
+                    createParticles(event.x(), event.y());
+                    session.decrementAsteroidsLeft();
+                } else {
+                    createOptimizedExplosion(event.x(), event.y(), 8);
+                }
+                int reward = CombatRewardRules.pointsFor(event);
+                if (reward > 0) addScore(reward);
             });
             gameObjectManager.setRocketExplosionListener((x, y, radius) -> {
                 presentation.rocketExplosionEffects().add(new RocketExplosionEffect(x, y, radius));

@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.Array;
+import com.gdx.combat.DestructionEvent;
 import com.gdx.entities.*;
 import com.gdx.managers.Camera;
 import com.gdx.utils.GameLogger;
@@ -54,16 +55,10 @@ public class GameObjectManager {
     // Специальные объекты
     private Player player;
 
-    // Listener для событий уничтожения астероидов
-    public interface AsteroidDestroyedListener {
-        void onAsteroidDestroyed(Asteroid asteroid, float x, float y);
+    public interface DestructionListener {
+        void onDestroyed(DestructionEvent event);
     }
-    private AsteroidDestroyedListener asteroidDestroyedListener;
-
-    public interface EnemyDestroyedListener {
-        void onEnemyDestroyed(Enemy enemy, float x, float y);
-    }
-    private EnemyDestroyedListener enemyDestroyedListener;
+    private DestructionListener destructionListener;
 
     public interface RocketExplosionListener {
         void onRocketExplosion(float x, float y, float radius);
@@ -75,12 +70,8 @@ public class GameObjectManager {
     }
     private PlayerObstacleCollisionListener playerObstacleCollisionListener;
 
-    public void setAsteroidDestroyedListener(AsteroidDestroyedListener listener) {
-        this.asteroidDestroyedListener = listener;
-    }
-
-    public void setEnemyDestroyedListener(EnemyDestroyedListener listener) {
-        this.enemyDestroyedListener = listener;
+    public void setDestructionListener(DestructionListener listener) {
+        this.destructionListener = listener;
     }
 
     public void setRocketExplosionListener(RocketExplosionListener listener) {
@@ -594,7 +585,7 @@ public class GameObjectManager {
                 orkAsteroid.takeDamage(damage);
                 if (wasAlive && orkAsteroid.shouldRemove()) {
                     obstacle.markForRemoval();
-                    notifyEnemyDestroyed(orkAsteroid);
+                    notifyDestroyed(DestructionEvent.Kind.ENEMY, orkAsteroid);
                 }
             }
         }
@@ -608,9 +599,7 @@ public class GameObjectManager {
             addAsteroid(new Asteroid(asteroid.getX(), asteroid.getY(), Asteroid.SMALL));
             addAsteroid(new Asteroid(asteroid.getX(), asteroid.getY(), Asteroid.SMALL));
         }
-        if (asteroidDestroyedListener != null) {
-            asteroidDestroyedListener.onAsteroidDestroyed(asteroid, asteroid.getX(), asteroid.getY());
-        }
+        notifyDestroyed(DestructionEvent.Kind.ASTEROID_STAGE, asteroid);
     }
 
     private void damageEnemy(GameObject enemy, int damage) {
@@ -621,7 +610,7 @@ public class GameObjectManager {
                 enemyShip.takeDamage(damage);
                 if (wasAlive && enemyShip.shouldRemove()) {
                     enemy.markForRemoval();
-                    notifyEnemyDestroyed(enemyShip);
+                    notifyDestroyed(DestructionEvent.Kind.ENEMY, enemyShip);
                 }
             }
         }
@@ -662,9 +651,10 @@ public class GameObjectManager {
         }
     }
 
-    private void notifyEnemyDestroyed(Enemy enemy) {
-        if (enemyDestroyedListener != null) {
-            enemyDestroyedListener.onEnemyDestroyed(enemy, enemy.getX(), enemy.getY());
+    private void notifyDestroyed(DestructionEvent.Kind kind, SpaceObject target) {
+        if (destructionListener != null) {
+            destructionListener.onDestroyed(new DestructionEvent(
+                    kind, target, target.getX(), target.getY()));
         }
     }
 
