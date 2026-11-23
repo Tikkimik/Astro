@@ -3,9 +3,6 @@ package com.gdx.utils;
 import com.badlogic.gdx.utils.Pool;
 import com.gdx.entities.Particle;
 import com.gdx.entities.ExplosionParticle;
-import com.gdx.entities.FlameParticle;
-import com.gdx.entities.ShieldParticle;
-import com.gdx.entities.RocketParticle;
 import com.gdx.entities.AutoRocket;
 import com.gdx.entities.Targetable;
 import com.gdx.entities.OptimizedParticle;
@@ -33,27 +30,6 @@ public class ObjectPools {
         @Override
         protected ExplosionParticle newObject() {
             return new ExplosionParticle(0, 0);
-        }
-    };
-
-    public static final Pool<FlameParticle> flameParticlePool = new Pool<FlameParticle>(50) {
-        @Override
-        protected FlameParticle newObject() {
-            return new FlameParticle(0, 0, 0, 50);
-        }
-    };
-
-    public static final Pool<ShieldParticle> shieldParticlePool = new Pool<ShieldParticle>(30) {
-        @Override
-        protected ShieldParticle newObject() {
-            return new ShieldParticle(0, 0, 0, 20);
-        }
-    };
-
-    public static final Pool<RocketParticle> rocketParticlePool = new Pool<RocketParticle>(80) {
-        @Override
-        protected RocketParticle newObject() {
-            return new RocketParticle(0, 0, 0);
         }
     };
 
@@ -85,24 +61,6 @@ public class ObjectPools {
         return particle;
     }
 
-    public static FlameParticle obtainFlameParticle(float x, float y) {
-        FlameParticle particle = flameParticlePool.obtain();
-        particle.init(x, y);
-        return particle;
-    }
-
-    public static ShieldParticle obtainShieldParticle(float x, float y) {
-        ShieldParticle particle = shieldParticlePool.obtain();
-        particle.init(x, y);
-        return particle;
-    }
-
-    public static RocketParticle obtainRocketParticle(float x, float y, float angle) {
-        RocketParticle particle = rocketParticlePool.obtain();
-        particle.init(x, y);
-        return particle;
-    }
-
     public static AutoRocket obtainAutoRocket(float x, float y, float direction, Targetable target) {
         AutoRocket rocket = autoRocketPool.obtain();
         rocket.init(x, y, direction, target);
@@ -128,18 +86,6 @@ public class ObjectPools {
 
     public static void freeExplosionParticle(ExplosionParticle particle) {
         explosionParticlePool.free(particle);
-    }
-
-    public static void freeFlameParticle(FlameParticle particle) {
-        flameParticlePool.free(particle);
-    }
-
-    public static void freeShieldParticle(ShieldParticle particle) {
-        shieldParticlePool.free(particle);
-    }
-
-    public static void freeRocketParticle(RocketParticle particle) {
-        rocketParticlePool.free(particle);
     }
 
     public static void freeAutoRocket(AutoRocket rocket) {
