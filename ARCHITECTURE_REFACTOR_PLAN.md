@@ -373,7 +373,7 @@ background
 
 Цель: новые сочетания сущностей не требуют расширять один большой набор ветвлений.
 
-Статус: выполняется. Дублирующий обход `Player ↔ obstacle` удалён из `GameSimulation`: все пары теперь обнаруживает `GameObjectManager`, сохранённая реакция игрока и split астероида выполняются там же, а визуальный взрыв передаётся presentation через listener.
+Статус: выполняется. Дублирующий обход `Player ↔ obstacle` удалён из `GameSimulation`. Для `projectile ↔ target` геометрический поиск теперь возвращает явную пару `ProjectileCollision`, после чего отдельный resolution-path решает friendly fire, удаление снаряда, прямой урон и splash. Порядок `obstacles → enemies` пока намеренно сохранён как существующий контракт.
 
 ### 7.1. Единый collision detection
 
@@ -534,3 +534,4 @@ GameServices or GameContext
 - 2026-11-24 — этап 6: обычное удаление и `GameObjectManager.clear()` сведены к одной точке освобождения сущности. Закрыта утечка активных авторакет при очистке мира, добавлен сценарий `clear-returns-auto-rocket-to-pool`; прошли 33 logic- и 42 полных сценария, осмотрен свежий кадр `rocket`.
 - 2026-11-24 — завершён этап 6: удалены неиспользуемые пулы `Bullet`/`OrkBullet`, окончательная карта фиксирует прямой lifecycle пуль, pooled lifecycle авторакет и отдельное владение визуальными частицами. `GameObject` сохранён как узкий runtime handle; компиляция и 33 logic-сценария прошли. Следующее направление — разделение collision detection, урона и наград.
 - 2026-11-24 — этап 7: удалён второй detection-проход `Player ↔ obstacle` из `GameSimulation`; реакция перенесена в общий collision flow менеджера, а ship explosion остался presentation-listener. Прошли целевые проверки попадания и щита, затем все 33 logic-сценария.
+- 2026-11-24 — этап 7: projectile detection сведён к общему поиску пары `ProjectileCollision`, а последствия вынесены в единый resolution-path. Сохранены owner/friendly-fire, приоритет препятствий, прямой и splash-урон; целевые проверки и все 33 logic-сценария прошли.

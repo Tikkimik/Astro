@@ -64,7 +64,7 @@
 | Шаг | Текущий владелец | Наблюдение |
 |---|---|---|
 | Все основные пары столкновений | `GameObjectManager.checkCollisions()` | Единственный detection-проход для projectiles, obstacles, enemies и player; визуальный эффект player ↔ obstacle отправляется listener-событием |
-| Прямой и splash damage | `GameObjectManager` | Связан с type checks и конкретными классами |
+| Projectile collision resolution | `GameObjectManager` | Получает явную пару после detection; в одном пути решает owner/friendly-fire, удаление снаряда, прямой и splash damage |
 | Split обычного астероида | `GameObjectManager` | Создаёт дочерние стадии и вызывает listener |
 | Score/experience | listeners, установленные `PlayState` | Правило награды замыкается обратно в `PlayState.addScore()` |
 | Collision broad phase | nested loops `GameObjectManager` | Построенный `WorldManager.spatialGrid` не подключён |

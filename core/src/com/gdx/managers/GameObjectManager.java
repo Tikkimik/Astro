@@ -15,6 +15,8 @@ import com.gdx.utils.RenderStats;
  */
 public class GameObjectManager {
 
+    private record ProjectileCollision(GameObject projectile, GameObject target) {}
+
     public static final class Snapshot {
         private final Array<GameObject> allObjects;
         private final Array<GameObject> projectiles;
@@ -476,11 +478,8 @@ public class GameObjectManager {
      * Проверить коллизии между всеми объектами
      */
     public void checkCollisions() {
-        // Коллизии снарядов с препятствиями
-        checkProjectileObstacleCollisions();
-
-        // Коллизии снарядов с врагами
-        checkProjectileEnemyCollisions();
+        checkProjectileCollisions(obstacles);
+        checkProjectileCollisions(enemies);
 
         // Коллизии вражеских снарядов с игроком
         checkProjectilePlayerCollisions();
@@ -492,42 +491,30 @@ public class GameObjectManager {
         checkPlayerEnemyCollisions();
     }
 
-    private void checkProjectileObstacleCollisions() {
+    private void checkProjectileCollisions(Array<GameObject> targets) {
         for (GameObject projectile : projectiles) {
             if (projectile.shouldRemove()) continue;
-
-            for (GameObject obstacle : obstacles) {
-                if (obstacle.shouldRemove()) continue;
-
-                OrkBullet enemyBullet = projectile.as(OrkBullet.class);
-                if (enemyBullet != null && enemyBullet.getOwner() == obstacle.getObject()) continue;
-
-                if (projectile.intersects(obstacle)) {
-                    if (enemyBullet != null) projectile.markForRemoval();
-                    else handleProjectileObstacleCollision(projectile, obstacle);
-                    break;
-                }
-            }
+            ProjectileCollision collision = detectProjectileCollision(projectile, targets);
+            if (collision != null) resolveProjectileCollision(collision);
         }
     }
 
-    private void checkProjectileEnemyCollisions() {
-        for (GameObject projectile : projectiles) {
-            if (projectile.shouldRemove()) continue;
-
-            for (GameObject enemy : enemies) {
-                if (enemy.shouldRemove()) continue;
-
-                OrkBullet enemyBullet = projectile.as(OrkBullet.class);
-                if (enemyBullet != null && enemyBullet.getOwner() == enemy.getObject()) continue;
-
-                if (projectile.intersects(enemy)) {
-                    if (enemyBullet != null) projectile.markForRemoval();
-                    else handleProjectileEnemyCollision(projectile, enemy);
-                    break;
-                }
-            }
+    private ProjectileCollision detectProjectileCollision(GameObject projectile, Array<GameObject> targets) {
+        OrkBullet enemyBullet = projectile.as(OrkBullet.class);
+        for (GameObject target : targets) {
+            if (target.shouldRemove()) continue;
+            if (enemyBullet != null && enemyBullet.getOwner() == target.getObject()) continue;
+            if (projectile.intersects(target)) return new ProjectileCollision(projectile, target);
         }
+        return null;
+    }
+
+    private void resolveProjectileCollision(ProjectileCollision collision) {
+        if (collision.projectile().isOrkBullet()) {
+            collision.projectile().markForRemoval();
+            return;
+        }
+        handleProjectileTargetCollision(collision.projectile(), collision.target());
     }
 
     private void checkProjectilePlayerCollisions() {
@@ -573,15 +560,20 @@ public class GameObjectManager {
 
     // === ОБРАБОТКА КОЛЛИЗИЙ ===
 
-    private void handleProjectileObstacleCollision(GameObject projectile, GameObject obstacle) {
+    private void handleProjectileTargetCollision(GameObject projectile, GameObject target) {
         projectile.markForRemoval();
         Array<GameObject> splashTargets = projectile.isAutoRocket()
-                ? collectSplashTargets(obstacle.getX(), obstacle.getY(), obstacle)
+                ? collectSplashTargets(target.getX(), target.getY(), target)
                 : null;
-        damageObstacle(obstacle, projectileDamage(projectile));
+        damageTarget(target, projectileDamage(projectile));
         if (splashTargets != null) {
-            applyRocketExplosion(obstacle.getX(), obstacle.getY(), splashTargets);
+            applyRocketExplosion(target.getX(), target.getY(), splashTargets);
         }
+    }
+
+    private void damageTarget(GameObject target, int damage) {
+        if (target.isObstacle()) damageObstacle(target, damage);
+        else if (target.isEnemy()) damageEnemy(target, damage);
     }
 
     private void damageObstacle(GameObject obstacle, int damage) {
@@ -618,17 +610,6 @@ public class GameObjectManager {
         }
         if (asteroidDestroyedListener != null) {
             asteroidDestroyedListener.onAsteroidDestroyed(asteroid, asteroid.getX(), asteroid.getY());
-        }
-    }
-
-    private void handleProjectileEnemyCollision(GameObject projectile, GameObject enemy) {
-        projectile.markForRemoval();
-        Array<GameObject> splashTargets = projectile.isAutoRocket()
-                ? collectSplashTargets(enemy.getX(), enemy.getY(), enemy)
-                : null;
-        damageEnemy(enemy, projectileDamage(projectile));
-        if (splashTargets != null) {
-            applyRocketExplosion(enemy.getX(), enemy.getY(), splashTargets);
         }
     }
 
@@ -677,8 +658,7 @@ public class GameObjectManager {
         }
         for (GameObject target : targets) {
             if (target.shouldRemove()) continue;
-            if (target.isObstacle()) damageObstacle(target, AutoRocket.SPLASH_DAMAGE);
-            else if (target.isEnemy()) damageEnemy(target, AutoRocket.SPLASH_DAMAGE);
+            damageTarget(target, AutoRocket.SPLASH_DAMAGE);
         }
     }
 
