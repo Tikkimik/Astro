@@ -21,8 +21,8 @@
 |---|---|---|---|---|---|
 | `PlayState` | `RealPlayStateHandler` | handler → `PlayState.update()` | handler → `PlayState.draw()` | `RealPlayStateHandler.onDispose()` вызывает `PlayState.dispose()` | Всё ещё совмещает orchestration, renderer и HUD; игровые данные вынесены в `GameSession` |
 | `GameSession` | `PlayState` создаёт один раз на новый забег | детерминированное время обновляется из fixed tick | не рисует | живёт и очищается вместе с `PlayState` | `PlayState` пока хранит внутренние быстрые ссылки на объекты сессии до разделения simulation/presentation |
-| `Camera` | `PlayState` | `PlayState` | читается всеми render-проходами | явной очистки не требует | Зависит от глобальных размеров `MyGdxGame` |
-| `Background` | `PlayState` | `PlayState` | `PlayState` | не выражено | Presentation находится внутри session orchestration |
+| `Camera` | `GamePresentation` | `GamePresentation.updateView()` | читается render-проходами через presentation | явной очистки не требует | Зависит от глобальных размеров `MyGdxGame` |
+| `Background` | `GamePresentation` | `GamePresentation.updateView()` | пока вызывается координатором `PlayState` | живёт вместе с presentation | Render-проходы мира ещё не собраны в отдельный renderer |
 | `GameHudRenderer` | `PlayState` | обновляет только локальную анимацию HUD из `GameHudView` | владеет HUD-проходами `SpriteBatch`/`ShapeRenderer` | не владеет GPU-ресурсами | Общий font пока разделяется с debug overlay |
 | `ProgressionManager` | `GameSession` | через события наград и HUD-анимацию | HUD читает состояние | живёт вместе с session | Presentation пока читает progression напрямую |
 | `GameSessionSnapshot` | создаёт `GameSession.createSnapshot()` | — | — | immutable snapshot для round-trip | Коллекции объектов восстанавливаются как in-memory состояние; файловая сериализация пока не реализована |
@@ -45,9 +45,9 @@
 
 | Семейство | Владелец активных объектов | Update | Render | Возврат/очистка | Пробел |
 |---|---|---|---|---|---|
-| Старые `Particle` explosions | `PlayState.particles` | `PlayState` | `PlayState`/ShapeRenderer | удаляются из массива; не все происходят из одного пула | Параллельный путь с optimized particles |
-| `OptimizedParticle` | `PlayState.optimizedParticles` | `PlayState` | `PlayState`/SpriteBatch | `ObjectPools.freeOptimizedParticle()` | Отдельный lifecycle |
-| `RocketExplosionEffect` | `PlayState.rocketExplosionEffects` | `PlayState` | два render-прохода `PlayState` | удаляется по `isComplete()` | Presentation effect хранится в gameplay orchestration |
+| Старые `Particle` explosions | `GamePresentation.particles` | `GamePresentation.updateEffects()` | `PlayState`/ShapeRenderer | presentation удаляет и освобождает бюджет | Параллельный путь с optimized particles |
+| `OptimizedParticle` | `GamePresentation.optimizedParticles` | `GamePresentation.updateEffects()` | `PlayState`/SpriteBatch | presentation возвращает в `ObjectPools` | Render пока остаётся в координаторе |
+| `RocketExplosionEffect` | `GamePresentation.rocketExplosionEffects` | `GamePresentation.updateEffects()` | два render-прохода `PlayState` | presentation удаляет по `isComplete()` | Render пока остаётся в координаторе |
 | Player flame/shield/spark | `Player` | `Player.update()` | `Player.draw()` | `Player` возвращает в `ParticlePool` | Сущность управляет render pass и завершает чужой ShapeRenderer |
 | Player exhaust trail | `Player`/внутренний renderer | `Player` | внутренний renderer | `Player.dispose()` | В статистике считается вместе с частицами, но lifecycle другой |
 | Rocket trail particles | `GameObjectManager.rocketParticles` | `GameObjectManager` | отдельный SpriteBatch-pass менеджера | `ParticlePool.freeRocketParticle()` | Не являются `GameObject`, несмотря на владение менеджером объектов |

@@ -258,7 +258,7 @@ enter → active → exit
 
 Цель: сделать порядок игровой логики явным, а рендер — побочным представлением состояния.
 
-Статус: выполняется. HUD и его анимация вынесены в `GameHudRenderer`, данные передаются через immutable `GameHudView`. Следующий шаг — отделить presentation update от gameplay pipeline, сохранив текущий порядок боевых операций.
+Статус: выполняется. HUD и его анимация вынесены в `GameHudRenderer`, данные передаются через immutable `GameHudView`. Камера, фон и визуальные эффекты принадлежат `GamePresentation`, который самостоятельно выполняет их update/dispose. Следующий шаг — выделить gameplay simulation pipeline и debug overlay, сохранив текущий порядок боевых операций.
 
 ### 5.1. Зафиксировать pipeline симуляции
 

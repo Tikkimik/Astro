@@ -4,7 +4,6 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.entities.Asteroid;
 import com.gdx.entities.AutoRocket;
-import com.gdx.entities.Background;
 import com.gdx.entities.Bullet;
 import com.gdx.entities.Enemy;
 import com.gdx.entities.OrkAsteroid;
@@ -43,33 +42,26 @@ import com.gdx.utils.PerformanceMonitor;
 import com.gdx.utils.TimeManager;
 import com.gdx.utils.GameSettings;
 import com.gdx.utils.RenderStats;
-import com.gdx.utils.CameraBounds;
 import com.gdx.scenarios.ScenarioRunner;
 import com.gdx.scenarios.ScenarioRuntime;
 import com.gdx.session.GameSession;
 import com.gdx.session.GameSessionSnapshot;
 import com.gdx.presentation.GameHudRenderer;
 import com.gdx.presentation.GameHudView;
+import com.gdx.presentation.GamePresentation;
 
 public class PlayState implements Disposable {
 
     private ShapeRenderer shapeRenderer;
 
-    private Camera camera;
-    private Background background;
+    private GamePresentation presentation;
     private Player player;
     private GameObjectManager gameObjectManager;
-
-    // Оставляем только частицы, так как они обрабатываются по-другому
-    private Array<Particle> particles;
-    private Array<OptimizedParticle> optimizedParticles;
-    private Array<RocketExplosionEffect> rocketExplosionEffects;
 
     private GameSession session;
 
     // Счётчики рендера (culling) и копия границ камеры для ParticleBudget
     private final RenderStats renderStats = new RenderStats();
-    private final CameraBounds cameraBounds = new CameraBounds();
 
     // Таймер для автоматических ракет
     private final float AUTO_ROCKET_INTERVAL = 1f; // Интервал в секундах
@@ -137,8 +129,7 @@ public class PlayState implements Disposable {
 
         // Инициализируем только базовые компоненты, которые не зависят от состояния игры
         shapeRenderer = new ShapeRenderer();
-        camera = new Camera();
-        background = new Background(camera);
+        presentation = new GamePresentation();
 
         // Инициализируем GameObjectManager для управления всеми объектами
         if (gameObjectManager == null) {
@@ -153,17 +144,10 @@ public class PlayState implements Disposable {
                 addScore(enemy instanceof OrkAsteroid ? 10 : 25);
             });
             gameObjectManager.setRocketExplosionListener((x, y, radius) -> {
-                rocketExplosionEffects.add(new RocketExplosionEffect(x, y, radius));
+                presentation.rocketExplosionEffects().add(new RocketExplosionEffect(x, y, radius));
                 createOptimizedExplosion(x, y, 12);
             });
         }
-
-        // Инициализируем только частицы (они обрабатываются по-другому)
-        if (particles == null) particles = new Array<Particle>();
-        if (optimizedParticles == null) optimizedParticles = new Array<OptimizedParticle>();
-        if (rocketExplosionEffects == null) rocketExplosionEffects = new Array<RocketExplosionEffect>();
-        com.gdx.utils.ParticleBudget.register(particles);
-        com.gdx.utils.ParticleBudget.register(optimizedParticles);
 
         // Создаем игрока только если он еще не создан (не восстановлен из состояния)
         if (player == null) {
@@ -236,7 +220,7 @@ public class PlayState implements Disposable {
         // Взрыв за пределами расширенной области спавна не создаём: эффект не будет виден
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
         for(int i = 0; i < 6 && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            particles.add(new Particle(x, y));
+            presentation.particles().add(new Particle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
@@ -244,7 +228,7 @@ public class PlayState implements Disposable {
     private void createExplosion(float x, float y, int particleCount) {
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
         for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            particles.add(new ExplosionParticle(x, y));
+            presentation.particles().add(new ExplosionParticle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
@@ -252,12 +236,12 @@ public class PlayState implements Disposable {
     private void createShipExplosion(float x, float y) {
         // Создаем много частиц для эффектного взрыва корабля
         for(int i = 0; i < 15 && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            particles.add(new ExplosionParticle(x, y));
+            presentation.particles().add(new ExplosionParticle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
         // Добавляем несколько обычных частиц
         for(int i = 0; i < 8 && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            particles.add(new Particle(x, y));
+            presentation.particles().add(new Particle(x, y));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
@@ -266,7 +250,7 @@ public class PlayState implements Disposable {
     private void createOptimizedExplosion(float x, float y, int particleCount) {
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
         for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "explosion"));
+            presentation.optimizedParticles().add(ObjectPools.obtainOptimizedParticle(x, y, "explosion"));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
@@ -274,7 +258,7 @@ public class PlayState implements Disposable {
     private void createOptimizedFlameParticles(float x, float y, int particleCount) {
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
         for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "flame"));
+            presentation.optimizedParticles().add(ObjectPools.obtainOptimizedParticle(x, y, "flame"));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
@@ -282,7 +266,7 @@ public class PlayState implements Disposable {
     private void createOptimizedSmokeParticles(float x, float y, int particleCount) {
         if (!com.gdx.utils.ParticleBudget.isInSpawnBounds(x, y)) return;
         for(int i = 0; i < particleCount && com.gdx.utils.ParticleBudget.canSpawn(x, y); i++) {
-            optimizedParticles.add(ObjectPools.obtainOptimizedParticle(x, y, "smoke"));
+            presentation.optimizedParticles().add(ObjectPools.obtainOptimizedParticle(x, y, "smoke"));
             com.gdx.utils.ParticleBudget.add(1);
         }
     }
@@ -411,21 +395,9 @@ public class PlayState implements Disposable {
         // Начинаем профилирование
         long startTime = System.nanoTime();
 
-        //update camera to follow player
-        long cameraStart = System.nanoTime();
-        camera.followTarget(player.getX(), player.getY());
-        camera.update(dt);
-        cameraTime = System.nanoTime() - cameraStart;
-
-        // Копия границ камеры для ParticleBudget (решения о спавне частиц)
-        cameraBounds.set(camera.getRenderLeft(), camera.getRenderRight(), camera.getRenderBottom(), camera.getRenderTop(),
-                camera.getSpawnLeft(), camera.getSpawnRight(), camera.getSpawnBottom(), camera.getSpawnTop());
-        com.gdx.utils.ParticleBudget.updateBounds(cameraBounds);
-
-        //update background
-        long backgroundStart = System.nanoTime();
-        background.update(dt);
-        backgroundTime = System.nanoTime() - backgroundStart;
+        GamePresentation.ViewTimings presentationTimings = presentation.updateView(dt, player);
+        cameraTime = presentationTimings.cameraNanos();
+        backgroundTime = presentationTimings.backgroundNanos();
 
         applyPlayerInput();
 
@@ -467,33 +439,7 @@ public class PlayState implements Disposable {
         // GameObjectManager уже обновил все объекты
         asteroidsTime = System.nanoTime() - asteroidsStart;
 
-        //update particles
-        long particlesStart = System.nanoTime();
-        for(int i = 0; i < particles.size; i++) {
-            particles.get(i).update(dt);
-            if(particles.get(i).shouldRemove()) {
-                particles.removeIndex(i);
-                com.gdx.utils.ParticleBudget.release(1);
-                i--;
-            }
-        }
-
-        //update optimized particles
-        for(int i = 0; i < optimizedParticles.size; i++) {
-            optimizedParticles.get(i).update(dt);
-            if(optimizedParticles.get(i).shouldRemove()) {
-                ObjectPools.freeOptimizedParticle(optimizedParticles.get(i));
-                optimizedParticles.removeIndex(i);
-                com.gdx.utils.ParticleBudget.release(1);
-                i--;
-            }
-        }
-        for (int i = rocketExplosionEffects.size - 1; i >= 0; i--) {
-            RocketExplosionEffect effect = rocketExplosionEffects.get(i);
-            effect.update(dt);
-            if (effect.isComplete()) rocketExplosionEffects.removeIndex(i);
-        }
-        particlesTime = System.nanoTime() - particlesStart;
+        particlesTime = presentation.updateEffects(dt);
 
                 //update auto rockets
         long rocketsStart = System.nanoTime();
@@ -553,7 +499,7 @@ public class PlayState implements Disposable {
 
             System.out.println("=== PERFORMANCE PROFILE ===");
             System.out.println("FPS: " + currentFPS + " | Objects: " + gameObjectManager.getStats() +
-                             " P=" + particles.size);
+                             " P=" + presentation.particles().size);
             System.out.println("World: " + worldManager.getWorldInfo());
             System.out.println("Times (μs): Camera=" + (cameraTime/1000) +
                              " Background=" + (backgroundTime/1000) +
@@ -572,6 +518,7 @@ public class PlayState implements Disposable {
     public void draw() {
 //        System.out.println("PLAY STATE DRAWING");
         long drawStart = System.nanoTime();
+        Camera camera = presentation.camera();
 
         // Сброс счётчиков рендера на начало кадра
         renderStats.beginFrame();
@@ -580,13 +527,13 @@ public class PlayState implements Disposable {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
 //draw background first
-        background.draw(shapeRenderer, camera);
+        presentation.background().draw(shapeRenderer, camera);
 
         // Отрисовка всех игровых объектов через GameObjectManager (с culling:
         // снаряды, препятствия, враги и следы ракет за камерой в renderer не идут)
         gameObjectManager.draw(shapeRenderer, camera, spriteBatch, renderStats);
 
-        for (RocketExplosionEffect effect : rocketExplosionEffects) {
+        for (RocketExplosionEffect effect : presentation.rocketExplosionEffects()) {
             effect.drawFlash(shapeRenderer, camera);
         }
 
@@ -642,7 +589,7 @@ public class PlayState implements Disposable {
             renderStats.particlesCulled += flameCount + shieldCount + sparkCount + exhaustTrailCount;
         }
 
-        for (RocketExplosionEffect effect : rocketExplosionEffects) {
+        for (RocketExplosionEffect effect : presentation.rocketExplosionEffects()) {
             effect.drawRing(shapeRenderer, camera);
         }
 
@@ -652,8 +599,8 @@ public class PlayState implements Disposable {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
         //draw particles
-        for(int i = 0; i < particles.size; i++) {
-            Particle p = particles.get(i);
+        for(int i = 0; i < presentation.particles().size; i++) {
+            Particle p = presentation.particles().get(i);
             renderStats.particlesActive++;
             if (camera.isInRenderBounds(p.getX(), p.getY(), p.getCullRadius())) {
                 renderStats.particlesVisible++;
@@ -668,11 +615,11 @@ public class PlayState implements Disposable {
 
         // Оптимизированные частицы рисуются через SpriteBatch (текстуры).
         // begin()/end() вынесены сюда: раньше batch.draw вызывался без begin().
-        if (optimizedParticles.size > 0) {
+        if (presentation.optimizedParticles().size > 0) {
             spriteBatch.begin();
             //draw optimized particles
-            for(int i = 0; i < optimizedParticles.size; i++) {
-                OptimizedParticle p = optimizedParticles.get(i);
+            for(int i = 0; i < presentation.optimizedParticles().size; i++) {
+                OptimizedParticle p = presentation.optimizedParticles().get(i);
                 renderStats.particlesActive++;
                 if (camera.isInRenderBounds(p.getX(), p.getY(), p.getCullRadius())) {
                     renderStats.particlesVisible++;
@@ -722,7 +669,7 @@ public class PlayState implements Disposable {
 
     public void handleInput() {
         if (ScenarioRuntime.isActive()) {
-            camera.setTargetZoom(2f);
+            presentation.camera().setTargetZoom(2f);
         }
 
         // Отладка клавиш
@@ -737,13 +684,13 @@ public class PlayState implements Disposable {
 
         // Управление зумом - используем isDown для непрерывного действия
         if (GameKeys.isDown(GameKeys.ZOOM_IN)) {
-            camera.zoomIn();
+            presentation.camera().zoomIn();
         }
         if (GameKeys.isDown(GameKeys.ZOOM_OUT)) {
-            camera.zoomOut();
+            presentation.camera().zoomOut();
         }
         if (GameKeys.isPressed(GameKeys.ENTER)) {
-            camera.resetZoom();
+            presentation.camera().resetZoom();
         }
 
         // Переключение FPS счетчика
@@ -973,6 +920,7 @@ public class PlayState implements Disposable {
         String[] dirs = {"E", "NE", "N", "NW", "W", "SW", "S", "SE"};
         String facing = dirs[(((int) norm + 22) / 45) % 8];
         list.add(new DebugEntry(String.format("Facing: %.1f deg (%s)", norm, facing), 1f, 1f, 1f, false));
+        Camera camera = presentation.camera();
         list.add(new DebugEntry("Zoom: " + camera.getCurrentZoom() + "  (camera: " + (int) camera.getCameraX() + "," + (int) camera.getCameraY() + ")", 1f, 1f, 1f, false));
 
         // === Мир / объекты ===
@@ -1044,22 +992,7 @@ public class PlayState implements Disposable {
 
     @Override
     public void dispose() {
-        if (optimizedParticles != null) {
-            for (OptimizedParticle particle : optimizedParticles) {
-                ObjectPools.freeOptimizedParticle(particle);
-            }
-            com.gdx.utils.ParticleBudget.release(optimizedParticles.size);
-            com.gdx.utils.ParticleBudget.unregister(optimizedParticles);
-            optimizedParticles.clear();
-        }
-        if (particles != null) {
-            com.gdx.utils.ParticleBudget.release(particles.size);
-            com.gdx.utils.ParticleBudget.unregister(particles);
-            particles.clear();
-        }
-        if (rocketExplosionEffects != null) {
-            rocketExplosionEffects.clear();
-        }
+        if (presentation != null) presentation.dispose();
         if (gameObjectManager != null) {
             gameObjectManager.clear();
         }
