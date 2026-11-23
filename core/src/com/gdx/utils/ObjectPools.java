@@ -1,27 +1,17 @@
 package com.gdx.utils;
 
 import com.badlogic.gdx.utils.Pool;
-import com.gdx.entities.Bullet;
 import com.gdx.entities.Particle;
 import com.gdx.entities.ExplosionParticle;
 import com.gdx.entities.FlameParticle;
 import com.gdx.entities.ShieldParticle;
 import com.gdx.entities.RocketParticle;
-import com.gdx.entities.OrkBullet;
 import com.gdx.entities.AutoRocket;
 import com.gdx.entities.Enemy;
 import com.gdx.entities.OptimizedParticle;
 import com.gdx.entities.SmokeParticle;
 
 public class ObjectPools {
-
-    // Пулы для пуль
-    public static final Pool<Bullet> bulletPool = new Pool<Bullet>(100) {
-        @Override
-        protected Bullet newObject() {
-            return new Bullet(0, 0, 0);
-        }
-    };
 
     // Пулы для частиц
     public static final Pool<Particle> particlePool = new Pool<Particle>(200) {
@@ -67,14 +57,6 @@ public class ObjectPools {
         }
     };
 
-    // Пулы для вражеских объектов
-    public static final Pool<OrkBullet> orkBulletPool = new Pool<OrkBullet>(50) {
-        @Override
-        protected OrkBullet newObject() {
-            return new OrkBullet(0, 0, 0);
-        }
-    };
-
     // Пул дымовых частиц (выхлоп вражеских кораблей)
     public static final Pool<SmokeParticle> smokeParticlePool = new Pool<SmokeParticle>(150) {
         @Override
@@ -91,12 +73,6 @@ public class ObjectPools {
     };
 
     // Методы для получения объектов из пулов
-    public static Bullet obtainBullet(float x, float y, float radians) {
-        Bullet bullet = bulletPool.obtain();
-        bullet.init(x, y, radians);
-        return bullet;
-    }
-
     public static Particle obtainParticle(float x, float y) {
         Particle particle = particlePool.obtain();
         particle.init(x, y);
@@ -127,12 +103,6 @@ public class ObjectPools {
         return particle;
     }
 
-    public static OrkBullet obtainOrkBullet(float x, float y, float angle) {
-        OrkBullet bullet = orkBulletPool.obtain();
-        bullet.init(x, y, angle);
-        return bullet;
-    }
-
     public static AutoRocket obtainAutoRocket(float x, float y, float direction, Enemy target) {
         AutoRocket rocket = autoRocketPool.obtain();
         rocket.init(x, y, direction, target);
@@ -152,10 +122,6 @@ public class ObjectPools {
     }
 
     // Методы для возврата объектов в пулы
-    public static void freeBullet(Bullet bullet) {
-        bulletPool.free(bullet);
-    }
-
     public static void freeParticle(Particle particle) {
         particlePool.free(particle);
     }
@@ -174,10 +140,6 @@ public class ObjectPools {
 
     public static void freeRocketParticle(RocketParticle particle) {
         rocketParticlePool.free(particle);
-    }
-
-    public static void freeOrkBullet(OrkBullet bullet) {
-        orkBulletPool.free(bullet);
     }
 
     public static void freeAutoRocket(AutoRocket rocket) {
