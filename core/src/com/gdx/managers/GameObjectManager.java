@@ -68,6 +68,11 @@ public class GameObjectManager {
     }
     private RocketExplosionListener rocketExplosionListener;
 
+    public interface PlayerObstacleCollisionListener {
+        void onPlayerObstacleCollision(float x, float y);
+    }
+    private PlayerObstacleCollisionListener playerObstacleCollisionListener;
+
     public void setAsteroidDestroyedListener(AsteroidDestroyedListener listener) {
         this.asteroidDestroyedListener = listener;
     }
@@ -78,6 +83,10 @@ public class GameObjectManager {
 
     public void setRocketExplosionListener(RocketExplosionListener listener) {
         this.rocketExplosionListener = listener;
+    }
+
+    public void setPlayerObstacleCollisionListener(PlayerObstacleCollisionListener listener) {
+        this.playerObstacleCollisionListener = listener;
     }
 
     // Статистика
@@ -544,7 +553,8 @@ public class GameObjectManager {
             if (obstacle.shouldRemove()) continue;
 
             if (player.intersects(obstacle.getObject())) {
-                handlePlayerObstacleCollision();
+                handlePlayerObstacleCollision(obstacle);
+                break;
             }
         }
     }
@@ -678,9 +688,14 @@ public class GameObjectManager {
         }
     }
 
-    private void handlePlayerObstacleCollision() {
-        // Логика столкновения игрока с препятствием
-        GameLogger.debug("Player collided with obstacle");
+    private void handlePlayerObstacleCollision(GameObject obstacle) {
+        if (player.isHit() || player.isInvulnerable()) return;
+        player.hit();
+        if (playerObstacleCollisionListener != null) {
+            playerObstacleCollisionListener.onPlayerObstacleCollision(player.getX(), player.getY());
+        }
+        Asteroid asteroid = obstacle.as(Asteroid.class);
+        if (asteroid != null) splitAsteroid(asteroid);
     }
 
     private void handlePlayerEnemyCollision() {

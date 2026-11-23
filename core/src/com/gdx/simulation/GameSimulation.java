@@ -1,21 +1,14 @@
 package com.gdx.simulation;
 
 import com.badlogic.gdx.math.MathUtils;
-import com.gdx.entities.Asteroid;
 import com.gdx.entities.AutoRocket;
 import com.gdx.entities.Enemy;
-import com.gdx.entities.GameObject;
 import com.gdx.entities.Player;
 import com.gdx.scenarios.ScenarioRunner;
 import com.gdx.session.GameSession;
 import com.gdx.utils.ObjectPools;
 
 public final class GameSimulation {
-
-    @FunctionalInterface
-    public interface PositionEffect {
-        void create(float x, float y);
-    }
 
     public record BeginTickResult(
             long playerNanos,
@@ -28,17 +21,14 @@ public final class GameSimulation {
 
     private final GameSession session;
     private final ScenarioRunner scenarioRunner;
-    private final PositionEffect shipExplosion;
     private Enemy cachedNearestEnemy;
     private float enemyCacheTimer;
     private boolean autoRocketLeftSide = true;
     private boolean restoredFromSave;
 
-    public GameSimulation(GameSession session, ScenarioRunner scenarioRunner,
-                          PositionEffect shipExplosion) {
+    public GameSimulation(GameSession session, ScenarioRunner scenarioRunner) {
         this.session = session;
         this.scenarioRunner = scenarioRunner;
-        this.shipExplosion = shipExplosion;
     }
 
     public BeginTickResult beginTick(float delta, PlayerControls controls, boolean scenarioActive) {
@@ -66,7 +56,6 @@ public final class GameSimulation {
     public long finishTick(float delta, boolean scenarioActive) {
         updateTargeting(delta, scenarioActive);
         long started = System.nanoTime();
-        checkPlayerObstacleCollisions();
         session.getObjects().checkCollisions();
         if (scenarioRunner != null) scenarioRunner.afterUpdate(delta);
         return System.nanoTime() - started;
@@ -109,19 +98,6 @@ public final class GameSimulation {
         session.getObjects().addAutoRocket(ObjectPools.obtainAutoRocket(
                 player.getX(), player.getY(), angle, cachedNearestEnemy));
         autoRocketLeftSide = !autoRocketLeftSide;
-    }
-
-    private void checkPlayerObstacleCollisions() {
-        Player player = session.getPlayer();
-        if (player.isHit() || player.isInvulnerable()) return;
-        for (GameObject object : session.getObjects().getObstacles()) {
-            if (!object.intersects(player)) continue;
-            player.hit();
-            shipExplosion.create(player.getX(), player.getY());
-            Asteroid asteroid = object.as(Asteroid.class);
-            if (asteroid != null) session.getObjects().splitAsteroid(asteroid);
-            break;
-        }
     }
 
     public void setRestoredFromSave(boolean restoredFromSave) {

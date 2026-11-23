@@ -124,6 +124,7 @@ public class PlayState implements Disposable {
                 presentation.rocketExplosionEffects().add(new RocketExplosionEffect(x, y, radius));
                 createOptimizedExplosion(x, y, 12);
             });
+            gameObjectManager.setPlayerObstacleCollisionListener(this::createShipExplosion);
         }
 
         // Создаем игрока только если он еще не создан (не восстановлен из состояния)
@@ -152,7 +153,7 @@ public class PlayState implements Disposable {
                 progressionManager, MyGdxGame.highScore);
 
         ScenarioRunner scenarioRunner = ScenarioRuntime.attach(this);
-        simulation = new GameSimulation(session, scenarioRunner, this::createShipExplosion);
+        simulation = new GameSimulation(session, scenarioRunner);
         simulation.setRestoredFromSave(restoredFromSave);
 
         createUiFont();

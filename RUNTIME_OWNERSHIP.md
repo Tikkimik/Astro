@@ -63,8 +63,7 @@
 
 | Шаг | Текущий владелец | Наблюдение |
 |---|---|---|
-| Player ↔ obstacle предварительная проверка | `GameSimulation` | Наносит hit и создаёт ship explosion через presentation callback |
-| Все основные пары столкновений | `GameObjectManager.checkCollisions()` | Повторно проверяет player ↔ obstacle, а также projectiles/enemies/player |
+| Все основные пары столкновений | `GameObjectManager.checkCollisions()` | Единственный detection-проход для projectiles, obstacles, enemies и player; визуальный эффект player ↔ obstacle отправляется listener-событием |
 | Прямой и splash damage | `GameObjectManager` | Связан с type checks и конкретными классами |
 | Split обычного астероида | `GameObjectManager` | Создаёт дочерние стадии и вызывает listener |
 | Score/experience | listeners, установленные `PlayState` | Правило награды замыкается обратно в `PlayState.addScore()` |
