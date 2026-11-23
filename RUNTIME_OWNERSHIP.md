@@ -23,6 +23,7 @@
 | `GameSession` | `PlayState` создаёт один раз на новый забег | детерминированное время обновляется из fixed tick | не рисует | живёт и очищается вместе с `PlayState` | `PlayState` пока хранит внутренние быстрые ссылки на объекты сессии до разделения simulation/presentation |
 | `Camera` | `PlayState` | `PlayState` | читается всеми render-проходами | явной очистки не требует | Зависит от глобальных размеров `MyGdxGame` |
 | `Background` | `PlayState` | `PlayState` | `PlayState` | не выражено | Presentation находится внутри session orchestration |
+| `GameHudRenderer` | `PlayState` | обновляет только локальную анимацию HUD из `GameHudView` | владеет HUD-проходами `SpriteBatch`/`ShapeRenderer` | не владеет GPU-ресурсами | Общий font пока разделяется с debug overlay |
 | `ProgressionManager` | `GameSession` | через события наград и HUD-анимацию | HUD читает состояние | живёт вместе с session | Presentation пока читает progression напрямую |
 | `GameSessionSnapshot` | создаёт `GameSession.createSnapshot()` | — | — | immutable snapshot для round-trip | Коллекции объектов восстанавливаются как in-memory состояние; файловая сериализация пока не реализована |
 

@@ -258,6 +258,8 @@ enter → active → exit
 
 Цель: сделать порядок игровой логики явным, а рендер — побочным представлением состояния.
 
+Статус: выполняется. HUD и его анимация вынесены в `GameHudRenderer`, данные передаются через immutable `GameHudView`. Следующий шаг — отделить presentation update от gameplay pipeline, сохранив текущий порядок боевых операций.
+
 ### 5.1. Зафиксировать pipeline симуляции
 
 Предварительный порядок:
@@ -273,6 +275,27 @@ spawn/world streaming
 ```
 
 Порядок уточняется по существующим контрактам сценариев.
+
+Фактический порядок на начало этапа 5:
+
+```text
+session time
+→ camera/background update (presentation)
+→ player input application
+→ world streaming/spawn
+→ scenario beforeUpdate
+→ player movement
+→ GameObjectManager update and cleanup
+→ visual particles/effects update (presentation)
+→ HUD animation update (presentation)
+→ target cache and automatic rocket spawn
+→ PlayState player/obstacle collision pass
+→ GameObjectManager collision detection and resolution
+→ rewards through listeners
+→ scenario afterUpdate
+```
+
+Главный обнаруженный пробел: simulation и presentation перемешаны внутри одного метода, а player/obstacle collision имеет два прохода. Дублирование collision относится к этапу 7 и не переставляется одновременно с текущим переносом.
 
 ### 5.2. Выделить HUD
 

@@ -48,6 +48,8 @@ import com.gdx.scenarios.ScenarioRunner;
 import com.gdx.scenarios.ScenarioRuntime;
 import com.gdx.session.GameSession;
 import com.gdx.session.GameSessionSnapshot;
+import com.gdx.presentation.GameHudRenderer;
+import com.gdx.presentation.GameHudView;
 
 public class PlayState implements Disposable {
 
@@ -86,8 +88,7 @@ public class PlayState implements Disposable {
     private int currentFPS = 0;
     private float fpsTimer = 0f;
 
-    // Нижняя граница текстового HUD-блока (используется для отступа Debug menu)
-    private float hudBottomY = 0f;
+    private GameHudRenderer hudRenderer;
 
     // Профилирование производительности
     private long lastUpdateTime = 0;
@@ -114,13 +115,6 @@ public class PlayState implements Disposable {
 
     // Система прокачки
     private ProgressionManager progressionManager;
-
-    // Анимация полоски опыта
-    private float experienceBarTimer = 0f;
-    private float lastExperienceProgress = 0f;
-    private float animatedProgress = 0f;
-    private boolean isLevelingUp = false;
-    private float levelUpTimer = 0f;
 
     // Флаг для предотвращения повторной инициализации
     private boolean isInitialized = false;
@@ -202,6 +196,7 @@ public class PlayState implements Disposable {
         fpsLogger = new FPSLogger();
         createUiFont();
         spriteBatch = new SpriteBatch();
+        hudRenderer = new GameHudRenderer(font);
 
         // Инициализируем Android управление
         androidInputManager = new AndroidInputManager();
@@ -509,35 +504,7 @@ public class PlayState implements Disposable {
         long orkStart = System.nanoTime();
         // GameObjectManager уже обновил все объекты
 
-        // Анимация полоски опыта
-        experienceBarTimer += dt;
-        float currentProgress = progressionManager.getExperienceProgress();
-
-        // Проверяем, произошло ли повышение уровня
-        if (currentProgress < lastExperienceProgress) {
-            isLevelingUp = true;
-            levelUpTimer = 0f;
-        }
-
-        // Анимация повышения уровня
-        if (isLevelingUp) {
-            levelUpTimer += dt;
-            if (levelUpTimer >= 1.0f) {
-                isLevelingUp = false;
-                animatedProgress = 0f;
-            }
-        }
-
-        // Плавная анимация прогресса
-        if (!isLevelingUp) {
-            float targetProgress = currentProgress;
-            float diff = targetProgress - animatedProgress;
-            if (Math.abs(diff) > 0.001f) {
-                animatedProgress += diff * dt * 5f; // Скорость анимации
-            }
-        }
-
-        lastExperienceProgress = currentProgress;
+        hudRenderer.update(dt, createHudView());
 
         // GameObjectManager уже обновил все объекты
         orkTime = System.nanoTime() - orkStart;
@@ -735,86 +702,12 @@ public class PlayState implements Disposable {
         // Видимый счётчик частиц для ParticleBudget — по итогам реального render-кадра
         com.gdx.utils.ParticleBudget.setVisible(renderStats.particlesVisible);
 
-        // Отображаем игровую информацию (экранные координаты, не зависят от камеры мира)
-        spriteBatch.begin();
-        drawHudText();
-        spriteBatch.end();
-
-        // Крутая анимированная полоска прогресса опыта
-        float progressBarWidth = 200f;
-        float progressBarHeight = 12f;
-        float progressBarX = 10f;
-        float progressBarY = MyGdxGame.HEIGHT - 95f;
-
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        // Тень полоски
-        shapeRenderer.setColor(0f, 0f, 0f, 0.5f);
-        shapeRenderer.rect(progressBarX + 2, progressBarY - 2, progressBarWidth, progressBarHeight);
-
-        // Фон полоски с градиентом
-        shapeRenderer.setColor(0.2f, 0.2f, 0.3f, 1f);
-        shapeRenderer.rect(progressBarX, progressBarY, progressBarWidth, progressBarHeight);
-
-        // Внутренний фон с эффектом глубины
-        shapeRenderer.setColor(0.1f, 0.1f, 0.2f, 1f);
-        shapeRenderer.rect(progressBarX + 1, progressBarY + 1, progressBarWidth - 2, progressBarHeight - 2);
-
-        // Анимированное заполнение полоски
-        if (isLevelingUp) {
-            // Эффект повышения уровня - пульсирующий градиент
-            float pulseIntensity = 0.5f + 0.5f * MathUtils.sin(levelUpTimer * 10f);
-            shapeRenderer.setColor(1f, 1f, 0f, pulseIntensity);
-            shapeRenderer.rect(progressBarX + 2, progressBarY + 2, progressBarWidth - 4, progressBarHeight - 4);
-
-            // Дополнительный эффект свечения
-            shapeRenderer.setColor(1f, 0.8f, 0f, pulseIntensity * 0.5f);
-            shapeRenderer.rect(progressBarX + 2, progressBarY + 2, progressBarWidth - 4, progressBarHeight - 4);
-        } else {
-            // Обычное заполнение с анимацией
-            float fillWidth = (progressBarWidth - 4) * animatedProgress;
-
-            // Градиентное заполнение
-            for (int i = 0; i < fillWidth; i += 2) {
-                float segmentProgress = i / fillWidth;
-                float r = 1f;
-                float g = 0.5f + 0.5f * segmentProgress;
-                float b = 0f;
-                float alpha = 0.8f + 0.2f * MathUtils.sin(experienceBarTimer * 3f + i * 0.1f);
-
-                shapeRenderer.setColor(r, g, b, alpha);
-                shapeRenderer.rect(progressBarX + 2 + i, progressBarY + 2, 2, progressBarHeight - 4);
-            }
-
-            // Эффект свечения на конце полоски
-            if (animatedProgress > 0) {
-                float glowIntensity = 0.3f + 0.2f * MathUtils.sin(experienceBarTimer * 5f);
-                shapeRenderer.setColor(1f, 1f, 0f, glowIntensity);
-                shapeRenderer.rect(progressBarX + 2 + fillWidth - 4, progressBarY + 2, 4, progressBarHeight - 4);
-            }
-        }
-
-        // Рамка полоски
-        shapeRenderer.setColor(0.6f, 0.6f, 0.8f, 1f);
-        shapeRenderer.rect(progressBarX, progressBarY, progressBarWidth, 2);
-        shapeRenderer.rect(progressBarX, progressBarY + progressBarHeight - 2, progressBarWidth, 2);
-        shapeRenderer.rect(progressBarX, progressBarY, 2, progressBarHeight);
-        shapeRenderer.rect(progressBarX + progressBarWidth - 2, progressBarY, 2, progressBarHeight);
-
-        // Дополнительные эффекты
-        if (animatedProgress > 0.9f) {
-            // Эффект готовности к повышению уровня
-            float readyPulse = 0.2f + 0.3f * MathUtils.sin(experienceBarTimer * 8f);
-            shapeRenderer.setColor(1f, 0f, 0f, readyPulse);
-            shapeRenderer.rect(progressBarX + 2, progressBarY + 2, progressBarWidth - 4, 2);
-        }
-
-        shapeRenderer.end();
+        hudRenderer.draw(spriteBatch, shapeRenderer, createHudView());
 
         // Детальная F3-табличка с полезной информацией (клавиша F)
         // Начинаем ниже HUD-блока с безопасным отступом
         if (showFPS) {
-            drawDebugTable(hudBottomY - 16f);
+            drawDebugTable(hudRenderer.getBottomY() - 16f);
         }
 
 
@@ -993,29 +886,12 @@ public class PlayState implements Disposable {
         return sb.toString();
     }
 
-    // Основной HUD (Score/High/Level/XP) рисуется курсором сверху вниз,
-    // позиции строк зависят только от метрик шрифта и не пересекаются.
-    private void drawHudText() {
-        float x = 10f;
-        float lineH = font.getLineHeight(); // высота строки для масштаба 1.0
-        float spacing = 4f; // отступ между строками HUD
-        float y = MyGdxGame.HEIGHT - 8f; // базовая линия первой строки
-
-        font.setColor(1, 1, 1, 1); // Белый цвет
-        font.draw(spriteBatch, "Score: " + session.getScore(), x, y); y -= lineH + spacing;
-
-        font.setColor(1, 1, 1, 1);
-        font.draw(spriteBatch, "High: " + session.getHighScore(), x, y); y -= lineH + spacing;
-
-        font.setColor(0, 1, 1, 1); // Голубой цвет для уровня
-        font.draw(spriteBatch, "Level: " + progressionManager.getCurrentLevel(), x, y); y -= lineH + spacing;
-
-        font.setColor(1, 1, 0, 1); // Желтый цвет для опыта
-        String expText = "XP: " + progressionManager.getCurrentExperience() + "/" + progressionManager.getExperienceToNextLevel();
-        font.draw(spriteBatch, expText, x, y);
-
-        // Нижняя граница HUD-текста (низ последней строки)
-        hudBottomY = y - lineH;
+    private GameHudView createHudView() {
+        return new GameHudView(
+                session.getScore(), session.getHighScore(),
+                progressionManager.getCurrentLevel(), progressionManager.getCurrentExperience(),
+                progressionManager.getExperienceToNextLevel(), progressionManager.getExperienceProgress(),
+                MyGdxGame.WIDTH, MyGdxGame.HEIGHT);
     }
 
     // Детальная F3-табличка (клавиша F) в стиле Minecraft.
