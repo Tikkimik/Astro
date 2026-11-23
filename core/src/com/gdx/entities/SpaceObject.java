@@ -100,6 +100,13 @@ public class SpaceObject {
         return false;
     }
 
+    protected boolean intersectsByRadius(SpaceObject other) {
+        float dx = x - other.getX();
+        float dy = y - other.getY();
+        float radiusSum = getWidth() / 2f + other.getWidth() / 2f;
+        return dx * dx + dy * dy < radiusSum * radiusSum;
+    }
+
     public boolean shouldRemove() { return false; }
 
     public boolean contains(float x, float y) { //математика для коллизий

@@ -220,8 +220,4 @@ public class OrkAsteroid extends Enemy implements GameObject.Drawable {
         return height;
     }
     
-    @Override
-    public String getEnemyType() {
-        return "OrkAsteroid";
-    }
 }

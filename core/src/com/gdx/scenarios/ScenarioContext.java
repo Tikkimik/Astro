@@ -5,6 +5,7 @@ import com.gdx.combat.DestructionEvent;
 import com.gdx.entities.Asteroid;
 import com.gdx.entities.AutoRocket;
 import com.gdx.entities.Bullet;
+import com.gdx.entities.Damageable;
 import com.gdx.entities.Enemy;
 import com.gdx.entities.EnemyShip;
 import com.gdx.entities.GameObject;
@@ -201,7 +202,11 @@ public final class ScenarioContext {
     }
 
     public void expectHealth(String id, int expected) {
-        int actual = get(id, Enemy.class).getHealth();
+        SpaceObject object = get(id, SpaceObject.class);
+        if (!(object instanceof Damageable damageable)) {
+            throw new AssertionError("Object is not damageable: " + id);
+        }
+        int actual = damageable.getHealth();
         if (actual != expected) {
             throw new AssertionError(id + " health: expected=" + expected + ", actual=" + actual);
         }

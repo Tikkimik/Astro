@@ -358,11 +358,6 @@ public class EnemyShip extends Enemy implements GameObject.Drawable {
         return height;
     }
 
-    @Override
-    public String getEnemyType() {
-        return "EnemyShip";
-    }
-
     public void dispose() {
         if (flameParticles != null) {
             for (EnemyFlameParticle p : flameParticles) {

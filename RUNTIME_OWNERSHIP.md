@@ -35,7 +35,7 @@
 | Семейство | Создание | Фактический владелец коллекции | Update | Render | Удаление |
 |---|---|---|---|---|---|
 | `Player` | `GameSession`; `GameObjectManager` хранит прямой collision-индекс | отдельно через `GameSimulation` | отдельные методы проходов вызывает `GameWorldRenderer` | `Player.dispose()` при финальной очистке `PlayState` | Не входит в `allObjects`, но учитывается менеджером в active/created статистике |
-| `Asteroid` | `WorldManager`, split или scenario setup | `GameObjectManager` | `GameObjectManager` | `GameObjectManager` | внутреннее завершение или внешняя mark-команда читаются единым wrapper-запросом |
+| `Asteroid` | `WorldManager`, split или scenario setup | `GameObjectManager.obstacles` | `GameObjectManager` | `GameObjectManager` | `SpaceObject` + `Damageable` + `Targetable`; здоровье через `HealthState`, без ложного наследования `Enemy` |
 | `OrkAsteroid` | `WorldManager` или scenario setup | `GameObjectManager.obstacles` | `GameObjectManager` | `GameObjectManager` | mark/remove; стреляет через ссылку на менеджер |
 | `EnemyShip` | `WorldManager` или scenario setup | `GameObjectManager.enemies` | `GameObjectManager` | корпус через менеджер, smoke отдельным manager-pass | remove вызывает `EnemyShip.dispose()` |
 | `Bullet` | `Player`/scenario, регистрирует `GameObjectManager` | `GameObjectManager.projectiles` | `GameObjectManager` | `GameObjectManager` | wrapper mark/remove; создаётся напрямую и после удаления собирается GC |

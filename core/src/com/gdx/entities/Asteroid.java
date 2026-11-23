@@ -4,7 +4,9 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.managers.Camera;
 
-public class Asteroid extends Enemy implements GameObject.Drawable {
+public class Asteroid extends SpaceObject implements GameObject.Updatable, GameObject.Drawable,
+        Damageable, Targetable {
+    private final HealthState healthState;
     private int type;
     public static final int SMALL = 0;
     public static final int MEDIUM = 1;
@@ -14,7 +16,9 @@ public class Asteroid extends Enemy implements GameObject.Drawable {
     private float[] dists;
 
     public Asteroid(float x, float y, int type){
-        super(x, y, 1); // Здоровье = 1 для астероидов
+        this.x = x;
+        this.y = y;
+        this.healthState = new HealthState(1);
         this.type = type;
 
         if(type == SMALL){
@@ -73,11 +77,6 @@ public class Asteroid extends Enemy implements GameObject.Drawable {
     }
     
     @Override
-    public String getEnemyType() {
-        return "Asteroid";
-    }
-    
-    @Override
     public void update(float dt){
         x += dx * dt;
         y += dy * dt;
@@ -99,5 +98,30 @@ public class Asteroid extends Enemy implements GameObject.Drawable {
             float screenY2 = camera.worldToScreenY(shapeY[j]);
             shapeRenderer.line(screenX1, screenY1, screenX2, screenY2);
         }
+    }
+
+    @Override
+    public int getHealth() {
+        return healthState.getHealth();
+    }
+
+    @Override
+    public int getMaxHealth() {
+        return healthState.getMaxHealth();
+    }
+
+    @Override
+    public void takeDamage(int damage) {
+        healthState.damage(damage);
+    }
+
+    @Override
+    public boolean shouldRemove() {
+        return healthState.isDepleted();
+    }
+
+    @Override
+    public boolean intersects(SpaceObject other) {
+        return intersectsByRadius(other);
     }
 }
