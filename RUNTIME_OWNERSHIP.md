@@ -69,6 +69,7 @@
 | Уничтожение | `GameObjectManager` публикует `DestructionEvent` нескольким подписчикам | Событие содержит цель, источник и причину direct/splash/player collision |
 | Score/experience | `CombatRewardRules` вычисляет награду, `GameSession` применяет | `PlayState` маршрутизирует событие в presentation и session, но больше не содержит типовую формулу награды |
 | Collision broad phase | nested loops `GameObjectManager` | Построенный `WorldManager.spatialGrid` не подключён |
+| Автонаведение | `GameObjectManager.findNearestTarget()` + `AutoRocket` | Поиск и хранение цели зависят от `Targetable`, а не от иерархии `Enemy` |
 
 ## Ввод
 

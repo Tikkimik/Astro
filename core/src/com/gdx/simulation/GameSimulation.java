@@ -2,8 +2,8 @@ package com.gdx.simulation;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.entities.AutoRocket;
-import com.gdx.entities.Enemy;
 import com.gdx.entities.Player;
+import com.gdx.entities.Targetable;
 import com.gdx.scenarios.ScenarioRunner;
 import com.gdx.session.GameSession;
 import com.gdx.utils.ObjectPools;
@@ -16,13 +16,13 @@ public final class GameSimulation {
             boolean playerReset
     ) {}
 
-    private static final float ENEMY_CACHE_DURATION = 0.1f;
+    private static final float TARGET_CACHE_DURATION = 0.1f;
     private static final float AUTO_ROCKET_INTERVAL = 1f;
 
     private final GameSession session;
     private final ScenarioRunner scenarioRunner;
-    private Enemy cachedNearestEnemy;
-    private float enemyCacheTimer;
+    private Targetable cachedNearestTarget;
+    private float targetCacheTimer;
     private boolean autoRocketLeftSide = true;
     private boolean restoredFromSave;
 
@@ -70,12 +70,12 @@ public final class GameSimulation {
     }
 
     private void updateTargeting(float delta, boolean scenarioActive) {
-        enemyCacheTimer += delta;
-        if (enemyCacheTimer >= ENEMY_CACHE_DURATION) {
+        targetCacheTimer += delta;
+        if (targetCacheTimer >= TARGET_CACHE_DURATION) {
             Player player = session.getPlayer();
-            cachedNearestEnemy = session.getObjects().findNearestEnemy(
+            cachedNearestTarget = session.getObjects().findNearestTarget(
                     player.getX(), player.getY(), AutoRocket.DETECTION_RANGE);
-            enemyCacheTimer = 0f;
+            targetCacheTimer = 0f;
         }
         if (scenarioActive) return;
 
@@ -87,16 +87,16 @@ public final class GameSimulation {
     }
 
     private void createAutoRocket() {
-        if (cachedNearestEnemy == null) return;
+        if (cachedNearestTarget == null) return;
         Player player = session.getPlayer();
-        float dx = cachedNearestEnemy.getX() - player.getX();
-        float dy = cachedNearestEnemy.getY() - player.getY();
+        float dx = cachedNearestTarget.getX() - player.getX();
+        float dy = cachedNearestTarget.getY() - player.getY();
         if ((float) Math.sqrt(dx * dx + dy * dy) > AutoRocket.DETECTION_RANGE) return;
 
         float angle = player.getRadians()
                 + (autoRocketLeftSide ? MathUtils.HALF_PI : -MathUtils.HALF_PI);
         session.getObjects().addAutoRocket(ObjectPools.obtainAutoRocket(
-                player.getX(), player.getY(), angle, cachedNearestEnemy));
+                player.getX(), player.getY(), angle, cachedNearestTarget));
         autoRocketLeftSide = !autoRocketLeftSide;
     }
 

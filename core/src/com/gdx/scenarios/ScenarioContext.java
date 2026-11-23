@@ -12,6 +12,7 @@ import com.gdx.entities.OrkBullet;
 import com.gdx.entities.OrkAsteroid;
 import com.gdx.entities.Player;
 import com.gdx.entities.SpaceObject;
+import com.gdx.entities.Targetable;
 import com.gdx.gamestates.PlayState;
 import com.gdx.managers.GameObjectManager;
 import com.gdx.utils.ObjectPools;
@@ -125,7 +126,7 @@ public final class ScenarioContext {
     }
 
     public AutoRocket rocket(String id, float x, float y, float angle, String targetId) {
-        Enemy target = get(targetId, Enemy.class);
+        Targetable target = getTargetable(targetId);
         AutoRocket rocket = ObjectPools.obtainAutoRocket(x, y, angle, target);
         objects.addAutoRocket(rocket);
         return register(id, rocket);
@@ -150,6 +151,14 @@ public final class ScenarioContext {
                     + ", expected " + type.getSimpleName());
         }
         return type.cast(object);
+    }
+
+    private Targetable getTargetable(String id) {
+        SpaceObject object = get(id, SpaceObject.class);
+        if (!(object instanceof Targetable target)) {
+            throw new IllegalArgumentException("Scenario object is not targetable: " + id);
+        }
+        return target;
     }
 
     public boolean isManaged(String id) {
@@ -276,30 +285,30 @@ public final class ScenarioContext {
         }
     }
 
-    public void expectNearestEnemy(String expectedId, float maxDistance) {
-        Enemy expected = get(expectedId, Enemy.class);
-        Enemy actual = objects.findNearestEnemy(player().getX(), player().getY(), maxDistance);
+    public void expectNearestTarget(String expectedId, float maxDistance) {
+        Targetable expected = getTargetable(expectedId);
+        Targetable actual = objects.findNearestTarget(player().getX(), player().getY(), maxDistance);
         if (actual != expected) {
-            String actualName = actual == null ? "none" : actual.getEnemyType();
-            throw new AssertionError("nearest enemy: expected=" + expectedId + ", actual=" + actualName);
+            String actualName = actual == null ? "none" : actual.getClass().getSimpleName();
+            throw new AssertionError("nearest target: expected=" + expectedId + ", actual=" + actualName);
         }
     }
 
     public void expectRocketTarget(String rocketId, String expectedTargetId) {
-        Enemy actual = get(rocketId, AutoRocket.class).getTarget();
-        Enemy expected = get(expectedTargetId, Enemy.class);
+        Targetable actual = get(rocketId, AutoRocket.class).getTarget();
+        Targetable expected = getTargetable(expectedTargetId);
         if (actual != expected) {
-            String actualName = actual == null ? "none" : actual.getEnemyType();
+            String actualName = actual == null ? "none" : actual.getClass().getSimpleName();
             throw new AssertionError(rocketId + " target: expected=" + expectedTargetId
                     + ", actual=" + actualName);
         }
     }
 
     public void expectRocketHasNoTarget(String rocketId) {
-        Enemy actual = get(rocketId, AutoRocket.class).getTarget();
+        Targetable actual = get(rocketId, AutoRocket.class).getTarget();
         if (actual != null) {
             throw new AssertionError(rocketId + " target: expected=none, actual="
-                    + actual.getEnemyType());
+                    + actual.getClass().getSimpleName());
         }
     }
 

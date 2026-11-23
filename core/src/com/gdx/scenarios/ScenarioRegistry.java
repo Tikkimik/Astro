@@ -309,7 +309,7 @@ public final class ScenarioRegistry {
                     context.enemyShip("far", x + 200f, y);
                 })
                 .checkAt(0.05f, "nearest asteroid selected",
-                        context -> context.expectNearestEnemy("near", 500f))
+                        context -> context.expectNearestTarget("near", 500f))
                 .build());
 
         register(scenario("nearest-target-prefers-enemy-ship")
@@ -322,7 +322,7 @@ public final class ScenarioRegistry {
                     context.orkAsteroid("far", x + 200f, y, OrkAsteroid.SMALL);
                 })
                 .checkAt(0.05f, "nearest enemy ship selected",
-                        context -> context.expectNearestEnemy("near", 500f))
+                        context -> context.expectNearestTarget("near", 500f))
                 .build());
 
         register(scenario("targeting-respects-detection-range")
@@ -335,7 +335,7 @@ public final class ScenarioRegistry {
                     context.enemyShip("outside", x + AutoRocket.DETECTION_RANGE + 50f, y);
                 })
                 .checkAt(0.05f, "in-range target selected",
-                        context -> context.expectNearestEnemy("inside", AutoRocket.DETECTION_RANGE))
+                        context -> context.expectNearestTarget("inside", AutoRocket.DETECTION_RANGE))
                 .build());
     }
 

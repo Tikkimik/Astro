@@ -7,7 +7,7 @@ import com.gdx.entities.FlameParticle;
 import com.gdx.entities.ShieldParticle;
 import com.gdx.entities.RocketParticle;
 import com.gdx.entities.AutoRocket;
-import com.gdx.entities.Enemy;
+import com.gdx.entities.Targetable;
 import com.gdx.entities.OptimizedParticle;
 import com.gdx.entities.SmokeParticle;
 
@@ -103,7 +103,7 @@ public class ObjectPools {
         return particle;
     }
 
-    public static AutoRocket obtainAutoRocket(float x, float y, float direction, Enemy target) {
+    public static AutoRocket obtainAutoRocket(float x, float y, float direction, Targetable target) {
         AutoRocket rocket = autoRocketPool.obtain();
         rocket.init(x, y, direction, target);
         return rocket;

@@ -25,8 +25,7 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable, Gam
     private float launchTimer = 0f;
     private boolean isLaunched = false;
 
-    // Цель ракеты (теперь любой враг)
-    private Enemy target;
+    private Targetable target;
 
     private float lostTargetLifeTimer = 0f;
     private static final float LOST_TARGET_LIFETIME = 3f;
@@ -60,11 +59,11 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable, Gam
         this.manager = manager;
     }
 
-    public AutoRocket(float x, float y, float rocketDirection, Enemy target) {
+    public AutoRocket(float x, float y, float rocketDirection, Targetable target) {
         init(x, y, rocketDirection, target);
     }
 
-    public void init(float x, float y, float rocketDirection, Enemy target) {
+    public void init(float x, float y, float rocketDirection, Targetable target) {
         this.x = x;
         this.y = y;
         this.target = target;
@@ -211,10 +210,10 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable, Gam
             float targetDy = target.getY() - y;
             if (targetDx * targetDx + targetDy * targetDy <= DETECTION_RANGE * DETECTION_RANGE) return;
         }
-        target = manager == null ? null : manager.findNearestEnemy(x, y, DETECTION_RANGE);
+        target = manager == null ? null : manager.findNearestTarget(x, y, DETECTION_RANGE);
     }
 
-    public Enemy getTarget() {
+    public Targetable getTarget() {
         return target;
     }
 
@@ -311,15 +310,6 @@ public class AutoRocket extends SpaceObject implements GameObject.Updatable, Gam
         float distSq = dx * dx + dy * dy;
         float radiusSum = width / 2f + other.getWidth() / 2f;
         return distSq < radiusSum * radiusSum;
-    }
-
-        // Проверяем столкновение с любым врагом (оптимизированная)
-    public boolean intersects(Enemy enemy) {
-        float dx = x - enemy.getX();
-        float dy = y - enemy.getY();
-        float distanceSquared = dx * dx + dy * dy;
-        float radiusSum = enemy.getWidth() / 2 + width / 2;
-        return distanceSquared < radiusSum * radiusSum;
     }
 
     // Метод для установки урона ракеты

@@ -254,29 +254,35 @@ public class GameObjectManager {
         return enemies;
     }
 
-    public Enemy findNearestEnemy(float x, float y, float maxDistance) {
-        Enemy nearest = null;
+    public Targetable findNearestTarget(float x, float y, float maxDistance) {
+        Targetable nearest = null;
         float nearestDistanceSquared = maxDistance * maxDistance;
 
         for (GameObject object : obstacles) {
-            nearest = nearerEnemy(object, x, y, nearest, nearestDistanceSquared);
+            nearest = nearerTarget(object, x, y, nearest, nearestDistanceSquared);
             if (nearest != null) nearestDistanceSquared = distanceSquared(nearest, x, y);
         }
         for (GameObject object : enemies) {
-            nearest = nearerEnemy(object, x, y, nearest, nearestDistanceSquared);
+            nearest = nearerTarget(object, x, y, nearest, nearestDistanceSquared);
             if (nearest != null) nearestDistanceSquared = distanceSquared(nearest, x, y);
         }
         return nearest;
     }
 
-    private Enemy nearerEnemy(GameObject object, float x, float y, Enemy current, float currentDistanceSquared) {
+    private Targetable nearerTarget(GameObject object, float x, float y, Targetable current,
+                                    float currentDistanceSquared) {
         if (object.shouldRemove()) return current;
-        Enemy candidate = object.as(Enemy.class);
-        if (candidate == null) return current;
+        if (!(object.getObject() instanceof Targetable candidate)) return current;
         float candidateDistanceSquared = distanceSquared(candidate, x, y);
         return candidateDistanceSquared < currentDistanceSquared
                 || (current == null && candidateDistanceSquared == currentDistanceSquared)
                 ? candidate : current;
+    }
+
+    private float distanceSquared(Targetable object, float x, float y) {
+        float dx = object.getX() - x;
+        float dy = object.getY() - y;
+        return dx * dx + dy * dy;
     }
 
     private float distanceSquared(SpaceObject object, float x, float y) {
