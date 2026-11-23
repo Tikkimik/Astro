@@ -39,8 +39,14 @@ public final class GameWorldRenderer {
         }
         shapes.end();
 
+        drawPlayerTextures(batch, camera);
+
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        if (isPlayerVisible(camera)) player.drawShield(shapes, camera);
+        shapes.end();
+
         shapes.begin(ShapeRenderer.ShapeType.Line);
-        drawPlayer(shapes, batch, camera);
+        if (isPlayerVisible(camera)) player.drawHitLines(shapes, camera);
         for (RocketExplosionEffect effect : presentation.rocketExplosionEffects()) {
             effect.drawRing(shapes, camera);
         }
@@ -79,17 +85,22 @@ public final class GameWorldRenderer {
         ParticleBudget.setVisible(stats.particlesVisible);
     }
 
-    private void drawPlayer(ShapeRenderer shapes, SpriteBatch batch, Camera camera) {
+    private void drawPlayerTextures(SpriteBatch batch, Camera camera) {
         int flameCount = player.getFlameParticles().size;
         int shieldCount = player.getShieldParticles().size;
         int sparkCount = player.getSparkParticles().size;
         int exhaustCount = player.getExhaustTrailSampleCount();
-        boolean visible = camera.isInRenderBounds(player.getX(), player.getY(),
-                Math.max(1f, player.getWidth() / 2f));
+        boolean visible = isPlayerVisible(camera);
 
         stats.particlesActive += flameCount + shieldCount + sparkCount + exhaustCount;
         if (visible) {
-            player.draw(shapes, camera, batch);
+            batch.begin();
+            player.drawShip(batch, camera);
+            batch.end();
+            player.drawEngineEffects(camera);
+            batch.begin();
+            player.drawEngineParticles(batch, camera);
+            batch.end();
             stats.particlesVisible += exhaustCount;
             stats.particlesDrawn += exhaustCount;
             countPlayerParticles(camera, player.getFlameParticles(), player.getShieldParticles(),
@@ -104,6 +115,11 @@ public final class GameWorldRenderer {
         stats.objectsDrawn = stats.projectilesDrawn + stats.obstaclesDrawn
                 + stats.enemiesDrawn + (visible ? 1 : 0);
         stats.objectsCulled = stats.objectsActive - stats.objectsVisible;
+    }
+
+    private boolean isPlayerVisible(Camera camera) {
+        return camera.isInRenderBounds(player.getX(), player.getY(),
+                Math.max(1f, player.getWidth() / 2f));
     }
 
     private void countPlayerParticles(Camera camera,

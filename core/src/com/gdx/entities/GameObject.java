@@ -99,7 +99,7 @@ public class GameObject {
     public void draw(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch) {
         // Быстрый диспатч без рефлексии (виртуальные вызовы вместо поиска метода в рантайме)
         if (object instanceof Player) {
-            ((Player) object).draw(shapeRenderer, camera, spriteBatch);
+            return; // Игрок рисуется отдельными проходами GameWorldRenderer.
         } else if (object instanceof Drawable) {
             ((Drawable) object).draw(shapeRenderer, camera);
         } else {

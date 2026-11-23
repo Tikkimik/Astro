@@ -743,34 +743,22 @@ public class Player extends SpaceObject{
         com.gdx.utils.ParticleBudget.add(1);
     }
 
-    public void draw(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch){
-
-        //hit check
-        if(hit) {
-            // Эффект взрыва - красные линии
-            shapeRenderer.setColor(1, 0.3f, 0.1f, 1);
-            for(int i = 0; i < hitLines.length; i++) {
-                float screenX1 = camera.worldToScreenX(hitLines[i].x1);
-                float screenY1 = camera.worldToScreenY(hitLines[i].y1);
-                float screenX2 = camera.worldToScreenX(hitLines[i].x2);
-                float screenY2 = camera.worldToScreenY(hitLines[i].y2);
-                shapeRenderer.line(screenX1, screenY1, screenX2, screenY2);
-            }
-            return;
+    public void drawHitLines(ShapeRenderer shapeRenderer, Camera camera) {
+        if (!hit) return;
+        shapeRenderer.setColor(1, 0.3f, 0.1f, 1);
+        for (Line2D.Float line : hitLines) {
+            shapeRenderer.line(camera.worldToScreenX(line.x1), camera.worldToScreenY(line.y1),
+                    camera.worldToScreenX(line.x2), camera.worldToScreenY(line.y2));
         }
+    }
 
-        // Рисуем текстуру корабля
-        if (shipTexture != null) {
+    public void drawShip(SpriteBatch spriteBatch, Camera camera) {
+        if (hit || shipTexture == null) return;
             float screenX = camera.worldToScreenX(x);
             float screenY = camera.worldToScreenY(y);
-            float textureSize = 32 * camera.getCurrentZoom(); // Масштабируем с зумом
-
-            spriteBatch.begin();
-
-            // Основная текстура корабля
+            float textureSize = 32 * camera.getCurrentZoom();
             if(isInvulnerable) {
-                // Мерцание во время неуязвимости
-                float alpha = 0.5f + MathUtils.sin(invulnerabilityTimer * 20f) * 0.5f; // Быстрое мерцание
+                float alpha = 0.5f + MathUtils.sin(invulnerabilityTimer * 20f) * 0.5f;
                 spriteBatch.setColor(1, 1, 1, alpha);
             } else {
                 spriteBatch.setColor(1, 1, 1, 1);
@@ -779,60 +767,42 @@ public class Player extends SpaceObject{
                 shipTexture,
                 screenX - textureSize/2,
                 screenY - textureSize/2,
-                textureSize/2, textureSize/2, // Точка вращения
-                textureSize, textureSize, // Размер
-                1, 1, // Масштаб
-                (radians * MathUtils.radiansToDegrees) + 270, // Поворот + 180 градусов
-                0, 0, // Область текстуры
-                shipTexture.getWidth(), shipTexture.getHeight(), // Размер области
+                textureSize/2, textureSize/2,
+                textureSize, textureSize,
+                1, 1,
+                (radians * MathUtils.radiansToDegrees) + 270,
+                0, 0,
+                shipTexture.getWidth(), shipTexture.getHeight(),
                 false, false
-            ); // Переворот
+            );
 
-            // Эффект свечения поверх основной текстуры (если двигатель включен)
             if(up) {
-                // Аддитивное смешивание для эффекта свечения
                 spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
-
-                float flameIntensity = 0.3f + MathUtils.sin(engineGlowTimer * 6f) * 0.1f; // Мерцание
-                spriteBatch.setColor(1.0f, 0.4f, 0.1f, flameIntensity); // Оранжевое свечение
-
-                // Рисуем свечение немного больше основной текстуры
+                float flameIntensity = 0.3f + MathUtils.sin(engineGlowTimer * 6f) * 0.1f;
+                spriteBatch.setColor(1.0f, 0.4f, 0.1f, flameIntensity);
                 float glowSize = textureSize * 1.2f;
                 spriteBatch.draw(
                     shipTexture,
                     screenX - glowSize/2,
                     screenY - glowSize/2,
-                    glowSize/2, glowSize/2, // Точка вращения
-                    glowSize, glowSize, // Размер
-                    1, 1, // Масштаб
-                    (radians * MathUtils.radiansToDegrees) + 270, // Поворот
-                    0, 0, // Область текстуры
-                    shipTexture.getWidth(), shipTexture.getHeight(), // Размер области
+                    glowSize/2, glowSize/2,
+                    glowSize, glowSize,
+                    1, 1,
+                    (radians * MathUtils.radiansToDegrees) + 270,
+                    0, 0,
+                    shipTexture.getWidth(), shipTexture.getHeight(),
                     false, false
                 );
-
-                // Возвращаем обычное смешивание
                 spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
             }
-
             spriteBatch.setColor(1, 1, 1, 1);
-            spriteBatch.end();
-        }
+    }
 
-        // Частицы огня двигателей (создаются в update с фиксированной частотой)
-        // Здесь только отрисовка
-
-        // Пламя — мягкие аддитивные текстуры через SpriteBatch (одна частица
-        // вместо трёх жёстких кругов). Только видимые частицы.
-        shapeRenderer.end(); // Заканчиваем рендеринг линий
-
-        // Сначала остаточный мировой шлейф, затем горячий факел у сопел.
+    public void drawEngineEffects(Camera camera) {
+        if (hit) return;
         if (exhaustTrailRenderer != null) {
             exhaustTrailRenderer.render(camera);
         }
-
-        // Единый длинный ракетный факел: оба сопла визуально сходятся в одну
-        // плотную струю, как на референсах атмосферных ракетопланов.
         boolean engineOn = plumeThrottle > 0.015f && engineDensity > 0f;
         if (engineOn && enginePlumeRenderer != null) {
             enginePlumeRenderer.advanceTime();
@@ -841,8 +811,6 @@ public class Player extends SpaceObject{
             float length = 54f * (0.62f + 0.38f * plumeThrottle);
             float centerX = (engineX[0] + engineX[2]) * 0.5f;
             float centerY = (engineY[0] + engineY[2]) * 0.5f;
-            // Широкая слабая оболочка создаёт атмосферное оранжевое свечение,
-            // поверх неё рисуется плотное бело-жёлтое ядро.
             enginePlumeRenderer.renderFlame(centerX, centerY, radians,
                     intensity * 0.06f, 74f, length * 1.02f, plumeBend, camera);
             enginePlumeRenderer.renderFlame(centerX, centerY, radians,
@@ -850,43 +818,35 @@ public class Player extends SpaceObject{
             enginePlumeRenderer.renderFlame(centerX, centerY, radians,
                     intensity, 32f, length, plumeBend, camera);
         }
+    }
 
-        // Привязанные факелы рисуются, даже если все частицы уже угасли
-        // (например, в первый кадр после включения тяги), а частицы — в том же
-        // аддитивном проходе поверх факелов.
-        if (flameParticles.size > 0 || sparkParticles.size > 0) {
-            spriteBatch.begin();
-            spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-
-            for(int i = flameParticles.size - 1; i >= 0; i--) {
-                FlameParticle particle = flameParticles.get(i);
-                if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
-                    particle.draw(spriteBatch, camera);
-                }
+    public void drawEngineParticles(SpriteBatch spriteBatch, Camera camera) {
+        if (hit) return;
+        spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        for(int i = flameParticles.size - 1; i >= 0; i--) {
+            FlameParticle particle = flameParticles.get(i);
+            if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
+                particle.draw(spriteBatch, camera);
             }
-            // Только редкие искры остаются аддитивными.
-            spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
-            for(int i = sparkParticles.size - 1; i >= 0; i--) {
-                SparkParticle particle = sparkParticles.get(i);
-                if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
-                    particle.draw(spriteBatch, camera);
-                }
-            }
-            spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-            spriteBatch.end();
         }
+        spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+        for(int i = sparkParticles.size - 1; i >= 0; i--) {
+            SparkParticle particle = sparkParticles.get(i);
+            if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
+                particle.draw(spriteBatch, camera);
+            }
+        }
+        spriteBatch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+    }
 
-        // Щит — синие частицы (мелкие, остаются на ShapeRenderer)
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+    public void drawShield(ShapeRenderer shapeRenderer, Camera camera) {
+        if (hit) return;
         for(int i = shieldParticles.size - 1; i >= 0; i--) {
             ShieldParticle particle = shieldParticles.get(i);
             if (camera.isInRenderBounds(particle.getX(), particle.getY(), particle.getCullRadius())) {
                 particle.draw(shapeRenderer, camera);
             }
         }
-
-        shapeRenderer.end(); // Заканчиваем рендеринг заполненных объектов
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line); // Возвращаемся к линиям
     }
 
     public int getWidth() {
