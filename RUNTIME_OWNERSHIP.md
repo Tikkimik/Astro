@@ -20,7 +20,7 @@
 | Объект/ресурс | Создаёт и хранит | Update | Render | Удаление/очистка | Пробел |
 |---|---|---|---|---|---|
 | `PlayState` | `RealPlayStateHandler` | координирует `GameSimulation`, presentation и renderer-компоненты | вызывает world → HUD → debug → mobile UI | `RealPlayStateHandler.onDispose()` вызывает `PlayState.dispose()` | Всё ещё создаёт общие GPU-ресурсы и собирает view-снимки |
-| `GameSession` | `PlayState` создаёт один раз на новый забег | детерминированное время обновляет `GameSimulation` | не рисует | живёт и очищается вместе с `PlayState` | `PlayState` пока хранит быстрые ссылки на player/object/world для render и совместимости API |
+| `GameSession` | `PlayState` создаёт один раз на новый забег | детерминированное время обновляет `GameSimulation` | не рисует | живёт и очищается вместе с `PlayState` | Владеет `Player`; `PlayState` пока хранит быстрые ссылки для инициализации и render-view |
 | `GameSimulation` | `PlayState` | применяет controls, обновляет session/world/player/objects, targeting и collision | не рисует | живёт вместе с `PlayState` | Разделён на `beginTick/finishTick`, чтобы сохранить presentation update между историческими фазами pipeline |
 | `Camera` | `GamePresentation` | `GamePresentation.updateView()` | читается render-проходами через presentation | явной очистки не требует | Зависит от глобальных размеров `MyGdxGame` |
 | `Background` | `GamePresentation` | `GamePresentation.updateView()` | пока вызывается координатором `PlayState` | живёт вместе с presentation | Render-проходы мира ещё не собраны в отдельный renderer |
@@ -34,7 +34,7 @@
 
 | Семейство | Создание | Фактический владелец коллекции | Update | Render | Удаление |
 |---|---|---|---|---|---|
-| `Player` | `PlayState` | прямая ссылка `PlayState` + wrapper в `GameObjectManager.allObjects` | отдельно через `GameSimulation`; wrapper не обновляет его, так как `Player` не реализует `Updatable` | отдельные методы проходов вызывает `GameWorldRenderer` | Два представления владения player остаются задачей этапа 6 |
+| `Player` | `GameSession`; `GameObjectManager` хранит прямой collision-индекс | отдельно через `GameSimulation` | отдельные методы проходов вызывает `GameWorldRenderer` | `Player.dispose()` при финальной очистке `PlayState` | Не входит в `allObjects`, но учитывается менеджером в active/created статистике |
 | `Asteroid` | `WorldManager`, split или scenario setup | `GameObjectManager` | `GameObjectManager` | `GameObjectManager` | mark/remove в менеджере |
 | `OrkAsteroid` | `WorldManager` или scenario setup | `GameObjectManager.obstacles` | `GameObjectManager` | `GameObjectManager` | mark/remove; стреляет через ссылку на менеджер |
 | `EnemyShip` | `WorldManager` или scenario setup | `GameObjectManager.enemies` | `GameObjectManager` | корпус через менеджер, smoke отдельным manager-pass | remove вызывает `EnemyShip.dispose()` |
@@ -83,7 +83,7 @@
 
 ## Ближайшие решения
 
-1. На этапе 6 устранить двойное представление player и определить единый lifecycle объектов.
+1. На этапе 6 проверить симметрию wrapper state, `SpaceObject.shouldRemove()` и возврата в pools для снарядов и врагов.
 2. Убирать внутренние быстрые ссылки `PlayState` только после появления единственного владельца объектов.
 3. Не считать in-memory snapshot форматом долговременного сохранения: для него потребуется отдельный сериализуемый DTO и фабрики сущностей.
 4. Пересматривать эту карту после каждого завершённого архитектурного этапа.

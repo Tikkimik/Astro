@@ -202,6 +202,18 @@ public final class ScenarioContext {
         }
     }
 
+    public void expectPlayerHasSingleOwner() {
+        for (GameObject object : objects.getAllObjects()) {
+            if (object.getObject() == player()) {
+                throw new AssertionError("player must not be wrapped in GameObjectManager.allObjects");
+            }
+        }
+        if (objects.getActiveObjects() != 1) {
+            throw new AssertionError("active objects must count the standalone player exactly once: actual="
+                    + objects.getActiveObjects());
+        }
+    }
+
     public void expectScoreAtLeast(int expected) {
         int actual = playState.getScore();
         if (actual < expected) {

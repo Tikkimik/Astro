@@ -332,6 +332,8 @@ background
 
 Цель: один жизненный цикл для каждого семейства объектов.
 
+Статус: выполняется. `Player` принадлежит `GameSession` и передаётся в `GameObjectManager` прямой ссылкой только как collision-индекс. Фиктивный `GameObject` wrapper игрока и тип `PLAYER` удалены; контракт защищён сценарием `player-has-single-owner`. Остальные семейства wrapper-объектов пока не менялись.
+
 ### 6.1. Составить окончательную таблицу владельцев
 
 Решить, где живут:
@@ -525,3 +527,4 @@ GameServices or GameContext
 - 2026-11-23 — этап 5: HUD, debug overlay, presentation-state и fixed-tick gameplay pipeline получили отдельных владельцев. `GameSimulation` сохраняет прежний порядок через `beginTick/finishTick`; сценарий восстановления выявил и защитил особый порядок setup. Добавлен визуальный сценарий `debug-overlay`, удалён дублирующий профайлер, печатавший данные каждый fixed tick. Прошли 31 logic- и 40 полных сценариев, осмотрены свежие кадры `straight` и `debug-overlay`. Следующий подэтап — render-проходы мира.
 - 2026-11-23 — этап 5: порядок мировых слоёв и `RenderStats` перенесены из `PlayState` в `GameWorldRenderer` без изменения GL-порядка. Прошли 40 полных сценариев, осмотрены свежие кадры `straight` и `debug-overlay`. Оставшийся риск этапа — `Player.draw()` всё ещё самостоятельно переключает `ShapeRenderer` и `SpriteBatch`.
 - 2026-11-23 — завершён этап 5: рендер игрока разделён на явные textured, shield и hit-line проходы; `Player` больше не вызывает `begin/end` общих renderer-объектов. Прошли компиляция и 40 полных сценариев, осмотрены кадры `straight` и `player-hits-enemy-ship`. Следующее направление — единая модель владения объектами на этапе 6.
+- 2026-11-24 — этап 6: `Player` удалён из `GameObjectManager.allObjects` и больше не оборачивается в `GameObject`; session остаётся владельцем, manager хранит прямой collision-индекс и учитывает игрока в статистике один раз. Добавлен сценарий `player-has-single-owner`; прошли 32 logic- и 41 полный сценарий.

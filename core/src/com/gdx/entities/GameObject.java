@@ -11,7 +11,6 @@ import com.gdx.managers.Camera;
 public class GameObject {
     
     public enum Type {
-        PLAYER,          // Игрок
         PROJECTILE,      // Пули, ракеты, снаряды
         OBSTACLE,        // Астероиды, препятствия
         ENEMY,           // Враги, вражеские корабли
@@ -66,7 +65,6 @@ public class GameObject {
     public boolean isOrkBullet() { return object instanceof OrkBullet; }
     public boolean isAutoRocket() { return object instanceof AutoRocket; }
     public boolean isEnemyShip() { return object instanceof EnemyShip; }
-    public boolean isPlayer() { return object instanceof Player; }
     
     // Каст к конкретным типам (безопасный)
     @SuppressWarnings("unchecked")
@@ -98,9 +96,7 @@ public class GameObject {
     
     public void draw(ShapeRenderer shapeRenderer, Camera camera, SpriteBatch spriteBatch) {
         // Быстрый диспатч без рефлексии (виртуальные вызовы вместо поиска метода в рантайме)
-        if (object instanceof Player) {
-            return; // Игрок рисуется отдельными проходами GameWorldRenderer.
-        } else if (object instanceof Drawable) {
+        if (object instanceof Drawable) {
             ((Drawable) object).draw(shapeRenderer, camera);
         } else {
             System.out.println("Warning: Object " + object.getClass().getSimpleName() + " has no compatible draw method");

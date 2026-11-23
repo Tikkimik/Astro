@@ -135,6 +135,13 @@ public final class ScenarioRegistry {
     }
 
     private static void registerSessionScenarios() {
+        register(scenario("player-has-single-owner")
+                .tags("player", "ownership", "logic")
+                .duration(0.1f)
+                .checkAt(0.05f, "player is not duplicated in object wrappers",
+                        ScenarioContext::expectPlayerHasSingleOwner)
+                .build());
+
         register(scenario("session-snapshot-round-trip")
                 .tags("session", "save", "logic")
                 .duration(0.1f)

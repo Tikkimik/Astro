@@ -22,7 +22,7 @@ public class GameObjectManager {
         private final Array<GameObject> enemies;
         private final Array<GameObject> particles;
         private final Array<RocketParticle> rocketParticles;
-        private final GameObject player;
+        private final Player player;
         private final int totalObjects;
         private final int activeObjects;
 
@@ -50,7 +50,7 @@ public class GameObjectManager {
     private Array<RocketParticle> rocketParticles = new Array<>();
 
     // Специальные объекты
-    private GameObject player;
+    private Player player;
 
     // Listener для событий уничтожения астероидов
     public interface AsteroidDestroyedListener {
@@ -134,9 +134,6 @@ public class GameObjectManager {
             case PARTICLE:
                 particles.add(gameObject);
                 break;
-            case PLAYER:
-                player = gameObject;
-                break;
         }
 
         totalObjects++;
@@ -216,8 +213,11 @@ public class GameObjectManager {
      * Установить игрока
      */
     public void setPlayer(Player player) {
-        this.player = new GameObject(player, GameObject.Type.PLAYER);
-        allObjects.add(this.player);
+        if (this.player == player) return;
+        if (this.player != null) {
+            throw new IllegalStateException("Player is already registered");
+        }
+        this.player = player;
         totalObjects++;
         activeObjects++;
     }
@@ -288,20 +288,6 @@ public class GameObjectManager {
      */
     public Array<GameObject> getParticles() {
         return particles;
-    }
-
-    /**
-     * Получить игрока
-     */
-    public GameObject getPlayer() {
-        return player;
-    }
-
-    /**
-     * Получить игрока как Player
-     */
-    public Player getPlayerObject() {
-        return player != null ? player.as(Player.class) : null;
     }
 
     // === ОБНОВЛЕНИЕ ===
@@ -535,10 +521,7 @@ public class GameObjectManager {
     }
 
     private void checkProjectilePlayerCollisions() {
-        if (player == null || !player.isActive()) return;
-
-        Player p = player.as(Player.class);
-        if (p == null) return;
+        if (player == null) return;
 
         for (GameObject projectile : projectiles) {
             if (!projectile.isActive() || projectile.shouldRemove()) continue;
@@ -548,31 +531,31 @@ public class GameObjectManager {
 
             if (projectile.intersects(player)) {
                 projectile.markForRemoval();
-                p.hit();
+                player.hit();
             }
         }
     }
 
     private void checkPlayerObstacleCollisions() {
-        if (player == null || !player.isActive()) return;
+        if (player == null) return;
 
         for (GameObject obstacle : obstacles) {
             if (!obstacle.isActive() || obstacle.shouldRemove()) continue;
 
-            if (player.intersects(obstacle)) {
-                handlePlayerObstacleCollision(player, obstacle);
+            if (player.intersects(obstacle.getObject())) {
+                handlePlayerObstacleCollision();
             }
         }
     }
 
     private void checkPlayerEnemyCollisions() {
-        if (player == null || !player.isActive()) return;
+        if (player == null) return;
 
         for (GameObject enemy : enemies) {
             if (!enemy.isActive() || enemy.shouldRemove()) continue;
 
-            if (player.intersects(enemy)) {
-                handlePlayerEnemyCollision(player, enemy);
+            if (player.intersects(enemy.getObject())) {
+                handlePlayerEnemyCollision();
             }
         }
     }
@@ -694,14 +677,13 @@ public class GameObjectManager {
         }
     }
 
-    private void handlePlayerObstacleCollision(GameObject player, GameObject obstacle) {
+    private void handlePlayerObstacleCollision() {
         // Логика столкновения игрока с препятствием
         GameLogger.debug("Player collided with obstacle");
     }
 
-    private void handlePlayerEnemyCollision(GameObject player, GameObject enemy) {
-        Player collidedPlayer = player.as(Player.class);
-        if (collidedPlayer != null) collidedPlayer.hit();
+    private void handlePlayerEnemyCollision() {
+        player.hit();
     }
 
     // === УДАЛЕНИЕ ОБЪЕКТОВ ===
@@ -725,10 +707,6 @@ public class GameObjectManager {
         obstacles.removeValue(obj, true);
         enemies.removeValue(obj, true);
         particles.removeValue(obj, true);
-
-        if (obj == player) {
-            player = null;
-        }
 
         activeObjects--;
         GameLogger.debug("Removed object, active: " + activeObjects);
@@ -788,13 +766,10 @@ public class GameObjectManager {
             }
         }
         if (player != null) {
-            Player p = player.as(Player.class);
-            if (p != null) {
-                count += p.getFlameParticles().size;
-                count += p.getShieldParticles().size;
-                count += p.getSparkParticles().size;
-                count += p.getExhaustTrailSampleCount();
-            }
+            count += player.getFlameParticles().size;
+            count += player.getShieldParticles().size;
+            count += player.getSparkParticles().size;
+            count += player.getExhaustTrailSampleCount();
         }
         return count;
     }
