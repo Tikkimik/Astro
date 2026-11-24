@@ -57,7 +57,7 @@
 | Enemy flame/smoke | `EnemyShip` | `EnemyShip` | flame внутри ship draw, smoke отдельным manager-pass | `EnemyShip.dispose()` | Активные эффекты принадлежат entity, но считает их manager |
 | `ParticlePool` | статические массивы | — | — | `MyGdxGame.dispose()` очищает | Глобальное состояние процесса |
 | `ObjectPools` | статические LibGDX pools | — | — | `MyGdxGame.dispose()` очищает после финализации экранов; `AutoRocket.reset()` разрывает session-ссылки | Пулы flame/shield/rocket удалены как мёртвые дубли `ParticlePool`; остальные контракты ещё проверяются |
-| `ParticleBudget` | статический глобальный счётчик | обновляется из session/render | влияет на spawn | каждый владелец снимает свой вес; полный reset только в `MyGdxGame.dispose()` | Всё ещё зависит от ручной симметрии add/release, но локальный clear не стирает чужое состояние |
+| `ParticleBudget` | статический глобальный счётчик | обновляется из session/render | влияет на spawn | каждый владелец снимает свой вес; shutdown проверяет `active=0` и пустой registry до reset | Симметрия всё ещё ручная, но защищена owner-сценариями и application-level инвариантом |
 
 ## Столкновения и награды
 

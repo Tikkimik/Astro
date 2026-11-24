@@ -287,6 +287,12 @@ public class MyGdxGame extends ApplicationAdapter {
 			gameStateManager.dispose();
 		}
 
+		if (!ParticleBudget.isClean()) {
+			String message = "ParticleBudget leak after state disposal: "
+					+ ParticleBudget.describeState();
+			if (ScenarioRuntime.isActive()) throw new IllegalStateException(message);
+			GameLogger.error(message);
+		}
 		ParticleBudget.reset();
 		ParticlePool.clearAllPools();
 		ObjectPools.clearAllPools();

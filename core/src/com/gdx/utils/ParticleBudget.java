@@ -169,6 +169,14 @@ public final class ParticleBudget {
         return collections.size;
     }
 
+    public static boolean isClean() {
+        return active == 0 && collections.size == 0;
+    }
+
+    public static String describeState() {
+        return "active=" + active + ", registeredCollections=" + collections.size;
+    }
+
     // === ВЫТЕСНЕНИЕ ===
 
     private static boolean evictForVisibleSpawn() {
