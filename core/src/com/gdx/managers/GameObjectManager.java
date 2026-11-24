@@ -728,6 +728,7 @@ public class GameObjectManager {
         for (RocketParticle particle : rocketParticles) {
             com.gdx.utils.ParticlePool.freeRocketParticle(particle);
         }
+        com.gdx.utils.ParticleBudget.release(rocketParticles.size);
         allObjects.clear();
         projectiles.clear();
         obstacles.clear();
@@ -739,10 +740,12 @@ public class GameObjectManager {
         totalObjects = 0;
         activeObjects = 0;
 
-        // Счётчик активных частиц принадлежит миру, сбрасываем вместе с ним
-        com.gdx.utils.ParticleBudget.reset();
-
         GameLogger.info("GameObjectManager cleared");
+    }
+
+    public void dispose() {
+        clear();
+        com.gdx.utils.ParticleBudget.unregister(rocketParticles);
     }
 
     // === СТАТИСТИКА ===

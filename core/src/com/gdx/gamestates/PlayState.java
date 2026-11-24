@@ -585,7 +585,7 @@ public class PlayState implements Disposable {
     public void dispose() {
         if (presentation != null) presentation.dispose();
         if (gameObjectManager != null) {
-            gameObjectManager.clear();
+            gameObjectManager.dispose();
         }
         if (font != null) {
             font.dispose();

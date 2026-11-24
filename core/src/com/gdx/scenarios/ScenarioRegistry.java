@@ -146,7 +146,7 @@ public final class ScenarioRegistry {
         register(scenario("clear-returns-auto-rocket-to-pool")
                 .tags("rocket", "ownership", "pool", "logic")
                 .duration(0.1f)
-                .checkAt(0.05f, "clear returns rocket once and releases session references",
+                .checkAt(0.05f, "clear releases rocket without resetting external particle budget",
                         ScenarioContext::expectClearReturnsAutoRocketToPool)
                 .build());
 

@@ -260,6 +260,8 @@ public final class ScenarioContext {
         Asteroid target = new Asteroid(100f, 0f, Asteroid.SMALL);
         AutoRocket rocket = ObjectPools.obtainAutoRocket(0f, 0f, 0f, target);
         int freeAfterObtain = ObjectPools.autoRocketPool.getFree();
+        int externalBudget = ParticleBudget.getActive();
+        ParticleBudget.add(1);
         objects.addAutoRocket(rocket);
         objects.clear();
         int actual = ObjectPools.autoRocketPool.getFree();
@@ -270,6 +272,10 @@ public final class ScenarioContext {
         if (rocket.getTarget() != null) {
             throw new AssertionError("pooled auto rocket retains target from cleared session");
         }
+        if (ParticleBudget.getActive() != externalBudget + 1) {
+            throw new AssertionError("manager clear reset particle budget owned by another system");
+        }
+        ParticleBudget.release(1);
     }
 
     public void rememberParticlePoolFreeCount() {

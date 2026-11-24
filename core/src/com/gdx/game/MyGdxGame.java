@@ -18,6 +18,7 @@ import com.gdx.utils.DisplayManager;
 import com.gdx.utils.GameLogger;
 import com.gdx.utils.GameSettings;
 import com.gdx.utils.ParticlePool;
+import com.gdx.utils.ParticleBudget;
 import com.gdx.utils.ObjectPools;
 import com.gdx.utils.ParticleTextures;
 import com.gdx.utils.PerformanceMetrics;
@@ -286,6 +287,7 @@ public class MyGdxGame extends ApplicationAdapter {
 			gameStateManager.dispose();
 		}
 
+		ParticleBudget.reset();
 		ParticlePool.clearAllPools();
 		ObjectPools.clearAllPools();
 		ParticleTextures.disposeInstance();
