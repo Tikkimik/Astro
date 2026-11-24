@@ -11,6 +11,7 @@ public final class GameSession {
     private final GameObjectManager objects;
     private final ProgressionManager progression;
     private final WorldManager world;
+    private final GameSessionSnapshotMapper snapshotMapper;
 
     private int level = 1;
     private int totalAsteroids;
@@ -27,6 +28,7 @@ public final class GameSession {
         this.world = world;
         this.progression = progression;
         this.highScore = highScore;
+        this.snapshotMapper = new GameSessionSnapshotMapper();
     }
 
     public void updateTime(float fixedDelta) {
@@ -40,23 +42,23 @@ public final class GameSession {
     }
 
     public GameSessionSnapshot createSnapshot() {
-        return new GameSessionSnapshot(
-                objects.createSnapshot(), progression.createSnapshot(), level,
-                totalAsteroids, numAsteroidsLeft, score, highScore,
-                autoRocketTimer, elapsedTime);
+        return snapshotMapper.capture(this);
     }
 
     public void restore(GameSessionSnapshot snapshot) {
-        objects.restore(snapshot.objects());
-        progression.restore(snapshot.progression());
-        level = snapshot.level();
-        totalAsteroids = snapshot.totalAsteroids();
-        numAsteroidsLeft = snapshot.numAsteroidsLeft();
-        score = snapshot.score();
-        highScore = snapshot.highScore();
-        autoRocketTimer = snapshot.autoRocketTimer();
-        elapsedTime = snapshot.elapsedTime();
-        world.updateReferences(objects, player);
+        snapshotMapper.restore(this, snapshot);
+    }
+
+    void applyMappedState(int level, int totalAsteroids, int numAsteroidsLeft,
+                          int score, int highScore, float autoRocketTimer,
+                          float elapsedTime) {
+        this.level = level;
+        this.totalAsteroids = totalAsteroids;
+        this.numAsteroidsLeft = numAsteroidsLeft;
+        this.score = score;
+        this.highScore = highScore;
+        this.autoRocketTimer = autoRocketTimer;
+        this.elapsedTime = elapsedTime;
     }
 
     public Player getPlayer() { return player; }

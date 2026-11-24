@@ -3,6 +3,10 @@ package com.gdx.session;
 import com.gdx.managers.GameObjectManager;
 import com.gdx.managers.ProgressionManager;
 
+/**
+ * Runtime checkpoint одной живой сессии. Снимок объектов пока shallow и
+ * предназначен для rollback, а не для долговременного хранения.
+ */
 public record GameSessionSnapshot(
         GameObjectManager.Snapshot objects,
         ProgressionManager.Snapshot progression,
