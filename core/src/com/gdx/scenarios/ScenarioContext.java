@@ -39,6 +39,7 @@ public final class ScenarioContext {
     private int particlePoolFreeBefore;
     private int autoRocketPoolFreeBefore;
     private int particleBudgetActiveBefore;
+    private int registeredParticleCollectionsBefore;
 
     ScenarioContext(PlayState playState) {
         this.playState = playState;
@@ -324,6 +325,18 @@ public final class ScenarioContext {
         if (actual != particleBudgetActiveBefore) {
             throw new AssertionError("particle budget after restore: expected="
                     + particleBudgetActiveBefore + ", actual=" + actual);
+        }
+    }
+
+    public void rememberRegisteredParticleCollections() {
+        registeredParticleCollectionsBefore = ParticleBudget.getRegisteredCollectionCount();
+    }
+
+    public void expectRegisteredParticleCollectionsRestored() {
+        int actual = ParticleBudget.getRegisteredCollectionCount();
+        if (actual != registeredParticleCollectionsBefore) {
+            throw new AssertionError("registered particle collections: expected="
+                    + registeredParticleCollectionsBefore + ", actual=" + actual);
         }
     }
 

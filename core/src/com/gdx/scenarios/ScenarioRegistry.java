@@ -549,6 +549,7 @@ public final class ScenarioRegistry {
                 .tags("bullet", "enemy-ship", "damage", "rewards", "logic")
                 .duration(0.4f)
                 .setup(context -> {
+                    context.rememberRegisteredParticleCollections();
                     float x = context.player().getX() + 120f;
                     float y = context.player().getY();
                     context.enemyShip("target", x, y);
@@ -574,6 +575,8 @@ public final class ScenarioRegistry {
                 .checkAt(0.3f, "ship destruction gives score", context -> context.expectScore(25))
                 .checkAt(0.3f, "ship destruction gives experience",
                         context -> context.expectExperience(25))
+                .checkAt(0.3f, "ship particle collections unregistered",
+                        ScenarioContext::expectRegisteredParticleCollectionsRestored)
                 .build());
 
         register(scenario("large-asteroid-chain-rewards-twenty")

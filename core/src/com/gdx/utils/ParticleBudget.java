@@ -165,6 +165,10 @@ public final class ParticleBudget {
         collections.removeValue(collection, true);
     }
 
+    public static int getRegisteredCollectionCount() {
+        return collections.size;
+    }
+
     // === ВЫТЕСНЕНИЕ ===
 
     private static boolean evictForVisibleSpawn() {
