@@ -79,6 +79,14 @@ public final class ScenarioContext {
         }
     }
 
+    public void expectPlayerProjectiles(int maximum) {
+        int actual = objects.getProjectileCount();
+        if (actual < 1 || actual > maximum) {
+            throw new AssertionError("player projectiles: expected=1.." + maximum
+                    + ", actual=" + actual);
+        }
+    }
+
     public void controls(boolean thrust, boolean left, boolean right) {
         player().setUp(thrust);
         player().setLeft(left);

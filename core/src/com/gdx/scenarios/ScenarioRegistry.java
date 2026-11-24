@@ -73,6 +73,14 @@ public final class ScenarioRegistry {
                         context -> context.expectMovedAtLeast("player", "start", 0.01f))
                 .build());
 
+        register(scenario("player-fire-creates-projectile")
+                .tags("player", "weapon", "projectile", "logic")
+                .duration(0.12f)
+                .setup(context -> GameKeys.setKey(GameKeys.SPACE, true))
+                .checkAt(0.08f, "fire creates bounded player projectiles",
+                        context -> context.expectPlayerProjectiles(4))
+                .build());
+
         register(engineScenario("straight", 3.2f, 3f,
                 (context, elapsed, dt) -> {
                     context.setPlayerAngle(MathUtils.HALF_PI);

@@ -2,6 +2,7 @@ package com.gdx.simulation;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.entities.AutoRocket;
+import com.gdx.entities.Bullet;
 import com.gdx.entities.Player;
 import com.gdx.entities.Targetable;
 import com.gdx.scenarios.ScenarioRunner;
@@ -18,6 +19,7 @@ public final class GameSimulation {
 
     private static final float TARGET_CACHE_DURATION = 0.1f;
     private static final float AUTO_ROCKET_INTERVAL = 1f;
+    private static final int MAX_PLAYER_BULLETS = 4;
 
     private final GameSession session;
     private final ScenarioRunner scenarioRunner;
@@ -66,7 +68,13 @@ public final class GameSimulation {
         player.setLeft(controls.left());
         player.setRight(controls.right());
         player.setUp(controls.thrust());
-        if (controls.fire()) player.shoot();
+        if (controls.fire()) firePlayerBullet(player);
+    }
+
+    private void firePlayerBullet(Player player) {
+        if (session.getObjects().getProjectileCount() >= MAX_PLAYER_BULLETS) return;
+        session.getObjects().addBullet(new Bullet(
+                player.getX(), player.getY(), player.getRadians()));
     }
 
     private void updateTargeting(float delta, boolean scenarioActive) {

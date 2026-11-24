@@ -135,9 +135,8 @@ public class PlayState implements Disposable {
         // Создаем игрока только если он еще не создан (не восстановлен из состояния)
         if (player == null) {
             System.out.println("Создаем нового игрока в центре экрана");
-                    player = new Player(null); // Передаем null, так как теперь используем GameObjectManager
-        player.setGameObjectManager(gameObjectManager);
-        gameObjectManager.setPlayer(player);
+            player = new Player();
+            gameObjectManager.setPlayer(player);
         } else {
             System.out.println("Используем восстановленного игрока в позиции: (" + player.getX() + ", " + player.getY() + ")");
             gameObjectManager.setPlayer(player);

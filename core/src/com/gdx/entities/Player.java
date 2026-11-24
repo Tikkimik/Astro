@@ -6,7 +6,6 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
-import com.gdx.managers.GameObjectManager;
 import com.gdx.game.MyGdxGame;
 import com.gdx.managers.Camera;
 
@@ -15,10 +14,6 @@ import com.gdx.utils.Point2D;
 import com.gdx.utils.ParticlePool;
 
 public class Player extends SpaceObject{
-
-    private final int MAX_BULLETS = 4;
-    private Array<Bullet> bullets; // Оставляем для совместимости, но не используем
-    private GameObjectManager gameObjectManager; // Ссылка на менеджер объектов
 
     private final float[] flameX;
     private final float[] flameY;
@@ -94,11 +89,7 @@ public class Player extends SpaceObject{
     private float lastShapeY = Float.NaN;
     private float lastShapeRad = Float.NaN;
 
-    public Player(Array<Bullet> bullets){
-
-        this.bullets = bullets;
-        this.gameObjectManager = null; // Будет установлен позже
-
+    public Player(){
         x = MyGdxGame.WIDTH / 2;
         y = MyGdxGame.WIDTH / 2;
 
@@ -308,28 +299,12 @@ public class Player extends SpaceObject{
         // Пока что просто сохраняем значение
     }
 
-    public void setGameObjectManager(GameObjectManager gameObjectManager) {
-        this.gameObjectManager = gameObjectManager;
-    }
-
     public boolean intersects(SpaceObject other) {
         float dx = x - other.getX();
         float dy = y - other.getY();
         float distSq = dx * dx + dy * dy;
         float radiusSum = getWidth() / 2f + other.getWidth() / 2f;
         return distSq < radiusSum * radiusSum;
-    }
-
-    public void shoot(){
-        if (gameObjectManager != null) {
-            // Используем новую систему через GameObjectManager
-            if (gameObjectManager.getProjectileCount() >= MAX_BULLETS) return;
-            gameObjectManager.addBullet(new Bullet(x, y, radians));
-        } else {
-            // Fallback на старую систему для совместимости
-            if(bullets.size == MAX_BULLETS) return;
-            bullets.add(new Bullet(x, y, radians));
-        }
     }
 
     public boolean isHit() {

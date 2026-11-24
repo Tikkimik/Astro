@@ -56,7 +56,6 @@ public final class GameSession {
         highScore = snapshot.highScore();
         autoRocketTimer = snapshot.autoRocketTimer();
         elapsedTime = snapshot.elapsedTime();
-        player.setGameObjectManager(objects);
         world.updateReferences(objects, player);
     }
 
