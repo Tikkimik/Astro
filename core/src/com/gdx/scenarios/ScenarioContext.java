@@ -12,11 +12,14 @@ import com.gdx.entities.GameObject;
 import com.gdx.entities.OrkBullet;
 import com.gdx.entities.OrkAsteroid;
 import com.gdx.entities.Player;
+import com.gdx.entities.RocketParticle;
 import com.gdx.entities.SpaceObject;
 import com.gdx.entities.Targetable;
 import com.gdx.gamestates.PlayState;
 import com.gdx.managers.GameObjectManager;
 import com.gdx.utils.ObjectPools;
+import com.gdx.utils.ParticleBudget;
+import com.gdx.utils.ParticlePool;
 import com.gdx.session.GameSessionSnapshot;
 
 import java.util.HashSet;
@@ -34,6 +37,8 @@ public final class ScenarioContext {
     private final Set<String> completedActions = new HashSet<>();
     private DestructionEvent lastDestructionEvent;
     private int particlePoolFreeBefore;
+    private int autoRocketPoolFreeBefore;
+    private int particleBudgetActiveBefore;
 
     ScenarioContext(PlayState playState) {
         this.playState = playState;
@@ -276,6 +281,43 @@ public final class ScenarioContext {
         if (actual != expected) {
             throw new AssertionError("particles returned to pool: expected=" + expected
                     + ", actual=" + actual);
+        }
+    }
+
+    public void rememberAutoRocketPoolFreeCount() {
+        autoRocketPoolFreeBefore = ObjectPools.autoRocketPool.getFree();
+    }
+
+    public void expectAutoRocketsReturnedToPool(int expected) {
+        int actual = ObjectPools.autoRocketPool.getFree() - autoRocketPoolFreeBefore;
+        if (actual != expected) {
+            throw new AssertionError("auto rockets returned to pool: expected=" + expected
+                    + ", actual=" + actual);
+        }
+    }
+
+    public void rememberParticleBudgetActive() {
+        particleBudgetActiveBefore = ParticleBudget.getActive();
+    }
+
+    public void addRocketTrailParticle() {
+        float x = player().getX();
+        float y = player().getY();
+        ParticleBudget.updateBounds(x - 100f, x + 100f, y - 100f, y + 100f,
+                x - 100f, x + 100f, y - 100f, y + 100f);
+        RocketParticle particle = ParticlePool.obtainRocketParticle();
+        particle.init(x, y, 0f);
+        objects.addRocketParticle(particle);
+        if (ParticleBudget.getActive() != particleBudgetActiveBefore + 1) {
+            throw new AssertionError("rocket trail particle was not added to budget");
+        }
+    }
+
+    public void expectParticleBudgetRestored() {
+        int actual = ParticleBudget.getActive();
+        if (actual != particleBudgetActiveBefore) {
+            throw new AssertionError("particle budget after restore: expected="
+                    + particleBudgetActiveBefore + ", actual=" + actual);
         }
     }
 

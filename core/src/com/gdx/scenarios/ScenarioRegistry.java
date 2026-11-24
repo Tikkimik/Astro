@@ -158,8 +158,13 @@ public final class ScenarioRegistry {
                     context.addScore(15);
                     context.advanceSessionTime(5f);
                     context.asteroid("added-after-snapshot", 300f, 300f, Asteroid.SMALL);
+                    context.rocket("added-rocket", 250f, 300f, 0f, "added-after-snapshot");
+                    context.rememberAutoRocketPoolFreeCount();
+                    context.rememberParticleBudgetActive();
+                    context.addRocketTrailParticle();
                     context.restoreSession("before-mutation");
                     context.expectSessionElapsed(0f);
+                    context.expectParticleBudgetRestored();
                 })
                 .checkAt(0.05f, "score and experience restored", context -> {
                     context.expectScore(0);
@@ -167,6 +172,11 @@ public final class ScenarioRegistry {
                 })
                 .checkAt(0.05f, "objects added after snapshot removed",
                         context -> context.expectManaged("added-after-snapshot", false))
+                .checkAt(0.05f, "pooled additions released on restore", context -> {
+                    context.expectManaged("added-rocket", false);
+                    context.expectRocketHasNoTarget("added-rocket");
+                    context.expectAutoRocketsReturnedToPool(1);
+                })
                 .build());
     }
 

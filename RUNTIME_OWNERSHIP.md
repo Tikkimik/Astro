@@ -28,7 +28,7 @@
 | `GameDebugOverlay` | `PlayState` | не обновляет simulation; получает `GameDebugView` только при включённом overlay | владеет текстовым debug-проходом | не владеет GPU-ресурсами | Общий font принадлежит `PlayState`; timing-поля пока собирает координатор |
 | `GameWorldRenderer` | `PlayState` | не обновляет simulation | владеет порядком background/world/player/effects, общими render-pass и `RenderStats` | не владеет GPU-ресурсами | Engine plume и exhaust используют собственные специализированные renderer-компоненты |
 | `ProgressionManager` | `GameSession` | через события наград и HUD-анимацию | HUD читает состояние | живёт вместе с session | Presentation пока читает progression напрямую |
-| `GameSessionSnapshot` | создаёт `GameSession.createSnapshot()` | — | — | immutable snapshot для round-trip | Коллекции объектов восстанавливаются как in-memory состояние; файловая сериализация пока не реализована |
+| `GameSessionSnapshot` | создаёт `GameSession.createSnapshot()` | — | — | restore освобождает pooled-добавления и их particle budget | Коллекции остаются shallow in-memory snapshot; удалённые после snapshot объекты нельзя безопасно воскресить; файловой сериализации нет |
 
 ## Мир и игровые объекты
 

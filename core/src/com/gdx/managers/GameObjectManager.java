@@ -96,6 +96,15 @@ public class GameObjectManager {
     }
 
     public void restore(Snapshot snapshot) {
+        for (GameObject object : allObjects) {
+            if (!snapshot.allObjects.contains(object, true)) releaseObject(object);
+        }
+        for (RocketParticle particle : rocketParticles) {
+            if (!snapshot.rocketParticles.contains(particle, true)) {
+                com.gdx.utils.ParticlePool.freeRocketParticle(particle);
+                com.gdx.utils.ParticleBudget.release(1);
+            }
+        }
         allObjects.clear();
         allObjects.addAll(snapshot.allObjects);
         projectiles.clear();
