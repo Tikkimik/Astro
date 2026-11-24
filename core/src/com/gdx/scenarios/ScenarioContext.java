@@ -17,6 +17,7 @@ import com.gdx.entities.SpaceObject;
 import com.gdx.entities.Targetable;
 import com.gdx.gamestates.PlayState;
 import com.gdx.managers.GameObjectManager;
+import com.gdx.managers.ImprovedGameStateManager;
 import com.gdx.utils.ObjectPools;
 import com.gdx.utils.ParticleBudget;
 import com.gdx.utils.ParticlePool;
@@ -87,10 +88,52 @@ public final class ScenarioContext {
         }
     }
 
+    public void expectModalStatePreservesGameplayHandler() {
+        ImprovedGameStateManager manager = new ImprovedGameStateManager();
+        CountingStateHandler gameplay = new CountingStateHandler();
+        CountingStateHandler modal = new CountingStateHandler();
+        manager.registerStateHandler(ImprovedGameStateManager.GameState.PLAYING, gameplay);
+        manager.registerStateHandler(ImprovedGameStateManager.GameState.UPGRADE_SELECTION, modal);
+
+        try {
+            manager.setState(ImprovedGameStateManager.GameState.PLAYING);
+            manager.setState(ImprovedGameStateManager.GameState.UPGRADE_SELECTION);
+            manager.update(1f / 60f);
+            manager.render();
+
+            if (gameplay.updates != 0 || gameplay.renders != 1) {
+                throw new AssertionError("gameplay must be frozen and rendered once as underlay");
+            }
+            if (modal.updates != 1 || modal.renders != 1) {
+                throw new AssertionError("modal must own update and foreground render");
+            }
+
+            manager.setState(ImprovedGameStateManager.GameState.PLAYING);
+            if (gameplay.entries != 2) {
+                throw new AssertionError("registered gameplay handler must be reused on return");
+            }
+        } finally {
+            manager.dispose();
+        }
+    }
+
     public void controls(boolean thrust, boolean left, boolean right) {
         player().setUp(thrust);
         player().setLeft(left);
         player().setRight(right);
+    }
+
+    private static final class CountingStateHandler
+            implements ImprovedGameStateManager.StateHandler {
+        private int entries;
+        private int updates;
+        private int renders;
+
+        @Override public void onEnter() { entries++; }
+        @Override public void onUpdate(float deltaTime) { updates++; }
+        @Override public void onRender() { renders++; }
+        @Override public void onHandleInput() {}
+        @Override public void onExit() {}
     }
 
     public void setPlayerAngle(float radians) {

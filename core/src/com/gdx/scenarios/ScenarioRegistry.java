@@ -81,6 +81,13 @@ public final class ScenarioRegistry {
                         context -> context.expectPlayerProjectiles(4))
                 .build());
 
+        register(scenario("modal-state-preserves-gameplay-world")
+                .tags("state", "modal", "upgrade", "architecture", "logic")
+                .duration(0.05f)
+                .checkAt(0.01f, "modal reuses gameplay world",
+                        ScenarioContext::expectModalStatePreservesGameplayHandler)
+                .build());
+
         register(engineScenario("straight", 3.2f, 3f,
                 (context, elapsed, dt) -> {
                     context.setPlayerAngle(MathUtils.HALF_PI);

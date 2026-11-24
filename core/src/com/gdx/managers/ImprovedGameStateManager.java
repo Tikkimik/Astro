@@ -24,9 +24,8 @@ public class ImprovedGameStateManager {
     // Предыдущее состояние для возможности отката
     private GameState previousState = null;
     
-    // Игровое состояние, которое рисуется фоном под модальными экранами
-    // (пауза и настройки, открытые из паузы). Позволяет видеть застывшую игру
-    // за меню паузы даже после SETTINGS -> PAUSED.
+    // Игровое состояние, которое рисуется фоном под модальными экранами.
+    // Сохраняется и при SETTINGS -> PAUSED, чтобы пауза снова показала мир.
     private GameState underlayState = null;
     
     // Регистрированные обработчики состояний
@@ -40,19 +39,26 @@ public class ImprovedGameStateManager {
      * Enum для всех возможных состояний игры
      */
     public enum GameState {
-        MENU("Главное меню"),
-        PLAYING("Игровой процесс"),
-        PAUSED("Пауза"),
-        SETTINGS("Настройки");
+        MENU("Главное меню", false),
+        PLAYING("Игровой процесс", false),
+        PAUSED("Пауза", true),
+        SETTINGS("Настройки", false),
+        UPGRADE_SELECTION("Выбор улучшения", true);
         
         private final String description;
+        private final boolean gameplayUnderlay;
         
-        GameState(String description) {
+        GameState(String description, boolean gameplayUnderlay) {
             this.description = description;
+            this.gameplayUnderlay = gameplayUnderlay;
         }
         
         public String getDescription() {
             return description;
+        }
+
+        public boolean hasGameplayUnderlay() {
+            return gameplayUnderlay;
         }
     }
     
@@ -163,14 +169,13 @@ public class ImprovedGameStateManager {
         // Сохраняем предыдущее состояние
         previousState = oldState;
 
-        // Отслеживаем игровое состояние под модальными экранами.
-        // При входе в паузу из игры фиксируем PLAYING как фон; при переходе
-        // SETTINGS -> PAUSED фон сохраняется, чтобы игра была видна за меню паузы.
+        // Фон фиксируется при входе в любой игровой modal. Переход через
+        // немодальные настройки не стирает его, пока не начата игра или меню.
         if (newState == GameState.PLAYING) {
             underlayState = null;
         } else if (newState == GameState.MENU) {
             underlayState = null;
-        } else if (oldState == GameState.PLAYING && newState == GameState.PAUSED) {
+        } else if (oldState == GameState.PLAYING && newState.hasGameplayUnderlay()) {
             underlayState = GameState.PLAYING;
         }
         
@@ -227,10 +232,8 @@ public class ImprovedGameStateManager {
         if (currentState != null) {
             StateHandler handler = stateHandlers.get(currentState);
             if (handler != null) {
-                // Если мы в паузе и под ней лежит игра, сначала рисуем её,
-                // чтобы она была видна за полупрозрачным оверлеем меню паузы.
-                // Настройки рисуются на непрозрачном фоне, под ними игру не рисуем.
-                if (currentState == GameState.PAUSED && underlayState == GameState.PLAYING) {
+                // Модальный экран сначала получает застывший игровой underlay.
+                if (currentState.hasGameplayUnderlay() && underlayState == GameState.PLAYING) {
                     StateHandler underlayHandler = stateHandlers.get(GameState.PLAYING);
                     if (underlayHandler != null) {
                         underlayHandler.onRender();
