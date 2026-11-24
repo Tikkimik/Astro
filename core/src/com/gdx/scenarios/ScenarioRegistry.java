@@ -227,7 +227,7 @@ public final class ScenarioRegistry {
                 .build());
 
         register(scenario("asteroid-particles-return-to-pool")
-                .tags("asteroid", "particles", "pool", "logic", "visual")
+                .tags("asteroid", "particles", "pool", "visual")
                 .duration(1.3f)
                 .setup(context -> {
                     context.rememberParticlePoolFreeCount();

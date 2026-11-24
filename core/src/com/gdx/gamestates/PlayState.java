@@ -325,9 +325,12 @@ public class PlayState implements Disposable {
             dt = 0.016f; // Принудительно устанавливаем 60 FPS
         }
 
-        GamePresentation.ViewTimings presentationTimings = presentation.updateView(dt, player);
-        cameraTime = presentationTimings.cameraNanos();
-        backgroundTime = presentationTimings.backgroundNanos();
+        boolean logicScenario = ScenarioRuntime.isActive() && ScenarioRuntime.isLogicMode();
+        if (!logicScenario) {
+            GamePresentation.ViewTimings presentationTimings = presentation.updateView(dt, player);
+            cameraTime = presentationTimings.cameraNanos();
+            backgroundTime = presentationTimings.backgroundNanos();
+        }
 
         GameSimulation.BeginTickResult simulationResult = simulation.beginTick(dt,
                 new PlayerControls(inputLeft, inputRight, inputUp, inputFire),
@@ -339,8 +342,10 @@ public class PlayState implements Disposable {
             return;
         }
 
-        particlesTime = presentation.updateEffects(dt);
-        hudRenderer.update(dt, createHudView());
+        if (!logicScenario) {
+            particlesTime = presentation.updateEffects(dt);
+            hudRenderer.update(dt, createHudView());
+        }
         collisionsTime = simulation.finishTick(dt, ScenarioRuntime.isActive());
 
         // Завершаем мониторинг производительности
@@ -348,6 +353,9 @@ public class PlayState implements Disposable {
     }
 
     public void draw() {
+        if (ScenarioRuntime.isActive() && ScenarioRuntime.isLogicMode()) {
+            throw new IllegalStateException("Logic scenario must not enter presentation render");
+        }
         worldRenderer.draw(shapeRenderer, spriteBatch);
 
         hudRenderer.draw(spriteBatch, shapeRenderer, createHudView());

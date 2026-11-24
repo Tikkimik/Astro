@@ -120,7 +120,8 @@ public class MyGdxGame extends ApplicationAdapter {
 	 */
 	@Override
 	public void render () {
-		ScreenUtils.clear(0, 0, 0, 1); //black
+		boolean logicScenario = ScenarioRuntime.isActive() && ScenarioRuntime.isLogicMode();
+		if (!logicScenario) ScreenUtils.clear(0, 0, 0, 1);
 
 		// Получаем deltaTime через TimeManager для независимости от FPS
 		float deltaTime = TimeManager.getDeltaTime();
@@ -133,7 +134,7 @@ public class MyGdxGame extends ApplicationAdapter {
 		gameStateManager.handleInput();
 
 		int ticksThisFrame = 0;
-		if (ScenarioRuntime.isActive() && ScenarioRuntime.isLogicMode()) {
+		if (logicScenario) {
 			while (ScenarioRuntime.runner() != null
 					&& !ScenarioRuntime.runner().isComplete() && ticksThisFrame < 10_000) {
 				gameStateManager.update(TimeManager.getFixedStep());
@@ -147,13 +148,11 @@ public class MyGdxGame extends ApplicationAdapter {
 			}
 		}
 
-		// Отрисовка происходит каждый кадр (не зависит от временного шага)
-		gameStateManager.render();
-		TimeManager.incrementRenderCount();
-
-		// Честные метрики: реально отрисованный кадр и реально выполненные тики
-		// игровой логики (только в состоянии PLAYING — во время паузы логика не идёт).
-		PerformanceMetrics.onRenderFrame(gameStateManager.isPlaying() ? ticksThisFrame : 0);
+		if (!logicScenario) {
+			gameStateManager.render();
+			TimeManager.incrementRenderCount();
+			PerformanceMetrics.onRenderFrame(gameStateManager.isPlaying() ? ticksThisFrame : 0);
+		}
 
 		if (ScenarioRuntime.isActive()) {
 			String capturePath;

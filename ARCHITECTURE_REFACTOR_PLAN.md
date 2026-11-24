@@ -488,7 +488,7 @@ GameServices or GameContext
 
 Этот этап не реализует сами фичи. Он проверяет, что архитектура готова принять их без обходных путей.
 
-Статус: выполняется. Выпуск обычной пули перенесён с `Player` на simulation boundary; модель корабля больше не создаёт снаряды и не зависит от `GameObjectManager`. State manager поддерживает модальные состояния с замороженным игровым underlay без создания второго мира. Capture/restore сессии проходит через единый `GameSessionSnapshotMapper`; текущий snapshot остаётся runtime checkpoint, не дисковым форматом.
+Статус: завершён. Модальный state переиспользует игровой мир; `Targetable` расширяется через capability; оружие выпускается на simulation boundary; session checkpoint проходит через единый mapper; logic-сценарии выполняют fixed ticks без presentation update и render loop. Дальнейшие абстракции добавляются только вместе с конкретными фичами.
 
 Контрольные вопросы:
 
@@ -557,3 +557,4 @@ GameServices or GameContext
 - 2026-11-24 — этап 10: `Player` освобождён от создания пуль, лимита снарядов и ссылки на `GameObjectManager`; выпуск оружия теперь принадлежит `GameSimulation`. Сценарий `player-fire-creates-projectile` защищает путь input → simulation → projectile registry.
 - 2026-11-24 — этап 10: признак игрового underlay перенесён в описание state, добавлена точка расширения `UPGRADE_SELECTION`. Контрактный сценарий проверяет, что модальное состояние замораживает update мира, рисует его фоном и возвращается к тому же зарегистрированному gameplay handler.
 - 2026-11-24 — этап 10: сборка и восстановление `GameSessionSnapshot` вынесены в единый mapper. Контракт явно ограничен runtime rollback той же сессии: object snapshot сохраняет идентичность экземпляров и пока не предназначен для файловой сериализации.
+- 2026-11-24 — завершён этап 10: logic-mode больше не обновляет camera/background/HUD/effects и не вызывает renderer. Visual lifecycle частиц исключён из mechanics-набора. Все пять контрольных вопросов закрыты; полноценный headless backend и дисковая сериализация остаются отдельными фичами, а не условием текущего рефакторинга.
