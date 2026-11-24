@@ -324,6 +324,18 @@ public class Player extends SpaceObject{
         startInvulnerability();
     }
 
+    public void restorePersistentState(float x, float y, float dx, float dy, float radians) {
+        this.x = x;
+        this.y = y;
+        this.dx = dx;
+        this.dy = dy;
+        this.radians = radians;
+        hit = false;
+        dead = false;
+        setShape();
+        startInvulnerability();
+    }
+
     private void startInvulnerability() {
         isInvulnerable = true;
         invulnerabilityTimer = invulnerabilityTime;

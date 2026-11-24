@@ -151,6 +151,13 @@ public final class ScenarioRegistry {
     }
 
     private static void registerSessionScenarios() {
+        register(scenario("persistent-save-round-trip")
+                .tags("session", "save", "persistence", "logic")
+                .duration(0.05f)
+                .checkAt(0.01f, "persistent save handles round trip, corruption and version",
+                        ScenarioContext::expectPersistentSaveRoundTrip)
+                .build());
+
         register(scenario("player-has-single-owner")
                 .tags("player", "ownership", "logic")
                 .duration(0.1f)

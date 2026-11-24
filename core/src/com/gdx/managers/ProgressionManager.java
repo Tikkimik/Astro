@@ -6,6 +6,7 @@ import com.gdx.entities.AutoRocket;
 import com.gdx.entities.Bullet;
 import java.util.ArrayList;
 import java.util.List;
+import com.gdx.session.GameSaveData;
 
 public class ProgressionManager {
 
@@ -174,6 +175,40 @@ public class ProgressionManager {
     
     public List<Upgrade> getAvailableUpgrades() { return availableUpgrades; }
     public List<Upgrade> getSelectedUpgrades() { return selectedUpgrades; }
+
+    public List<String> getSelectedUpgradeTypes() {
+        List<String> types = new ArrayList<>(selectedUpgrades.size());
+        for (Upgrade upgrade : selectedUpgrades) types.add(upgrade.getType());
+        return types;
+    }
+
+    public void restorePersistentState(GameSaveData.ProgressionData data) {
+        currentLevel = data.currentLevel;
+        currentExperience = data.currentExperience;
+        experienceToNextLevel = data.experienceToNextLevel;
+        playerSpeed = data.playerSpeed;
+        bulletSpeed = data.bulletSpeed;
+        bulletDamage = data.bulletDamage;
+        fireRate = data.fireRate;
+        maxHealth = data.maxHealth;
+        healthRegen = data.healthRegen;
+        criticalChance = data.criticalChance;
+        criticalDamage = data.criticalDamage;
+        autoRocketCooldown = data.autoRocketCooldown;
+        autoRocketDamage = data.autoRocketDamage;
+        selectedUpgrades = new ArrayList<>();
+        for (String type : data.selectedUpgradeTypes) {
+            Upgrade upgrade = findUpgrade(type);
+            if (upgrade != null) selectedUpgrades.add(upgrade);
+        }
+    }
+
+    private Upgrade findUpgrade(String type) {
+        for (Upgrade upgrade : availableUpgrades) {
+            if (upgrade.getType().equals(type)) return upgrade;
+        }
+        return null;
+    }
 
     public Snapshot createSnapshot() {
         return new Snapshot(currentLevel, currentExperience, experienceToNextLevel,

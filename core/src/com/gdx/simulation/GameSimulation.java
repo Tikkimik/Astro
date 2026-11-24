@@ -36,7 +36,10 @@ public final class GameSimulation {
     public BeginTickResult beginTick(float delta, PlayerControls controls, boolean scenarioActive) {
         session.updateTime(delta);
         applyControls(controls);
-        if (!scenarioActive) session.getWorld().update(delta, restoredFromSave);
+        if (!scenarioActive) {
+            session.getWorld().update(delta, restoredFromSave);
+            restoredFromSave = false;
+        }
 
         long started = System.nanoTime();
         if (scenarioRunner != null) scenarioRunner.beforeUpdate(delta);

@@ -38,6 +38,7 @@ import com.gdx.scenarios.ScenarioRunner;
 import com.gdx.scenarios.ScenarioRuntime;
 import com.gdx.session.GameSession;
 import com.gdx.session.GameSessionSnapshot;
+import com.gdx.session.GameSaveData;
 import com.gdx.presentation.GameHudRenderer;
 import com.gdx.presentation.GameHudView;
 import com.gdx.presentation.GamePresentation;
@@ -485,6 +486,17 @@ public class PlayState implements Disposable {
             restoredFromSave = true;
             if (simulation != null) simulation.setRestoredFromSave(true);
         }
+    }
+
+    public GameSaveData createPersistentSave() {
+        return session.createSaveData();
+    }
+
+    public void restorePersistentSave(GameSaveData data) {
+        session.restore(data);
+        MyGdxGame.highScore = session.getHighScore();
+        restoredFromSave = false;
+        if (simulation != null) simulation.setRestoredFromSave(false);
     }
 
     // Генерируем шрифт с поддержкой кириллицы через gdx-freetype.

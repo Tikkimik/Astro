@@ -12,6 +12,7 @@ public final class GameSession {
     private final ProgressionManager progression;
     private final WorldManager world;
     private final GameSessionSnapshotMapper snapshotMapper;
+    private final GameSessionSaveMapper saveMapper;
 
     private int level = 1;
     private int totalAsteroids;
@@ -29,6 +30,7 @@ public final class GameSession {
         this.progression = progression;
         this.highScore = highScore;
         this.snapshotMapper = new GameSessionSnapshotMapper();
+        this.saveMapper = new GameSessionSaveMapper();
     }
 
     public void updateTime(float fixedDelta) {
@@ -47,6 +49,14 @@ public final class GameSession {
 
     public void restore(GameSessionSnapshot snapshot) {
         snapshotMapper.restore(this, snapshot);
+    }
+
+    public GameSaveData createSaveData() {
+        return saveMapper.capture(this);
+    }
+
+    public void restore(GameSaveData data) {
+        saveMapper.restore(this, data);
     }
 
     void applyMappedState(int level, int totalAsteroids, int numAsteroidsLeft,

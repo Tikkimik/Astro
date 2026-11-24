@@ -1,5 +1,8 @@
 package com.gdx.scenarios;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
+import com.badlogic.gdx.utils.Json;
 import com.badlogic.gdx.math.MathUtils;
 import com.gdx.combat.DestructionEvent;
 import com.gdx.entities.Asteroid;
@@ -22,6 +25,8 @@ import com.gdx.utils.ObjectPools;
 import com.gdx.utils.ParticleBudget;
 import com.gdx.utils.ParticlePool;
 import com.gdx.session.GameSessionSnapshot;
+import com.gdx.session.GameSaveData;
+import com.gdx.session.GameSaveStore;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -77,6 +82,52 @@ public final class ScenarioContext {
         float actual = playState.getSession().getElapsedTime();
         if (Math.abs(actual - expected) > 0.0001f) {
             throw new AssertionError("session elapsed: expected=" + expected + ", actual=" + actual);
+        }
+    }
+
+    public void expectPersistentSaveRoundTrip() {
+        playState.getSession().addScore(17);
+        playState.getSession().updateTime(2.5f);
+        GameSaveData saved = playState.getSession().createSaveData();
+
+        playState.getSession().addScore(9);
+        playState.getSession().updateTime(1f);
+        player().setRadians(saved.player.radians + 1f);
+        playState.getSession().restore(saved);
+
+        if (playState.getSession().getScore() != saved.session.score
+                || Math.abs(playState.getSession().getElapsedTime() - saved.session.elapsedTime) > 0.0001f
+                || Math.abs(player().getRadians() - saved.player.radians) > 0.0001f
+                || playState.getSession().getProgression().getCurrentExperience()
+                != saved.progression.currentExperience) {
+            throw new AssertionError("persistent session mapping did not restore durable state");
+        }
+
+        FileHandle file = Gdx.files.absolute(System.getProperty("java.io.tmpdir"))
+                .child("astro-save-scenario/session.json");
+        GameSaveStore store = new GameSaveStore(file);
+        store.delete();
+        try {
+            saved.session.score = 41;
+            if (!store.save(saved)) throw new AssertionError("initial save failed");
+            saved.session.score = 42;
+            if (!store.save(saved)) throw new AssertionError("replacement save failed");
+            file.writeString("{broken", false, "UTF-8");
+
+            GameSaveData recovered = store.load();
+            if (recovered == null || recovered.session.score != 41) {
+                throw new AssertionError("backup save was not recovered after primary corruption");
+            }
+
+            store.delete();
+            saved.version = GameSaveData.CURRENT_VERSION + 1;
+            file.parent().mkdirs();
+            file.writeString(new Json().prettyPrint(saved), false, "UTF-8");
+            if (store.load() != null) {
+                throw new AssertionError("unsupported save version was accepted");
+            }
+        } finally {
+            store.delete();
         }
     }
 

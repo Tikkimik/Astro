@@ -20,7 +20,8 @@ import java.util.ArrayList;
 /** Главное меню с общей типографикой и адаптивной раскладкой интерфейса. */
 public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
 
-    private static final String[] MENU_ITEMS = {"ИГРАТЬ", "НАСТРОЙКИ", "ВЫХОД"};
+    private static final String[] MENU_WITH_SAVE = {"ПРОДОЛЖИТЬ", "НОВАЯ ИГРА", "НАСТРОЙКИ", "ВЫХОД"};
+    private static final String[] MENU_WITHOUT_SAVE = {"НОВАЯ ИГРА", "НАСТРОЙКИ", "ВЫХОД"};
     private static final float MENU_SPACING = 62f;
     private static final float CLICK_HORIZONTAL_PADDING = 32f;
 
@@ -47,6 +48,15 @@ public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
     private final Color selectedColor = new Color(1f, 1f, 0.35f, 1f);
 
     private ImprovedGameStateManager stateManager;
+    private SessionStartListener sessionStartListener;
+    private String[] menuItems = MENU_WITHOUT_SAVE;
+    private boolean continueAvailable;
+
+    public interface SessionStartListener {
+        boolean canContinue();
+        void continueGame();
+        void startNewGame();
+    }
 
     @Override
     public void onEnter() {
@@ -54,6 +64,8 @@ public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
         if (!isInitialized) {
             initializeMenu();
         }
+        continueAvailable = sessionStartListener != null && sessionStartListener.canContinue();
+        menuItems = continueAvailable ? MENU_WITH_SAVE : MENU_WITHOUT_SAVE;
         selectedItem = 0;
         lastMouseX = Gdx.input.getX();
         lastMouseY = Gdx.input.getY();
@@ -99,7 +111,7 @@ public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
         titleFont.setColor(titleColor);
         drawCentered(titleFont, "ASTRO", titleY);
 
-        for (int i = 0; i < MENU_ITEMS.length; i++) {
+        for (int i = 0; i < menuItems.length; i++) {
             float baseline = getMenuBaseline(i);
             if (i == selectedItem) {
                 float pulse = 0.85f + 0.15f * MathUtils.sin(menuAnimationTimer * 5f);
@@ -107,7 +119,7 @@ public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
             } else {
                 headingFont.setColor(menuColor);
             }
-            drawCentered(headingFont, MENU_ITEMS[i], baseline);
+            drawCentered(headingFont, menuItems[i], baseline);
         }
 
         bodyFont.setColor(1f, 1f, 0.25f, 0.9f);
@@ -126,10 +138,10 @@ public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
         }
 
         if (GameKeys.isPressed(GameKeys.UP) || Gdx.input.isKeyJustPressed(Input.Keys.W)) {
-            selectedItem = (selectedItem - 1 + MENU_ITEMS.length) % MENU_ITEMS.length;
+            selectedItem = (selectedItem - 1 + menuItems.length) % menuItems.length;
         }
         if (GameKeys.isPressed(GameKeys.DOWN) || Gdx.input.isKeyJustPressed(Input.Keys.S)) {
-            selectedItem = (selectedItem + 1) % MENU_ITEMS.length;
+            selectedItem = (selectedItem + 1) % menuItems.length;
         }
         if (GameKeys.isPressed(GameKeys.ENTER)) {
             selectMenuItem();
@@ -210,14 +222,15 @@ public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
     }
 
     private float getMenuBaseline(int index) {
-        return screenHeight * 0.53f - index * MENU_SPACING;
+        float top = continueAvailable ? 0.61f : 0.53f;
+        return screenHeight * top - index * MENU_SPACING;
     }
 
     private int findMenuItem(float x, float y) {
         BitmapFont font = Fonts.getHeadingFont();
         float halfHeight = font.getLineHeight() * 0.75f;
-        for (int i = 0; i < MENU_ITEMS.length; i++) {
-            float width = measure(font, MENU_ITEMS[i]);
+        for (int i = 0; i < menuItems.length; i++) {
+            float width = measure(font, menuItems[i]);
             float left = (screenWidth - width) / 2f - CLICK_HORIZONTAL_PADDING;
             float right = (screenWidth + width) / 2f + CLICK_HORIZONTAL_PADDING;
             float baseline = getMenuBaseline(i);
@@ -229,11 +242,16 @@ public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
     }
 
     private void selectMenuItem() {
-        if (selectedItem == 0 && stateManager != null) {
+        int offset = continueAvailable ? 1 : 0;
+        if (offset == 1 && selectedItem == 0 && sessionStartListener != null) {
+            sessionStartListener.continueGame();
             stateManager.setState(ImprovedGameStateManager.GameState.PLAYING);
-        } else if (selectedItem == 1 && stateManager != null) {
+        } else if (selectedItem == offset && sessionStartListener != null) {
+            sessionStartListener.startNewGame();
+            stateManager.setState(ImprovedGameStateManager.GameState.PLAYING);
+        } else if (selectedItem == offset + 1 && stateManager != null) {
             stateManager.setState(ImprovedGameStateManager.GameState.SETTINGS);
-        } else if (selectedItem == 2) {
+        } else if (selectedItem == offset + 2) {
             Gdx.app.exit();
         }
     }
@@ -262,5 +280,9 @@ public class MenuStateHandler implements ImprovedGameStateManager.StateHandler {
 
     public void setStateManager(ImprovedGameStateManager stateManager) {
         this.stateManager = stateManager;
+    }
+
+    public void setSessionStartListener(SessionStartListener sessionStartListener) {
+        this.sessionStartListener = sessionStartListener;
     }
 }

@@ -29,6 +29,8 @@ import com.gdx.managers.RealPlayStateHandler;
 import com.gdx.managers.PausedStateHandler;
 import com.gdx.managers.SettingsStateHandler;
 import com.gdx.scenarios.ScenarioRuntime;
+import com.gdx.session.GameSaveStore;
+import com.gdx.session.GameSaveData;
 
 public class MyGdxGame extends ApplicationAdapter {
 	SpriteBatch batch;
@@ -235,13 +237,22 @@ public class MyGdxGame extends ApplicationAdapter {
 		GameLogger.info("=== ИНИЦИАЛИЗАЦИЯ НОВОЙ СИСТЕМЫ СОСТОЯНИЙ ===");
 
 		// Регистрируем обработчики для всех состояний
-		MenuStateHandler menuHandler = new MenuStateHandler();
-		menuHandler.setStateManager(gameStateManager);
-		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.MENU, menuHandler);
-
 		RealPlayStateHandler playHandler = new RealPlayStateHandler();
 		playHandler.setStateManager(gameStateManager);
+		GameSaveStore saveStore = GameSaveStore.createDefault();
+		GameSaveData existingSave = saveStore.load();
+		if (existingSave != null) highScore = Math.max(highScore, existingSave.session.highScore);
+		playHandler.setSaveStore(saveStore);
 		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.PLAYING, playHandler);
+
+		MenuStateHandler menuHandler = new MenuStateHandler();
+		menuHandler.setStateManager(gameStateManager);
+		menuHandler.setSessionStartListener(new MenuStateHandler.SessionStartListener() {
+			@Override public boolean canContinue() { return playHandler.canContinue(); }
+			@Override public void continueGame() { playHandler.requestContinue(); }
+			@Override public void startNewGame() { playHandler.requestNewGame(); }
+		});
+		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.MENU, menuHandler);
 
 		PausedStateHandler pauseHandler = new PausedStateHandler();
 		pauseHandler.setStateManager(gameStateManager);

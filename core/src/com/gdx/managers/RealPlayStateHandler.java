@@ -4,7 +4,9 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.GL20;
 import com.gdx.gamestates.PlayState;
 import com.gdx.utils.GameLogger;
-import com.gdx.session.GameSessionSnapshot;
+import com.gdx.session.GameSaveData;
+import com.gdx.session.GameSaveStore;
+import com.gdx.scenarios.ScenarioRuntime;
 
 /**
  * Обработчик состояния для настоящей игры
@@ -20,8 +22,8 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
     // Ссылка на менеджер состояний для переходов
     private ImprovedGameStateManager stateManager;
 
-    // Флаг для отслеживания, была ли игра восстановлена из сохранения
-    private boolean wasRestoredFromSave = false;
+    private GameSaveStore saveStore;
+    private boolean persistentLoadRequested;
 
     @Override
     public void onEnter() {
@@ -86,13 +88,14 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
     @Override
     public void onExit() {
         GameLogger.info("=== ВЫХОД ИЗ НАСТОЯЩЕГО ИГРОВОГО СОСТОЯНИЯ ===");
+        savePersistentGame();
         GameLogger.info("Настоящая игра деактивирована");
     }
 
     @Override
     public void onDispose() {
         if (playState != null) {
-            saveGameState();
+            savePersistentGame();
             playState.dispose();
             playState = null;
         }
@@ -110,6 +113,15 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
 
             // Инициализируем игру
             playState.init();
+
+            if (persistentLoadRequested && saveStore != null) {
+                GameSaveData data = saveStore.load();
+                if (data != null) {
+                    playState.restorePersistentSave(data);
+                    GameLogger.info("Сохранение загружено: " + saveStore.path());
+                }
+            }
+            persistentLoadRequested = false;
 
             GameLogger.info("Настоящая игра инициализирована успешно");
 
@@ -142,51 +154,33 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
         }
     }
 
-    /**
-     * Сохранение состояния игры
-     */
-    private void saveGameState() {
-        if (playState != null) {
-            try {
-                // Используем метод saveGameState из PlayState
-                GameSessionSnapshot savedState = playState.saveGameState();
-
-                if (savedState != null) {
-                    GameLogger.info("Состояние игры сохранено успешно");
-                    GameLogger.info("Очки: " + savedState.score() + ", Уровень: " + savedState.level());
-
-                    // Здесь можно сохранить состояние в глобальную переменную
-                    // для восстановления при возврате из паузы
-                    if (stateManager != null) {
-                        // Можно добавить метод в ImprovedGameStateManager для хранения сохраненного состояния
-                        GameLogger.info("Состояние готово для восстановления");
-                    }
-                }
-
-            } catch (Exception e) {
-                GameLogger.error("Ошибка при сохранении состояния игры: " + e.getMessage());
-            }
+    private void savePersistentGame() {
+        if (ScenarioRuntime.isActive() || saveStore == null || playState == null) return;
+        if (saveStore.save(playState.createPersistentSave())) {
+            GameLogger.info("Игра сохранена: " + saveStore.path());
         }
     }
 
-    /**
-     * Восстановление состояния игры
-     */
-    public void restoreGameState(GameSessionSnapshot savedState) {
-        if (playState != null && savedState != null) {
-            try {
-                GameLogger.info("Восстановление состояния игры...");
+    public void setSaveStore(GameSaveStore saveStore) {
+        this.saveStore = saveStore;
+    }
 
-                // Используем метод restoreGameState из PlayState
-                playState.restoreGameState(savedState);
+    public boolean canContinue() {
+        return playState != null || (saveStore != null && saveStore.hasValidSave());
+    }
 
-                wasRestoredFromSave = true;
-                GameLogger.info("Состояние игры восстановлено успешно");
+    public void requestContinue() {
+        persistentLoadRequested = playState == null;
+    }
 
-            } catch (Exception e) {
-                GameLogger.error("Ошибка при восстановлении состояния игры: " + e.getMessage());
-            }
+    public void requestNewGame() {
+        persistentLoadRequested = false;
+        if (playState != null) {
+            playState.dispose();
+            playState = null;
+            isInitialized = false;
         }
+        if (saveStore != null) saveStore.delete();
     }
 
     /**
@@ -203,10 +197,4 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
         return playState;
     }
 
-    /**
-     * Проверить, была ли игра восстановлена из сохранения
-     */
-    public boolean wasRestoredFromSave() {
-        return wasRestoredFromSave;
-    }
 }
