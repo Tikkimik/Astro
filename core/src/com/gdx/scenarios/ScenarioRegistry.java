@@ -88,6 +88,32 @@ public final class ScenarioRegistry {
                         ScenarioContext::expectModalStatePreservesGameplayHandler)
                 .build());
 
+        register(scenario("upgrade-choice-queue")
+                .tags("upgrade", "progression", "save", "logic")
+                .duration(0.05f)
+                .checkAt(0.01f, "offers are distinct and queued choices survive save",
+                        ScenarioContext::expectUpgradeChoiceQueue)
+                .build());
+
+        register(scenario("upgraded-player-bullet-uses-progression")
+                .tags("upgrade", "weapon", "projectile", "logic")
+                .duration(0.08f)
+                .setup(context -> {
+                    context.selectUpgrade("BULLET_SPEED");
+                    context.selectUpgrade("BULLET_DAMAGE");
+                    GameKeys.setKey(GameKeys.SPACE, true);
+                })
+                .checkAt(0.05f, "new bullet uses upgraded speed and damage",
+                        ScenarioContext::expectPlayerBulletUsesProgression)
+                .build());
+
+        register(scenario("every-offered-upgrade-changes-runtime-stat")
+                .tags("upgrade", "progression", "logic")
+                .duration(0.05f)
+                .checkAt(0.01f, "every card changes its owned runtime stat",
+                        ScenarioContext::expectEveryOfferedUpgradeChangesItsStat)
+                .build());
+
         register(engineScenario("straight", 3.2f, 3f,
                 (context, elapsed, dt) -> {
                     context.setPlayerAngle(MathUtils.HALF_PI);

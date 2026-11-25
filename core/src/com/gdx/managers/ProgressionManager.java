@@ -1,12 +1,11 @@
 package com.gdx.managers;
 
 import com.badlogic.gdx.math.MathUtils;
-import com.gdx.entities.Player;
-import com.gdx.entities.AutoRocket;
-import com.gdx.entities.Bullet;
+import com.gdx.session.GameSaveData;
+import com.gdx.utils.GameSettings;
+
 import java.util.ArrayList;
 import java.util.List;
-import com.gdx.session.GameSaveData;
 
 public class ProgressionManager {
 
@@ -24,6 +23,7 @@ public class ProgressionManager {
             float criticalDamage,
             float autoRocketCooldown,
             float autoRocketDamage,
+            int pendingUpgradeChoices,
             List<Upgrade> selectedUpgrades
     ) {}
     
@@ -33,8 +33,8 @@ public class ProgressionManager {
     private int experienceToNextLevel = 100; // Базовый опыт для следующего уровня
     
     // Статистики игрока
-    private float playerSpeed = 300f;
-    private float bulletSpeed = 350f;
+    private float playerSpeed;
+    private float bulletSpeed;
     private float bulletDamage = 1f;
     private float fireRate = 1f;
     private int maxHealth = 3;
@@ -43,12 +43,19 @@ public class ProgressionManager {
     private float criticalDamage = 2f;
     private float autoRocketCooldown = 1f;
     private float autoRocketDamage = 1f;
+    private int pendingUpgradeChoices;
+    private float configuredPlayerSpeed;
+    private float configuredBulletSpeed;
     
     // Доступные улучшения
     private List<Upgrade> availableUpgrades;
     private List<Upgrade> selectedUpgrades;
     
     public ProgressionManager() {
+        configuredPlayerSpeed = GameSettings.getPlayerSpeed();
+        configuredBulletSpeed = GameSettings.getBulletSpeed();
+        playerSpeed = configuredPlayerSpeed;
+        bulletSpeed = configuredBulletSpeed;
         availableUpgrades = new ArrayList<>();
         selectedUpgrades = new ArrayList<>();
         initializeUpgrades();
@@ -56,44 +63,22 @@ public class ProgressionManager {
     
     private void initializeUpgrades() {
         // Скорость игрока
-        availableUpgrades.add(new Upgrade("Speed Boost", "Move speed +20%", 
-            () -> playerSpeed *= 1.2f, "SPEED"));
+        availableUpgrades.add(new Upgrade("SPEED", "Форсаж", "Скорость корабля +20%"));
         
         // Скорость пуль
-        availableUpgrades.add(new Upgrade("Bullet Velocity", "Bullet speed +25%", 
-            () -> bulletSpeed *= 1.25f, "BULLET_SPEED"));
+        availableUpgrades.add(new Upgrade("BULLET_SPEED", "Ускоритель", "Скорость пуль +25%"));
         
         // Урон пуль
-        availableUpgrades.add(new Upgrade("Bullet Damage", "Bullet damage +30%", 
-            () -> bulletDamage *= 1.3f, "BULLET_DAMAGE"));
+        availableUpgrades.add(new Upgrade("BULLET_DAMAGE", "Тяжёлый заряд", "Урон пуль +30%"));
         
         // Скорость стрельбы
-        availableUpgrades.add(new Upgrade("Rapid Fire", "Fire rate +20%", 
-            () -> fireRate *= 1.2f, "FIRE_RATE"));
-        
-        // Максимальное здоровье
-        availableUpgrades.add(new Upgrade("Health Boost", "Max health +1", 
-            () -> maxHealth++, "MAX_HEALTH"));
-        
-        // Регенерация здоровья
-        availableUpgrades.add(new Upgrade("Health Regen", "Health regen +0.5", 
-            () -> healthRegen += 0.5f, "HEALTH_REGEN"));
-        
-        // Шанс критического удара
-        availableUpgrades.add(new Upgrade("Critical Strike", "Crit chance +10%", 
-            () -> criticalChance += 0.1f, "CRIT_CHANCE"));
-        
-        // Критический урон
-        availableUpgrades.add(new Upgrade("Critical Damage", "Crit damage +50%", 
-            () -> criticalDamage *= 1.5f, "CRIT_DAMAGE"));
+        availableUpgrades.add(new Upgrade("FIRE_RATE", "Быстрая очередь", "Скорострельность +20%"));
         
         // Автоматические ракеты
-        availableUpgrades.add(new Upgrade("Auto Rockets", "Rocket cooldown -15%", 
-            () -> autoRocketCooldown *= 0.85f, "ROCKET_COOLDOWN"));
+        availableUpgrades.add(new Upgrade("ROCKET_COOLDOWN", "Ракетный конвейер", "Перезарядка ракет −15%"));
         
         // Урон ракет
-        availableUpgrades.add(new Upgrade("Rocket Damage", "Rocket damage +40%", 
-            () -> autoRocketDamage *= 1.4f, "ROCKET_DAMAGE"));
+        availableUpgrades.add(new Upgrade("ROCKET_DAMAGE", "Боеголовка", "Урон ракет +40%"));
     }
     
     public void addExperience(int amount) {
@@ -108,48 +93,55 @@ public class ProgressionManager {
     private void levelUp() {
         currentExperience -= experienceToNextLevel;
         currentLevel++;
+        pendingUpgradeChoices++;
         
         // Увеличиваем опыт для следующего уровня (как в Magic Survival)
         experienceToNextLevel = (int)(experienceToNextLevel * 1.15f);
         
     }
     
-    public void selectRandomUpgrade() {
-        if (availableUpgrades.isEmpty()) return;
-        
-        int randomIndex = MathUtils.random(availableUpgrades.size() - 1);
-        Upgrade selectedUpgrade = availableUpgrades.get(randomIndex);
-        
-        // Применяем улучшение
-        selectedUpgrade.apply();
-        selectedUpgrades.add(selectedUpgrade);
-        
-        // НЕ удаляем из доступных - позволяем выбирать снова
-        // availableUpgrades.remove(randomIndex);
+    public List<Upgrade> createUpgradeOffer(int maximum) {
+        List<Upgrade> candidates = new ArrayList<>(availableUpgrades);
+        List<Upgrade> offer = new ArrayList<>(Math.min(maximum, candidates.size()));
+        while (offer.size() < maximum && !candidates.isEmpty()) {
+            offer.add(candidates.remove(MathUtils.random(candidates.size() - 1)));
+        }
+        return List.copyOf(offer);
     }
-    
-    // Метод для применения улучшений к игровым объектам
-    public void applyUpgradesToGameObjects(Player player, ArrayList<AutoRocket> autoRockets, ArrayList<Bullet> bullets) {
-        // Применяем улучшения к игроку
-        if (player != null) {
-            player.setSpeed(playerSpeed);
-            player.setFireRate(fireRate);
-            player.setMaxHealth(maxHealth);
-            player.setHealthRegen(healthRegen);
+
+    public boolean selectUpgrade(String type) {
+        if (pendingUpgradeChoices <= 0) return false;
+        Upgrade upgrade = findUpgrade(type);
+        if (upgrade == null) return false;
+
+        apply(upgrade.getType());
+        selectedUpgrades.add(upgrade);
+        pendingUpgradeChoices--;
+        return true;
+    }
+
+    private void apply(String type) {
+        switch (type) {
+            case "SPEED" -> playerSpeed *= 1.2f;
+            case "BULLET_SPEED" -> bulletSpeed *= 1.25f;
+            case "BULLET_DAMAGE" -> bulletDamage *= 1.3f;
+            case "FIRE_RATE" -> fireRate *= 1.2f;
+            case "ROCKET_COOLDOWN" -> autoRocketCooldown *= 0.85f;
+            case "ROCKET_DAMAGE" -> autoRocketDamage *= 1.4f;
+            default -> throw new IllegalArgumentException("Неизвестное улучшение: " + type);
         }
-        
-        // Применяем улучшения к существующим ракетам
-        if (autoRockets != null) {
-            for (AutoRocket rocket : autoRockets) {
-                rocket.setDamage(autoRocketDamage);
-            }
+    }
+
+    public void syncConfiguredBaseStats() {
+        float newPlayerSpeed = GameSettings.getPlayerSpeed();
+        if (newPlayerSpeed != configuredPlayerSpeed) {
+            playerSpeed *= newPlayerSpeed / configuredPlayerSpeed;
+            configuredPlayerSpeed = newPlayerSpeed;
         }
-        
-        // Применяем улучшения к существующим пулям
-        if (bullets != null) {
-            for (Bullet bullet : bullets) {
-                bullet.setDamage(bulletDamage);
-            }
+        float newBulletSpeed = GameSettings.getBulletSpeed();
+        if (newBulletSpeed != configuredBulletSpeed) {
+            bulletSpeed *= newBulletSpeed / configuredBulletSpeed;
+            configuredBulletSpeed = newBulletSpeed;
         }
     }
     
@@ -164,6 +156,8 @@ public class ProgressionManager {
     public float getCriticalDamage() { return criticalDamage; }
     public float getAutoRocketCooldown() { return autoRocketCooldown; }
     public float getAutoRocketDamage() { return autoRocketDamage; }
+    public int getPendingUpgradeChoices() { return pendingUpgradeChoices; }
+    public boolean hasPendingUpgradeChoice() { return pendingUpgradeChoices > 0; }
     
     // Геттеры для системы уровней
     public int getCurrentLevel() { return currentLevel; }
@@ -196,6 +190,9 @@ public class ProgressionManager {
         criticalDamage = data.criticalDamage;
         autoRocketCooldown = data.autoRocketCooldown;
         autoRocketDamage = data.autoRocketDamage;
+        pendingUpgradeChoices = data.pendingUpgradeChoices;
+        configuredPlayerSpeed = GameSettings.getPlayerSpeed();
+        configuredBulletSpeed = GameSettings.getBulletSpeed();
         selectedUpgrades = new ArrayList<>();
         for (String type : data.selectedUpgradeTypes) {
             Upgrade upgrade = findUpgrade(type);
@@ -214,7 +211,7 @@ public class ProgressionManager {
         return new Snapshot(currentLevel, currentExperience, experienceToNextLevel,
                 playerSpeed, bulletSpeed, bulletDamage, fireRate, maxHealth,
                 healthRegen, criticalChance, criticalDamage, autoRocketCooldown,
-                autoRocketDamage, List.copyOf(selectedUpgrades));
+                autoRocketDamage, pendingUpgradeChoices, List.copyOf(selectedUpgrades));
     }
 
     public void restore(Snapshot snapshot) {
@@ -231,25 +228,20 @@ public class ProgressionManager {
         criticalDamage = snapshot.criticalDamage();
         autoRocketCooldown = snapshot.autoRocketCooldown();
         autoRocketDamage = snapshot.autoRocketDamage();
+        pendingUpgradeChoices = snapshot.pendingUpgradeChoices();
         selectedUpgrades = new ArrayList<>(snapshot.selectedUpgrades());
     }
     
     // Класс для улучшений
     public static class Upgrade {
-        private String name;
-        private String description;
-        private Runnable effect;
-        private String type;
-        
-        public Upgrade(String name, String description, Runnable effect, String type) {
+        private final String type;
+        private final String name;
+        private final String description;
+
+        public Upgrade(String type, String name, String description) {
+            this.type = type;
             this.name = name;
             this.description = description;
-            this.effect = effect;
-            this.type = type;
-        }
-        
-        public void apply() {
-            effect.run();
         }
         
         public String getName() { return name; }

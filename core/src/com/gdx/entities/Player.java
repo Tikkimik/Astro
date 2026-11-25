@@ -401,11 +401,6 @@ public class Player extends SpaceObject{
 
     public void update(float dt) {
 
-        // Настройка «Скорость игрока» — единый источник максимальной скорости.
-        // Читается каждый кадр логики, поэтому изменение применяется сразу,
-        // без пересоздания игрока (проверяется в Debug-меню по факту скорости).
-        maxSpeed = com.gdx.utils.GameSettings.getPlayerSpeed();
-
         //hit check
         if(hit) {
             hitTimer += dt;

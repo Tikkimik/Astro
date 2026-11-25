@@ -212,6 +212,8 @@ float[] interpolatedPos = InterpolationManager.interpolatePosition(
 ## 📚 Документация
 
 - [SCENARIO_TESTING_PLAN.md](SCENARIO_TESTING_PLAN.md) - Конструктор детерминированных игровых сценариев
+- [SAVE_SYSTEM.md](SAVE_SYSTEM.md) - Формат, восстановление и правила расширения сохранений
+- [UPGRADE_SYSTEM.md](UPGRADE_SYSTEM.md) - Flow выбора улучшений и правила добавления новых эффектов
 - [FUTURE_PLANS.md](FUTURE_PLANS.md) - Отложенные продуктовые направления и архитектурные ориентиры
 - [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) - Текущий игровой flow, наследование и безопасная дорожная карта рефакторинга
 - [ARCHITECTURE_REFACTOR_PLAN.md](ARCHITECTURE_REFACTOR_PLAN.md) - Живой поэтапный план архитектурных изменений
@@ -226,6 +228,7 @@ float[] interpolatedPos = InterpolationManager.interpolatePosition(
 
 ### Особенности
 - **Самонаводящиеся ракеты** - автоматически находят цели
+- **Выбор улучшений** - три варианта при каждом новом уровне с очередью нескольких повышений
 - **Система частиц** - красивые эффекты двигателя и следов ракет
 - **Динамическая камера** - плавно следует за игроком
 - **Реалистичная физика** - астероиды разлетаются при уничтожении

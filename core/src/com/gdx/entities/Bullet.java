@@ -15,20 +15,25 @@ public class Bullet extends SpaceObject implements GameObject.Updatable, GameObj
     public Bullet(float x, float y, float radians){
         init(x, y, radians);
     }
+
+    public Bullet(float x, float y, float radians, float speed, float damage) {
+        init(x, y, radians, speed, damage);
+    }
     
     // Метод инициализации для пула объектов
     public void init(float x, float y, float radians){
+        init(x, y, radians, com.gdx.utils.GameSettings.getBulletSpeed(), 1f);
+    }
+
+    public void init(float x, float y, float radians, float speed, float damage) {
         this.x = x;
         this.y = y;
         this.radians = radians;
         this.remove = false;
         this.lifeTimer = 0;
         this.lifeTime = 1f;
-        this.damage = 1f;
-
-        // Новые снаряды создаются с актуальной настройкой «Скорость пуль».
-        // Уже летящие пули скорость не меняют.
-        this.speed = com.gdx.utils.GameSettings.getBulletSpeed();
+        this.damage = damage;
+        this.speed = speed;
 
         dx = MathUtils.cos(radians) * speed;
         dy = MathUtils.sin(radians) * speed;

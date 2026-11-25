@@ -56,6 +56,11 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
 
         // Обновляем настоящую игру
         playState.update(deltaTime);
+        if (playState.getProgressionManager().hasPendingUpgradeChoice()
+                && stateManager != null
+                && stateManager.isPlaying()) {
+            stateManager.setState(ImprovedGameStateManager.GameState.UPGRADE_SELECTION);
+        }
     }
 
     @Override
@@ -159,6 +164,10 @@ public class RealPlayStateHandler implements ImprovedGameStateManager.StateHandl
         if (saveStore.save(playState.createPersistentSave())) {
             GameLogger.info("Игра сохранена: " + saveStore.path());
         }
+    }
+
+    public void saveNow() {
+        savePersistentGame();
     }
 
     public void setSaveStore(GameSaveStore saveStore) {

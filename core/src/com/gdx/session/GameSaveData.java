@@ -44,6 +44,7 @@ public final class GameSaveData {
         public float criticalDamage;
         public float autoRocketCooldown;
         public float autoRocketDamage;
+        public int pendingUpgradeChoices;
         public List<String> selectedUpgradeTypes = new ArrayList<>();
     }
 }

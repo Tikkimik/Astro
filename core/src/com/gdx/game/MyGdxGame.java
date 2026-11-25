@@ -27,7 +27,9 @@ import com.gdx.shaders.FlameShader;
 import com.gdx.managers.MenuStateHandler;
 import com.gdx.managers.RealPlayStateHandler;
 import com.gdx.managers.PausedStateHandler;
+import com.gdx.managers.ProgressionManager;
 import com.gdx.managers.SettingsStateHandler;
+import com.gdx.managers.UpgradeSelectionStateHandler;
 import com.gdx.scenarios.ScenarioRuntime;
 import com.gdx.session.GameSaveStore;
 import com.gdx.session.GameSaveData;
@@ -261,6 +263,17 @@ public class MyGdxGame extends ApplicationAdapter {
 		SettingsStateHandler settingsHandler = new SettingsStateHandler();
 		settingsHandler.setStateManager(gameStateManager);
 		gameStateManager.registerStateHandler(ImprovedGameStateManager.GameState.SETTINGS, settingsHandler);
+
+		UpgradeSelectionStateHandler upgradeHandler = new UpgradeSelectionStateHandler(
+				new UpgradeSelectionStateHandler.SessionAccess() {
+					@Override public ProgressionManager progression() {
+						return playHandler.getPlayState().getProgressionManager();
+					}
+					@Override public void selectionCommitted() { playHandler.saveNow(); }
+				});
+		upgradeHandler.setStateManager(gameStateManager);
+		gameStateManager.registerStateHandler(
+				ImprovedGameStateManager.GameState.UPGRADE_SELECTION, upgradeHandler);
 
 		// Добавляем слушателя для логирования изменений состояния
 		gameStateManager.addStateChangeListener((from, to) -> {

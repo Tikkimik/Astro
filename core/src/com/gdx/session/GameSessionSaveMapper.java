@@ -38,6 +38,7 @@ public final class GameSessionSaveMapper {
         data.progression.criticalDamage = progression.getCriticalDamage();
         data.progression.autoRocketCooldown = progression.getAutoRocketCooldown();
         data.progression.autoRocketDamage = progression.getAutoRocketDamage();
+        data.progression.pendingUpgradeChoices = progression.getPendingUpgradeChoices();
         data.progression.selectedUpgradeTypes.addAll(progression.getSelectedUpgradeTypes());
         return data;
     }
@@ -64,6 +65,7 @@ public final class GameSessionSaveMapper {
                 || data.progression.currentLevel < 1
                 || data.progression.experienceToNextLevel < 1
                 || data.progression.currentExperience < 0
+                || data.progression.pendingUpgradeChoices < 0
                 || !Float.isFinite(data.player.x) || !Float.isFinite(data.player.y)
                 || !Float.isFinite(data.player.dx) || !Float.isFinite(data.player.dy)
                 || !Float.isFinite(data.player.radians)

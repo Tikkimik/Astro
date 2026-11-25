@@ -18,7 +18,7 @@ public final class GameSimulation {
     ) {}
 
     private static final float TARGET_CACHE_DURATION = 0.1f;
-    private static final float AUTO_ROCKET_INTERVAL = 1f;
+    private static final float BASE_PLAYER_FIRE_INTERVAL = 0.25f;
     private static final int MAX_PLAYER_BULLETS = 4;
 
     private final GameSession session;
@@ -27,6 +27,7 @@ public final class GameSimulation {
     private float targetCacheTimer;
     private boolean autoRocketLeftSide = true;
     private boolean restoredFromSave;
+    private float playerFireTimer = BASE_PLAYER_FIRE_INTERVAL;
 
     public GameSimulation(GameSession session, ScenarioRunner scenarioRunner) {
         this.session = session;
@@ -35,6 +36,8 @@ public final class GameSimulation {
 
     public BeginTickResult beginTick(float delta, PlayerControls controls, boolean scenarioActive) {
         session.updateTime(delta);
+        session.getProgression().syncConfiguredBaseStats();
+        playerFireTimer += delta;
         applyControls(controls);
         if (!scenarioActive) {
             session.getWorld().update(delta, restoredFromSave);
@@ -44,6 +47,7 @@ public final class GameSimulation {
         long started = System.nanoTime();
         if (scenarioRunner != null) scenarioRunner.beforeUpdate(delta);
         Player player = session.getPlayer();
+        player.setSpeed(session.getProgression().getPlayerSpeed());
         player.update(delta);
         if (player.isDead()) {
             player.reset();
@@ -76,8 +80,13 @@ public final class GameSimulation {
 
     private void firePlayerBullet(Player player) {
         if (session.getObjects().getProjectileCount() >= MAX_PLAYER_BULLETS) return;
+        float interval = BASE_PLAYER_FIRE_INTERVAL / session.getProgression().getFireRate();
+        if (playerFireTimer < interval) return;
         session.getObjects().addBullet(new Bullet(
-                player.getX(), player.getY(), player.getRadians()));
+                player.getX(), player.getY(), player.getRadians(),
+                session.getProgression().getBulletSpeed(),
+                session.getProgression().getBulletDamage()));
+        playerFireTimer = 0f;
     }
 
     private void updateTargeting(float delta, boolean scenarioActive) {
@@ -91,7 +100,7 @@ public final class GameSimulation {
         if (scenarioActive) return;
 
         session.addAutoRocketTime(delta);
-        if (session.getAutoRocketTimer() >= AUTO_ROCKET_INTERVAL) {
+        if (session.getAutoRocketTimer() >= session.getProgression().getAutoRocketCooldown()) {
             createAutoRocket();
             session.resetAutoRocketTimer();
         }
@@ -106,8 +115,10 @@ public final class GameSimulation {
 
         float angle = player.getRadians()
                 + (autoRocketLeftSide ? MathUtils.HALF_PI : -MathUtils.HALF_PI);
-        session.getObjects().addAutoRocket(ObjectPools.obtainAutoRocket(
-                player.getX(), player.getY(), angle, cachedNearestTarget));
+        AutoRocket rocket = ObjectPools.obtainAutoRocket(
+                player.getX(), player.getY(), angle, cachedNearestTarget);
+        rocket.setDamage(session.getProgression().getAutoRocketDamage());
+        session.getObjects().addAutoRocket(rocket);
         autoRocketLeftSide = !autoRocketLeftSide;
     }
 

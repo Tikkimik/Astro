@@ -21,6 +21,7 @@ import com.gdx.entities.Targetable;
 import com.gdx.gamestates.PlayState;
 import com.gdx.managers.GameObjectManager;
 import com.gdx.managers.ImprovedGameStateManager;
+import com.gdx.managers.ProgressionManager;
 import com.gdx.utils.ObjectPools;
 import com.gdx.utils.ParticleBudget;
 import com.gdx.utils.ParticlePool;
@@ -129,6 +130,99 @@ public final class ScenarioContext {
         } finally {
             store.delete();
         }
+    }
+
+    public void expectUpgradeChoiceQueue() {
+        ProgressionManager progression = playState.getProgressionManager();
+        progression.addExperience(220);
+        if (progression.getCurrentLevel() != 3 || progression.getPendingUpgradeChoices() != 2) {
+            throw new AssertionError("two earned levels must create two pending choices");
+        }
+
+        java.util.List<ProgressionManager.Upgrade> offer = progression.createUpgradeOffer(3);
+        Set<String> uniqueTypes = new HashSet<>();
+        for (ProgressionManager.Upgrade upgrade : offer) uniqueTypes.add(upgrade.getType());
+        if (offer.size() != 3 || uniqueTypes.size() != 3) {
+            throw new AssertionError("upgrade offer must contain three distinct choices");
+        }
+
+        ProgressionManager.Upgrade selected = offer.get(0);
+        float valueBefore = upgradeValue(progression, selected.getType());
+        if (!progression.selectUpgrade(selected.getType())) {
+            throw new AssertionError("offered upgrade was not selected");
+        }
+        float valueAfter = upgradeValue(progression, selected.getType());
+        if (valueAfter == valueBefore || progression.getPendingUpgradeChoices() != 1
+                || progression.getSelectedUpgrades().size() != 1) {
+            throw new AssertionError("selection must apply exactly one upgrade and consume one choice");
+        }
+
+        GameSaveData saved = playState.getSession().createSaveData();
+        ProgressionManager.Upgrade second = progression.createUpgradeOffer(3).get(0);
+        progression.selectUpgrade(second.getType());
+        playState.getSession().restore(saved);
+        if (progression.getPendingUpgradeChoices() != 1
+                || progression.getSelectedUpgrades().size() != 1) {
+            throw new AssertionError("pending choice queue was not restored from save");
+        }
+
+        progression.selectUpgrade(progression.createUpgradeOffer(3).get(0).getType());
+        if (progression.hasPendingUpgradeChoice()
+                || progression.getSelectedUpgrades().size() != 2) {
+            throw new AssertionError("second choice did not finish the queued level-ups");
+        }
+    }
+
+    public void selectUpgrade(String type) {
+        ProgressionManager progression = playState.getProgressionManager();
+        progression.addExperience(progression.getExperienceToNextLevel());
+        if (!progression.selectUpgrade(type)) {
+            throw new AssertionError("could not select test upgrade " + type);
+        }
+    }
+
+    public void expectEveryOfferedUpgradeChangesItsStat() {
+        ProgressionManager progression = playState.getProgressionManager();
+        for (ProgressionManager.Upgrade upgrade : progression.getAvailableUpgrades()) {
+            float before = upgradeValue(progression, upgrade.getType());
+            progression.addExperience(progression.getExperienceToNextLevel());
+            if (!progression.selectUpgrade(upgrade.getType())) {
+                throw new AssertionError("upgrade could not be selected: " + upgrade.getType());
+            }
+            float after = upgradeValue(progression, upgrade.getType());
+            if (after == before) {
+                throw new AssertionError("upgrade did not change its runtime stat: " + upgrade.getType());
+            }
+        }
+        if (progression.hasPendingUpgradeChoice()) {
+            throw new AssertionError("upgrade contract check left a pending choice");
+        }
+    }
+
+    public void expectPlayerBulletUsesProgression() {
+        for (GameObject object : objects.getProjectiles()) {
+            if (object.getObject() instanceof Bullet bullet) {
+                ProgressionManager progression = playState.getProgressionManager();
+                if (Math.abs(bullet.getSpeed() - progression.getBulletSpeed()) > 0.0001f
+                        || Math.abs(bullet.getDamage() - progression.getBulletDamage()) > 0.0001f) {
+                    throw new AssertionError("new bullet ignored progression weapon stats");
+                }
+                return;
+            }
+        }
+        throw new AssertionError("no player bullet found");
+    }
+
+    private float upgradeValue(ProgressionManager progression, String type) {
+        return switch (type) {
+            case "SPEED" -> progression.getPlayerSpeed();
+            case "BULLET_SPEED" -> progression.getBulletSpeed();
+            case "BULLET_DAMAGE" -> progression.getBulletDamage();
+            case "FIRE_RATE" -> progression.getFireRate();
+            case "ROCKET_COOLDOWN" -> progression.getAutoRocketCooldown();
+            case "ROCKET_DAMAGE" -> progression.getAutoRocketDamage();
+            default -> throw new AssertionError("unknown upgrade type " + type);
+        };
     }
 
     public void expectPlayerProjectiles(int maximum) {
